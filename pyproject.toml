@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'magentropy'
-version = '0.1.0'
+version = '0.1.1'
 description = 'Perform magnetoentropic mapping of magnetic materials based on DC magnetization data.'
 readme = 'README.md'
 requires-python = '>=3.9'
@@ -48,7 +48,7 @@ dev = [
     'myst-nb >= 0.16.0',
     'myst-parser >= 0.18.0',
     'numpydoc >= 1.4.0',
-    'pandoc >= 2.18',
+    'pandoc >= 2.2',
     'pylint >= 2.12.2',
     'pytest >= 7.1.2',
     'sphinx >= 5.0.2',
