@@ -200,4 +200,6 @@ nb_execution_mode = 'cache'
 
 nb_execution_timeout = -1
 
+nb_execution_raise_on_error = True
+
 nb_merge_streams = True
