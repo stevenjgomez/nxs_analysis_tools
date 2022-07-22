@@ -1,10 +1,23 @@
-*.png
-*.pyc
 *~
 .vscode/
 .DS_Store
 .ipynb_checkpoints/
-__pycache__/
 docs/build/
-magentropy.egg-info/
-installation.txt
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+*.egg
