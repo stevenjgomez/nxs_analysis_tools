@@ -2,7 +2,7 @@
 Contains functions used for simulation, smoothing, interpolation, differentiation, and integration.
 '''
 
-from typing import Union, Any
+from typing import Union
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray

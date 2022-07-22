@@ -59,13 +59,13 @@ conditions, and disclaimer are copied below.
 #(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Union, Optional, Any
+from typing import Union, Optional
 import logging
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy import optimize
-from numba import njit, prange, objmode
+from numba import njit, prange
 
 from .typedefs import Kwargs, MatchErrStr, ToMinimizeStr
 
