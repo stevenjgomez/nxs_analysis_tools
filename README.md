@@ -1,6 +1,7 @@
 # MagentroPy
 
-```{admonition} References
+## References
+
 Please cite the following in any published work that makes use of this package:
 
 > [1] J. D. Bocarsly et al.,
@@ -13,7 +14,6 @@ The first version of the `magentropy` code was included as supplementary
 material in [1]. The Tikhonov regularization procedure was described
 in [2] and was originally implemented by Stickel in the package
 [scikit.datasmooth](https://github.com/jjstickel/scikit-datasmooth).
-```
 
 ## Overview
 
