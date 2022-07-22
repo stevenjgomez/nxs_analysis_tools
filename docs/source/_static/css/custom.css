@@ -1,0 +1,25 @@
+div.cell_output div {
+    overflow-x: auto;
+    border: 1px solid #f2f2f2;
+    border-radius: 5px;
+}
+
+div.cell_output div p {
+    padding-left: 5px;
+}
+
+div.cell_output table {
+    font-size: 0.75em;
+}
+
+div.cell_output img {
+    background-color: #ffffff;
+}
+
+table.dataframe {
+    min-width: 100%;
+}
+
+table.dataframe thead, table.dataframe tbody {
+    background-color: #ffffff;
+  }

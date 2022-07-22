@@ -1,0 +1,70 @@
+[build-system]
+requires = ['setuptools>=61.2.0', 'wheel']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'magentropy'
+version = '0.1.0'
+description = 'Perform magnetoentropic mapping of magnetic materials based on DC magnetization data.'
+readme = 'README.md'
+requires-python = '>=3.9'
+license = { file = 'LICENSE' }
+authors = [{ name = 'Soren Bear', email = 'sbear@ucsb.edu' }]
+keywords = [
+    'magentropy',
+    'magnetoentropy',
+    'magnetoentropic',
+    'magnetocaloric',
+    'magnetization',
+    'materials',
+]
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Topic :: Scientific/Engineering',
+]
+dependencies = [
+    'cycler >= 0.11.0',
+    'matplotlib >= 3.5.1',
+    'numba >= 0.55.1',
+    'numpy >= 1.21.5',
+    'pandas >= 1.4.3',
+    'pint >= 0.19.2',
+    'pint-pandas >= 0.2',
+    'scipy >= 1.7.3',
+    'tomli >= 2.0.1; python_version < "3.11"',
+]
+
+[project.optional-dependencies]
+dev = [
+    'build >= 0.8.0',
+    'furo >= 2022.6.21',
+    'ipykernel >= 6.9.1',
+    'myst-nb >= 0.16.0',
+    'myst-parser >= 0.18.0',
+    'numpydoc >= 1.4.0',
+    'pandoc >= 2.18',
+    'pylint >= 2.12.2',
+    'pytest >= 7.1.2',
+    'sphinx >= 5.0.2',
+    'sphinx-autobuild >= 2021.3.14',
+    'sphinx-copybutton >= 0.5.0',
+    'sphinxext-opengraph >= 0.6.3',
+    'twine >= 4.0.1',
+]
+
+[project.urls]
+Download = 'https://pypi.org/project/magentropy/'
+'Bug Tracker' = 'https://github.com/sorenbear/magentropy/issues'
+Documentation = 'https://magentropy.readthedocs.io/en/stable/'
+'Source Code' = 'https://github.com/sorenbear/magentropy'
+
+[tool.magentropy]
+project_name = 'MagentroPy'
+license_name = 'MIT'
+copyright_year = '2022'
