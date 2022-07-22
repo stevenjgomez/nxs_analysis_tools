@@ -1,3 +1,5 @@
+# keep consistent with _meta/__init__.py
+
 [build-system]
 requires = ['setuptools>=61.2.0', 'wheel']
 build-backend = 'setuptools.build_meta'
@@ -63,8 +65,3 @@ Download = 'https://pypi.org/project/magentropy/'
 'Bug Tracker' = 'https://github.com/sorenbear/magentropy/issues'
 Documentation = 'https://magentropy.readthedocs.io/en/stable/'
 'Source Code' = 'https://github.com/sorenbear/magentropy'
-
-[tool.magentropy]
-project_name = 'MagentroPy'
-license_name = 'MIT'
-copyright_year = '2022'
