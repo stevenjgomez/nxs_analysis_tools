@@ -27,7 +27,7 @@ Magnetometer or a
 However, `pandas.DataFrame`s or delimited files such as `.csv`
 are also acceptable inputs.
 
-View the documentation
+View the documentation [here](https://magentropy.readthedocs.io/en/stable/).
 
 ## Installation
 
