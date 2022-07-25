@@ -333,6 +333,10 @@ class MagentroData:
         # drop rows with missing values
         prepped_df.dropna(axis=0, subset=expected_cols, inplace=True)
 
+        # drop rows with zeros in the err column
+        if M_err is not None:
+            prepped_df = prepped_df.loc[prepped_df.loc[:, M_err] != 0, :]
+
         # only use units from df if not already given in raw_data_units
         if units_level is not None:
             units_list = list(prepped_df.columns.get_level_values(units_level))
