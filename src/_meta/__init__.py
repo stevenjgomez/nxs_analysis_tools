@@ -6,5 +6,5 @@ __author__ = 'Soren Bear'
 __email__ = 'sbear@ucsb.edu'
 __copyright__ = f"2022, {__author__}"
 __license__ = 'MIT'
-__version__= '0.1.2'
+__version__= '0.1.3'
 __repo_url__ = 'https://github.com/sorenbear/magentropy'

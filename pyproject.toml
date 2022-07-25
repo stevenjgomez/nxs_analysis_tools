@@ -6,7 +6,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'magentropy'
-version = '0.1.2'
+version = '0.1.3'
 description = 'Perform magnetoentropic mapping of magnetic materials based on DC magnetization data.'
 readme = 'README.md'
 requires-python = '>=3.9'
@@ -61,7 +61,7 @@ dev = [
 ]
 
 [project.urls]
-Download = 'https://pypi.org/project/magentropy/'
+'Download' = 'https://pypi.org/project/magentropy/'
 'Bug Tracker' = 'https://github.com/sorenbear/magentropy/issues'
-Documentation = 'https://magentropy.readthedocs.io/en/stable/'
+'Documentation' = 'https://magentropy.readthedocs.io/en/stable/'
 'Source Code' = 'https://github.com/sorenbear/magentropy'
