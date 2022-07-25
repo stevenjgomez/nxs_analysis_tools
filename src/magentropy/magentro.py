@@ -1526,8 +1526,6 @@ class MagentroData:
             estimates should not be viewed as "true" estimates but rather as
             the estimates for a given :math:`\\lambda`. This should only be used
             once the user is confident their :math:`\\lambda`'s are appropriate.
-
-        TL;DR: Use wisely, and take the results with a grain of salt!
         '''
 
         if len(self._processed_df) == 0:
@@ -1721,7 +1719,7 @@ class MagentroData:
             `ax` with |Figure.colorbar|.
         plot_kwargs : dict or array_like of dicts, optional
             Keyword arguments for |Axes.plot|. A single ``dict`` will be
-            applied to each line. Multiple ``dict``s will be applied to
+            applied to each line. Multiple ``dict``\s will be applied to
             successive lines. Not checked for length; a ``dict`` is applied
             to each line until either the end is reached or there are no
             more lines to plot.

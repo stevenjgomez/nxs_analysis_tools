@@ -220,7 +220,7 @@ def check_axes(ax: Axes) -> Axes:
     return ax
 
 def cast_strs(*args: Any, optional: bool = False) -> tuple[Optional[str], ...]:
-    '''Return ``str``s of `args`.'''
+    '''Return ``str``\s of `args`.'''
     return tuple(((arg if optional and arg is None else str(arg)) for arg in args))
 
 def check_processed_args(
@@ -250,10 +250,10 @@ def check_plot_kwargs(
     length: int
     ) -> list[Kwargs]:
     '''
-    Make `plot_kwargs` into a ``list`` of ``dict``s with length equal to
+    Make `plot_kwargs` into a ``list`` of ``dict``\s with length equal to
     the number of lines to be plotted.
 
-    If necessary, `plot_kwargs` is duplicated, empty ``dicts``s are added,
+    If necessary, `plot_kwargs` is duplicated, empty ``dicts``\s are added,
     or the sequence is truncated.
     '''
 

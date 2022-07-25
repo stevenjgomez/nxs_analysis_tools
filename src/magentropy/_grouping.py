@@ -48,7 +48,7 @@ def group_by(
     ----------
     df : DataFrame
         |DataFrame| to group. Columns should be ordinary |Series|s, without
-        ``PintArray``s, e.g. from ``self.raw_data`` instead of
+        ``PintArray``\s, e.g. from ``self.raw_data`` instead of
         ``self._raw_data``.
     group_col : str
         Name of column to use for grouping.

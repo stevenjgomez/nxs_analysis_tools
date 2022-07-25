@@ -240,7 +240,7 @@ def interp_callables(
     ) -> tuple[RegularGridInterpolator, RegularGridInterpolator]:
     '''
     Compute dM_dT and Delta_SM grids and return callable
-    ``RegularGridInterpolator``s for interpolating dM_dT and Delta_SM,
+    ``RegularGridInterpolator``\s for interpolating dM_dT and Delta_SM,
     respectively, back to original T and H points.
     '''
 
