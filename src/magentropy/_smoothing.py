@@ -299,9 +299,13 @@ def _mapping_matrix(x: NDArray[np.float64], xhat: NDArray[np.float64]) -> NDArra
 
 @njit(parallel=True, cache=True)
 def _weight_matrix(weights: NDArray[np.float64]) -> NDArray[np.float64]:
-    '''Construct the normalized weight matrix for regularization.'''
+    '''
+    Construct the normalized weight matrix for regularization.
 
-    return 1./np.sum(weights) * np.diag(weights)
+    Normalization is such that sum(weights) = len(weights).
+    '''
+
+    return len(weights)/np.sum(weights) * np.diag(weights)
 
 @njit(parallel=True, cache=True)
 def _derivative_matrix(
