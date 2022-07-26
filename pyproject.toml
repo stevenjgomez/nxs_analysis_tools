@@ -6,7 +6,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'magentropy'
-version = '0.1.3'
+version = '0.1.4'
 description = 'Perform magnetoentropic mapping of magnetic materials based on DC magnetization data.'
 readme = 'README.md'
 requires-python = '>=3.9'
