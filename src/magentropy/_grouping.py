@@ -8,6 +8,8 @@ import pandas as pd
 from pandas.core.groupby.generic import DataFrameGroupBy
 from numba import njit
 
+from magentropy.errors import MissingDataError
+
 from .typedefs import Presets
 from ._classvars import RAW_DF_COLUMNS, DEFAULT_PRESETS
 
@@ -180,7 +182,14 @@ def match_closest_values(
     '''
 
     # get the current group and remove from the list
-    grp = grps.pop(0)
+    try:
+        grp = grps.pop(0)
+    except IndexError as e:
+        raise MissingDataError(
+            'Not all groups found a match. '
+            'Check the supplied field or temperature groups to ensure they are '
+            'appropriate for the data.'
+        ) from e
 
     # array of lowest distance from a value in match_values for each observation
     match_diffs = abs(match_values[:, np.newaxis] - da.loc[:, match_col].values)
