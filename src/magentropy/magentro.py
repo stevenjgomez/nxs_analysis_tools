@@ -1863,6 +1863,9 @@ class MagentroData:
             df_col_unit_params['group_df']
         )
 
+        if data_version in ['converted', 'compare'] and at_temps is not None:
+            grouping_plotting_params['groups'] = self._convert_at_temps(at_temps)
+
         return {**df_col_unit_params, **grouping_plotting_params}
 
     def _df_col_unit_params(
@@ -1911,6 +1914,17 @@ class MagentroData:
             'prop_units': prop_units
         }
 
+    def _convert_at_temps(self, at_temps: ArrayLike) -> NDArray[np.float64]:
+        '''Convert at_temps supplied in converted units back to raw units for grouping.'''
+
+        r_units_t = self._get_all_raw_data_units()['T']
+        c_units_t = self._CONVERTED_DF_UNITS['T']
+
+        return np.array(
+            [(temp * self._ureg(c_units_t)).to(r_units_t).magnitude for temp in at_temps],
+            dtype=np.float64
+        )
+
     def _convert_grouped(
         self,
         grouped_data: DataFrameGroupBy,
@@ -1918,7 +1932,7 @@ class MagentroData:
         ) -> DataFrameGroupBy:
         '''Given a :class:`DataFrameGroupBy` of raw data, convert to converted units.'''
 
-        r_units = self._RAW_DF_DEFAULT_UNITS
+        r_units = self._get_all_raw_data_units()
         c_units = self._CONVERTED_DF_UNITS
 
         conv_name = 'H' if at_temps is None else 'T'
@@ -1938,7 +1952,8 @@ class MagentroData:
         '''For use in :meth:`DataFrameGroupBy.apply`.'''
 
         r_cols = self._RAW_DF_COLUMNS
-        r_units = self._RAW_DF_DEFAULT_UNITS
+        r_units = self._get_all_raw_data_units()
+        r_units.pop('sample_mass')
         c_units = self._CONVERTED_DF_UNITS
 
         conv_df = pu.df_from_units(r_cols.values(), r_units.values(), da.values)
