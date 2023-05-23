@@ -5,41 +5,38 @@ requires = ['setuptools>=61.2.0', 'wheel']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'magentropy'
-version = '0.1.4'
-description = 'Perform magnetoentropic mapping of magnetic materials based on DC magnetization data.'
+name = 'nxs-analysis-tools'
+version = '0.0.11'
+description = 'Reduce and transform nexus format (.nxs) scattering data.'
 readme = 'README.md'
-requires-python = '>=3.9'
+requires-python = '>=3.7'
 license = { file = 'LICENSE' }
-authors = [{ name = 'Soren Bear', email = 'sbear@ucsb.edu' }]
+authors = [{ name = 'Steven J. Gomez Alvarado', email = 'stevenjgomez@ucsb.edu' }]
 keywords = [
-    'magentropy',
-    'magnetoentropy',
-    'magnetoentropic',
-    'magnetocaloric',
-    'magnetization',
-    'materials',
+    'diffraction',
+    'xrd',
+    'nexusformat',
+    'nexus',
+    'nxs',
+    'scattering',
 ]
 classifiers = [
-    'Development Status :: 4 - Beta',
+    'Development Status :: 1 - Planning',
     'Intended Audience :: Science/Research',
     'License :: OSI Approved :: MIT License',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Topic :: Scientific/Engineering :: Image Processing',
     'Topic :: Scientific/Engineering',
 ]
 dependencies = [
-    'cycler >= 0.11.0',
-    'matplotlib >= 3.5.1',
-    'numba >= 0.55.1',
-    'numpy >= 1.21.5',
-    'pandas >= 1.4.3',
-    'pint >= 0.19.2',
-    'pint-pandas >= 0.2',
-    'scipy >= 1.7.3'
-]
+    'matplotlib>=3.0.0',
+    'numpy>=1.0.0',
+    'ipython>=1.0.0',
+    'pandas>=2.0.0'
+    ]
 
 [project.optional-dependencies]
 dev = [
@@ -60,7 +57,7 @@ dev = [
 ]
 
 [project.urls]
-'Download' = 'https://pypi.org/project/magentropy/'
-'Bug Tracker' = 'https://github.com/sorenbear/magentropy/issues'
-'Documentation' = 'https://magentropy.readthedocs.io/en/stable/'
-'Source Code' = 'https://github.com/sorenbear/magentropy'
+'Download' = 'https://pypi.org/project/nxs-analysis-tools/'
+'Bug Tracker' = 'https://github.com/stevenjgomez/nxs-analysis-tools/issues'
+'Documentation' = 'https://nxs-analysis-tools.readthedocs.io/en/stable/'
+'Source Code' = 'https://github.com/stevenjgomez/nxs-analysis-tools'

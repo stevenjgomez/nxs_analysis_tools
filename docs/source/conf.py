@@ -47,9 +47,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-# substitutions (should be consisten with myst_substitutions below)
+# substitutions (should be consistent with myst_substitutions below)
 rst_prolog = '''
-.. |MagentroData| replace:: :class:`MagentroData <magentropy.MagentroData>`
 .. |DataFrame| replace:: :class:`DataFrame <pandas.DataFrame>`
 .. |Series| replace:: :class:`Series <pandas.Series>`
 .. |Axes| replace:: :class:`Axes <matplotlib.axes.Axes>`
@@ -133,7 +132,7 @@ numpydoc_xref_aliases = {
 }
 
 numpydoc_xref_ignore = {
-    'label', 'optional', 'default', 'one', 'of', 'or', 'path', 'Field', 'Oe', 'emu', 'K',
+    'label', 'optional', 'default', 'one', 'of', 'or', 'path',
 }
 
 # -- intersphinx -------------------------------------------------------------
@@ -159,7 +158,6 @@ myst_enable_extensions = [
 myst_substitutions = {
     'numba': '[`numba`](https://numba.readthedocs.io/en/stable/)',
     'pint_pandas': '[`pint_pandas`](https://github.com/hgrecco/pint-pandas)',
-    'MagentroData': '{class}`MagentroData <magentropy.MagentroData>`',
     'DataFrame': '{class}`DataFrame <pandas.DataFrame>`',
     'Series': '{class}`Series <pandas.Series>`',
     'Axes': '{class}`Axes <matplotlib.axes.Axes>`',
@@ -170,28 +168,6 @@ myst_substitutions = {
     'Figure': '{class}`Figure <matplotlib.figure.Figure>`',
     'Figure_colorbar': '{meth}`Figure.colorbar() <matplotlib.figure.Figure.colorbar>`',
     'Colorbar': '{class}`Colorbar <matplotlib.colorbar.Colorbar>`',
-    'sample_mass': '{attr}`sample_mass <magentropy.MagentroData.sample_mass>`',
-    'sample_mass_with_units': '{attr}`sample_mass_with_units <magentropy.MagentroData.sample_mass_with_units>`',
-    'raw_df': '{attr}`raw_df <magentropy.MagentroData.raw_df>`',
-    'converted_df': '{attr}`converted_df <magentropy.MagentroData.converted_df>`',
-    'processed_df': '{attr}`processed_df <magentropy.MagentroData.processed_df>`',
-    'presets': '{attr}`presets <magentropy.MagentroData.presets>`',
-    'last_presets': '{attr}`last_presets <magentropy.MagentroData.last_presets>`',
-    'set_presets': '{meth}`set_presets() <magentropy.MagentroData.set_presets>`',
-    'get_raw_data_units': '{meth}`get_raw_data_units() <magentropy.MagentroData.get_raw_data_units>`',
-    'set_raw_data_units': '{meth}`set_raw_data_units() <magentropy.MagentroData.set_raw_data_units>`',
-    'sim_data': '{meth}`sim_data() <magentropy.MagentroData.sim_data>`',
-    'test_grouping': '{meth}`test_grouping() <magentropy.MagentroData.test_grouping>`',
-    'process_data': '{meth}`process_data() <magentropy.MagentroData.process_data>`',
-    'get_map_grid': '{meth}`get_map_grid() <magentropy.MagentroData.get_map_grid>`',
-    'plot_lines': '{meth}`plot_lines() <magentropy.MagentroData.plot_lines>`',
-    'plot_map': '{meth}`plot_map() <magentropy.MagentroData.plot_map>`',
-    'plot_processed_lines': '{meth}`plot_processed_lines() <magentropy.MagentroData.plot_processed_lines>`',
-    'plot_processed_map': '{meth}`plot_processed_map() <magentropy.MagentroData.plot_processed_map>`',
-    'plot': '{meth}`plot() <magentropy.MagentroData.plot>`',
-    'plot_processed': '{meth}`plot_processed() <magentropy.MagentroData.plot_processed>`',
-    'plot_all': '{meth}`plot_all() <magentropy.MagentroData.plot_all>`',
-    'bootstrap': '{meth}`bootstrap() <magentropy.MagentroData.bootstrap>`',
 }
 
 myst_heading_anchors = 3
