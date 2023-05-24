@@ -16,69 +16,77 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None):
     
     """
-    This function plots a 2D heatmap of a given dataset (Z) with the possibility
-    of applying logarithmic or symmetrical logarithmic scales to the colorbar.
-    The plot can be sheared to create a trapezoidal view with a defined skew angle.
-    Tick labels are displayed on all sides of the plot. 
-    The function takes the following parameters:
+    Parameters:
 
-    Parameters
-    ----------
-    
-    `X`: The x-coordinates of the data.
-    
-    `Y`: The y-coordinates of the data.
-    
-    `Z`: The 2D dataset to plot.
-    
-    `vmin`: The minimum value to plot in the dataset.
-    If not provided, the minimum of the dataset will be used.
-    
-    `vmax`: The maximum value to plot in the dataset.
-    If not provided, the maximum of the dataset will be used.
-    
-    `skew_angle`: The angle to shear the plot in degrees. Defaults to 90 degrees (no skewing).
-    
-    `ax`: An optional axis object to plot the heatmap onto.
-    
-    `xlim`: The limits of the x-axis. If not provided, the limits will be automatically set.
-    
-    `ylim`: The limits of the y-axis. If not provided, the limits will be automatically set.
-    
-    `xticks`: The major tick interval for the x-axis.
-    If not provided, the function will use a default minor tick interval of 1.
-    
-    `yticks`: The major tick interval for the y-axis.
-    If not provided, the function will use a default minor tick interval of 1.
-    
-    `cbar`: Whether to include a colorbar in the plot. Defaults to True.
-    
-    `logscale`: Whether to use a logarithmic color scale. Defaults to False.
-    
-    `symlogscale`: Whether to use a symmetrical logarithmic color scale. Defaults to False.
-    
-    `cmap`: The color map to use. Defaults to 'viridis'.
-    
-    `linthresh`: The linear threshold for the symmetrical logarithmic color scale. Defaults to 1.
-    
-    `title`: A string containing the title for the plot.
-    If not provided, a default title will be used.
+    X : array_like
+        The x-coordinates of the data.
 
-    Returns
-    -------
-    `p`: `matplotlib.collections.QuadMesh` object, similar to `matplotlib.pyplot.pcolormesh`.
+    Y : array_like
+        The y-coordinates of the data.
+
+    Z : array_like
+        The 2D dataset to plot.
+
+    vmin : float, optional
+        The minimum value to plot in the dataset. If not provided, the minimum of the dataset will be used.
+
+    vmax : float, optional
+        The maximum value to plot in the dataset. If not provided, the maximum of the dataset will be used.
+
+    skew_angle : float, optional
+        The angle to shear the plot in degrees. Defaults to 90 degrees (no skewing).
+
+    ax : matplotlib.axes.Axes, optional
+        An optional axis object to plot the heatmap onto.
+
+    xlim : tuple, optional
+        The limits of the x-axis. If not provided, the limits will be automatically set.
+
+    ylim : tuple, optional
+        The limits of the y-axis. If not provided, the limits will be automatically set.
+
+    xticks : float, optional
+        The major tick interval for the x-axis. If not provided, the function will use a default minor tick interval of 1.
+
+    yticks : float, optional
+        The major tick interval for the y-axis. If not provided, the function will use a default minor tick interval of 1.
+
+    cbar : bool, optional
+        Whether to include a colorbar in the plot. Defaults to True.
+
+    logscale : bool, optional
+        Whether to use a logarithmic color scale. Defaults to False.
+
+    symlogscale : bool, optional
+        Whether to use a symmetrical logarithmic color scale. Defaults to False.
+
+    cmap : str or Colormap, optional
+        The color map to use. Defaults to 'viridis'.
+
+    linthresh : float, optional
+        The linear threshold for the symmetrical logarithmic color scale. Defaults to 1.
+
+    title : str, optional
+        A string containing the title for the plot. Default `None`.
+
+    Returns:
+    p : :class:`matplotlib.collections.QuadMesh`
+
+        A :class:`matplotlib.collections.QuadMesh`
+ object, to mimick behavior of :class:`matplotlib.pyplot.pcolormesh`.
+
 
     """
     
     Z = Z.transpose()
 
     # Display Markdown heading
-    if title == "None":
+    if title is None:
         pass
-    elif title is not None:
-        display(Markdown('### Figure - '+title))
-    else:
+    elif title == "None":
         display(Markdown('### Figure'))
+    else:
+        display(Markdown('### Figure - '+title))
     
     # Inherit axes if user provides some
     if ax is not None:
