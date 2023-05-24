@@ -15,8 +15,9 @@ from IPython.display import display, Markdown
 def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None, ylim=None,
     xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None):
     
-    """
-    Parameters:
+    '''
+    Parameters
+    ----------
 
     X : array_like
         The x-coordinates of the data.
@@ -69,13 +70,14 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     title : str, optional
         A string containing the title for the plot. Default `None`.
 
-    Returns:
+    Returns
+    -------
     p : :class:`matplotlib.collections.QuadMesh`
 
         A :class:`matplotlib.collections.QuadMesh` object, to mimick behavior of :class:`matplotlib.pyplot.pcolormesh`.
 
 
-    """
+    '''
     
     Z = Z.transpose()
 
