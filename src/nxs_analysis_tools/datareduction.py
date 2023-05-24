@@ -11,7 +11,7 @@ import matplotlib.colors as colors
 from IPython.display import display, Markdown
 from nexusformat.nexus import NXfield, NXdata
 
-
+__all__=['plot_slice','cut_data']
 
 def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None, ylim=None,
     xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None):
