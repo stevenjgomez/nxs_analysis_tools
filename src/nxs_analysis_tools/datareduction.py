@@ -217,6 +217,9 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     return p
 
 def cut_data(data, center, window, axis=None):
+    '''
+    Reduces data to 1D linecut with integration extents specified by window about a central coordinate.
+    '''
     start = np.subtract(center,window)
     stop = np.add(center,window)
     slice_obj = tuple(slice(s,e) for s,e in zip(start,stop))
