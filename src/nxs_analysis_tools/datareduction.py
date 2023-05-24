@@ -72,8 +72,7 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     Returns:
     p : :class:`matplotlib.collections.QuadMesh`
 
-        A :class:`matplotlib.collections.QuadMesh`
- object, to mimick behavior of :class:`matplotlib.pyplot.pcolormesh`.
+        A :class:`matplotlib.collections.QuadMesh` object, to mimick behavior of :class:`matplotlib.pyplot.pcolormesh`.
 
 
     """
