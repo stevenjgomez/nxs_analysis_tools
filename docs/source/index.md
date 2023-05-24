@@ -7,7 +7,7 @@ nxs-analysis-tools provides a suite of tools for slicing (2D) cutting (1D) and t
 
 View the documentation [here](https://nxs-analysis-tools.readthedocs.io/en/stable/).
 
-See the {doc}`quickstart` for installation, logging, and usage.
+See the `quickstart` for installation, logging, and usage.
 
 ## Contents
 
@@ -15,10 +15,9 @@ See the {doc}`quickstart` for installation, logging, and usage.
 ---
 maxdepth: 2
 ---
-quickstart
 examples/index
-api
 license
+api
 genindex
 ```
 
