@@ -9,6 +9,7 @@ from matplotlib.markers import MarkerStyle
 from matplotlib.ticker import MultipleLocator
 import matplotlib.colors as colors
 from IPython.display import display, Markdown
+from nexusformat.nexus import NXfield, NXdata
 
 
 
@@ -214,3 +215,18 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
 
     # Return the quadmesh object
     return p
+
+def cut_data(data, center, window, axis=None):
+    start = np.subtract(center,window)
+    stop = np.add(center,window)
+    slice_obj = tuple(slice(s,e) for s,e in zip(start,stop))
+
+    data_cut = data[slice_obj]
+
+    if axis is None:
+        axis = window.index(max(window))
+
+    integrated_axes = tuple(i for i in range(g.ndim) if i != axis)
+    integrated_data = np.sum(data_cut[data_cut.signal].nxdata, axis=integrated_axes)
+
+    return NXdata(NXfield(integrated_data, name=data_cut.signal), data_cut[data_cut.axes[axis]])
