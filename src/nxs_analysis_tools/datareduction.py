@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-__all__=['plot_slice','cut_data']
+__all__=['load_data','plot_slice','Scissors']
 
 def load_data(path):
     g = nxload(path)
