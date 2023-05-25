@@ -9,9 +9,18 @@ from matplotlib.markers import MarkerStyle
 from matplotlib.ticker import MultipleLocator
 import matplotlib.colors as colors
 from IPython.display import display, Markdown
-from nexusformat.nexus import NXfield, NXdata
+from nexusformat.nexus import NXfield, NXdata, nxload
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 __all__=['plot_slice','cut_data']
+
+def load_data(path):
+    g = nxload(path)
+    print(g.entry.data.tree)
+    return g.entry.data
 
 def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None, ylim=None,
     xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None):
@@ -216,20 +225,104 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     # Return the quadmesh object
     return p
 
-def cut_data(data, center, window, axis=None):
-    '''
-    Reduces data to 1D linecut with integration extents specified by window about a central coordinate.
-    '''
-    start = np.subtract(center,window)
-    stop = np.add(center,window)
-    slice_obj = tuple(slice(s,e) for s,e in zip(start,stop))
+class Scissors():
+    
+    def __init__(self):
+        pass
+    
+    def set_data(self, data):
+        self.data = data
+    
+    def get_data(self):
+        return self.data
+    
+    def set_center(self, center):
+        self.center = center
+    
+    def set_window(self, window):
+        self.window = window
+        
+    def get_window(self):
+        return self.window
+    
+    # def set(self, **kwargs):
+    #     for attr_name, value in kwargs.items():
+    #         setattr(self, attr_name, value)
+    
+    def cut_data(self, axis=None):
+        '''
+        Reduces data to 1D linecut with integration extents specified by window about a central coordinate.
 
-    data_cut = data[slice_obj]
+        Parameters:
+        -----------
+        data : ndarray
+            Input data array.
+        center : tuple or list
+            Central coordinate around which to perform the linecut.
+        window : tuple or list
+            Extents of the window for integration along each axis.
+        axis : int, optional
+            Axis along which to perform the integration. If not specified, the axis with the largest extent in the window will be used.
 
-    if axis is None:
-        axis = window.index(max(window))
+        Returns:
+        --------
+        integrated_data : ndarray
+            1D linecut data after integration.
 
-    integrated_axes = tuple(i for i in range(g.ndim) if i != axis)
-    integrated_data = np.sum(data_cut[data_cut.signal].nxdata, axis=integrated_axes)
+        '''
+        data = self.data
+        center = self.center
+        window = self.window
+        if axis is None:
+            self.axis = window.index(max(window))
+        else:
+            self.axis = axis
+        axis = self.axis
 
-    return NXdata(NXfield(integrated_data, name=data_cut.signal), data_cut[data_cut.axes[axis]])
+        center = tuple(float(c) for c in center)
+
+        start = np.subtract(center,window)
+        stop = np.add(center,window)
+        slice_obj = tuple(slice(s,e) for s,e in zip(start,stop))
+
+        self.data_cut = data[slice_obj]
+
+        self.integrated_axes = tuple(i for i in range(data.ndim) if i != axis)
+        integrated_data = np.sum(self.data_cut[self.data_cut.signal].nxdata, axis=self.integrated_axes)
+        
+        self.linecut = NXdata(NXfield(integrated_data, name=self.data_cut.signal), self.data_cut[self.data_cut.axes[axis]])
+        
+        return self.linecut
+    
+    def highlight_window(self, label=None):
+        data = self.data
+        axis = self.axis
+        center = self.center
+        window = self.window
+        integrated_axes = self.integrated_axes
+        
+        window_plane_slice_obj = [slice(None)]*data.ndim
+        window_plane_slice_obj[axis] = center[axis]
+        p = plot_slice(data[data.axes[integrated_axes[0]]], data[data.axes[integrated_axes[1]]],
+            data[window_plane_slice_obj][data.signal], vmin=1, logscale=True)
+        ax = plt.gca()
+        rect_diffuse = patches.Rectangle(
+            (center[integrated_axes[0]]-window[integrated_axes[0]],
+            center[integrated_axes[1]]-window[integrated_axes[1]]),
+            window[integrated_axes[0]], window[integrated_axes[1]],
+            linewidth=1, edgecolor='r', facecolor='none', transform=p.get_transform(), label=label,
+            )
+        ax.add_patch(rect_diffuse)
+        plt.show()
+        
+        self.window_plane_slice_obj = window_plane_slice_obj
+        
+    def plot_window(self):
+        data = self.data_cut
+        p = plot_slice(
+            data[data.axes[self.integrated_axes[0]]],
+            data[data.axes[self.integrated_axes[1]]],
+            data[self.window_plane_slice_obj][data.signal],
+            vmin=1, logscale=True,
+            )
+        plt.show()
