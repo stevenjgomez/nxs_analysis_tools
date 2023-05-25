@@ -226,7 +226,9 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     return p
 
 class Scissors():
-    
+    '''
+    Scissors class
+    '''
     def __init__(self):
         pass
     
@@ -295,6 +297,9 @@ class Scissors():
         return self.linecut
     
     def highlight_window(self, label=None):
+        '''
+        Plots integration window highlighted on 2D heatmap full dataset.
+        '''
         data = self.data
         axis = self.axis
         center = self.center
@@ -318,6 +323,9 @@ class Scissors():
         self.window_plane_slice_obj = window_plane_slice_obj
         
     def plot_window(self):
+        '''
+        Plots 2D heatmap of integration window data on its own.
+        '''
         data = self.data_cut
         p = plot_slice(
             data[data.axes[self.integrated_axes[0]]],
