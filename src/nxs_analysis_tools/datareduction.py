@@ -8,12 +8,9 @@ from matplotlib.transforms import Affine2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.ticker import MultipleLocator
 import matplotlib.colors as colors
+import matplotlib.patches as patches
 from IPython.display import display, Markdown
 from nexusformat.nexus import NXfield, NXdata, nxload
-
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
 __all__=['load_data','plot_slice','Scissors']
 
@@ -22,21 +19,21 @@ def load_data(path):
     print(g.entry.data.tree)
     return g.entry.data
 
-def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None, ylim=None,
-    xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None):
-    
+def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None, ylim=None,
+    xticks=None, yticks=None, cbar=True, logscale=False, symlogscale=False, cmap='viridis', linthresh = 1, title=None, mdheading=None,
+    cbartitle=None):
+
     '''
     Parameters
     ----------
+    data : :class:`nexusformat.nexus.NXdata` object
+        The NXdata object containing the dataset to plot.
 
-    X : array_like
-        The x-coordinates of the data.
+    X : array_like, optional
+        The X axis values. Default is first axis of `data`.
 
-    Y : array_like
-        The y-coordinates of the data.
-
-    Z : array_like
-        The 2D dataset to plot.
+    Y : array_like, optional
+        The y axis values. Default is second axis of `data`.
 
     vmin : float, optional
         The minimum value to plot in the dataset. If not provided, the minimum of the dataset will be used.
@@ -77,8 +74,8 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     linthresh : float, optional
         The linear threshold for the symmetrical logarithmic color scale. Defaults to 1.
 
-    title : str, optional
-        A string containing the title for the plot. Default `None`.
+    mdheading : str, optional
+        A string containing the Markdown heading for the plot. Default `None`.
 
     Returns
     -------
@@ -86,19 +83,26 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
 
         A :class:`matplotlib.collections.QuadMesh` object, to mimick behavior of :class:`matplotlib.pyplot.pcolormesh`.
 
-
     '''
-    
-    Z = Z.transpose()
+
+    if X is None:
+        X = data[data.axes[0]].nxdata
+    if Y is None:
+        Y = data[data.axes[1]].nxdata
+    if transpose:
+        X, Y = Y, X
+        data = data.transpose()
+
+    data_arr = data[data.signal].nxdata.transpose()
 
     # Display Markdown heading
-    if title is None:
+    if mdheading is None:
         pass
-    elif title == "None":
+    elif mdheading == "None":
         display(Markdown('### Figure'))
     else:
-        display(Markdown('### Figure - '+title))
-    
+        display(Markdown('### Figure - ' + mdheading))
+
     # Inherit axes if user provides some
     if ax is not None:
         ax=ax
@@ -107,34 +111,23 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     else:
         fig = plt.figure()
         ax = fig.add_axes([0,0,1,1])
-    
+
     # If limits not provided, use extrema
     if vmin is None:
-        vmin=Z.min()
+        vmin=data_arr.min()
     if vmax is None:
-        vmax=Z.max()
+        vmax=data_arr.max()
+
+    # Set norm (linear scale, logscale, or symlogscale)
+    norm = None
+    if symlogscale:
+        norm = colors.SymLogNorm(linthresh=linthresh, vmin=-vmax, vmax=vmax)
+    elif logscale:
+        norm = colors.LogNorm(vmin=vmin, vmax=vmax)
 
     # Plot data
-    if symlogscale:
-        p = ax.pcolormesh(X, Y, Z,
-                          # vmin=vmin, vmax=vmax,
-                          shading='auto',
-                          norm=colors.SymLogNorm(linthresh=linthresh, vmin=-vmax, vmax=vmax),
-                          cmap=cmap
-                         )
-    elif logscale:
-        p = ax.pcolormesh(X, Y, Z,
-                          # vmin=vmin, vmax=vmax,
-                          shading='auto',
-                          norm=colors.LogNorm(vmin=vmin, vmax=vmax),
-                          cmap=cmap
-                         )
-    else:
-        p = ax.pcolormesh(X, Y, Z,
-                          vmin=vmin, vmax=vmax,
-                          shading='auto',
-                          cmap=cmap
-                         )
+    p = ax.pcolormesh(X, Y, data_arr, vmin=vmin, vmax=vmax, shading='auto', norm=norm, cmap=cmap)
+
     
     ## Transform data to new coordinate system if necessary
     # Correct skew angle
@@ -165,13 +158,13 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
     else:
         xmin,xmax = ax.get_xlim()
     ax.set(xlim=(xmin,xmax+(ymax-ymin)/np.tan((90-skew_angle)*np.pi/180)))
-    
+
     # Correct aspect ratio for the x/y axes after transformation
     ax.set(aspect=np.cos(skew_angle*np.pi/180))
-    
+
     # Add tick marks all around
     ax.tick_params(direction='in', top=True, right=True, which='both')
-    
+
     # Set tick locations
     if xticks is None:
         # Add default minor ticks
@@ -187,7 +180,7 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
         # Otherwise use user provided values
         ax.yaxis.set_major_locator(MultipleLocator(yticks))
         ax.yaxis.set_minor_locator(MultipleLocator(1))
-    
+
     ## Apply transform to tick marks
     for i in range(0,len(ax.xaxis.get_ticklines())):
         # Tick marker
@@ -208,7 +201,7 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
             m._transform.set(Affine2D().skew_deg(skew_angle,0))
         
         line.set_marker(m)
-        
+
     for i in range(0,len(ax.xaxis.get_minorticklines())):
         m = MarkerStyle(2)
         line =  ax.xaxis.get_minorticklines()[i]
@@ -216,11 +209,21 @@ def plot_slice(X, Y, Z, vmin=None, vmax=None, skew_angle=90, ax=None, xlim=None,
             m._transform.set(Affine2D().translate(0,-1) + Affine2D().skew_deg(skew_angle,0))
         else:
             m._transform.set(Affine2D().skew_deg(skew_angle,0))
-        
+
         line.set_marker(m)
-    
+
     if cbar:
-        fig.colorbar(p)
+        colorbar = fig.colorbar(p)
+    if cbartitle is None:
+        colorbar.set_label(data.signal)
+
+    ax.set(
+        xlabel=data.axes[0],
+        ylabel=data.axes[1],
+    )
+
+    if title is not None:
+        ax.set_title(title)
 
     # Return the quadmesh object
     return p
@@ -296,7 +299,7 @@ class Scissors():
         
         return self.linecut
     
-    def highlight_window(self, label=None):
+    def show_integration_window(self, label=None):
         '''
         Plots integration window highlighted on 2D heatmap full dataset.
         '''
@@ -306,6 +309,7 @@ class Scissors():
         window = self.window
         integrated_axes = self.integrated_axes
         
+        # Plot cross section
         window_plane_slice_obj = [slice(None)]*data.ndim
         window_plane_slice_obj[axis] = center[axis]
         p = plot_slice(data[data.axes[integrated_axes[0]]], data[data.axes[integrated_axes[1]]],
@@ -319,6 +323,13 @@ class Scissors():
             )
         ax.add_patch(rect_diffuse)
         plt.show()
+
+        p = plot_slice(data[data.axes[integrated_axes[0]]], data[data.axes[axis[1]]],
+            data[window_plane_slice_obj][data.signal], vmin=1, logscale=True)
+
+        p = plot_slice(data[data.axes[integrated_axes[1]]], data[data.axes[axis[1]]],
+            data[window_plane_slice_obj][data.signal], vmin=1, logscale=True)
+        
         
         self.window_plane_slice_obj = window_plane_slice_obj
         
