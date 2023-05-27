@@ -50,6 +50,9 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
     Y : NXfield, optional
         The y axis values. Default is second axis of `data`.
 
+    transpose : bool, optional
+        If True, tranpose the dataset and its axes before plotting. Default is False.
+
     vmin : float, optional
         The minimum value to plot in the dataset.
         If not provided, the minimum of the dataset will be used.
