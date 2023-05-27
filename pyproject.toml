@@ -35,7 +35,8 @@ dependencies = [
     'matplotlib>=3.0.0',
     'numpy>=1.0.0',
     'ipython>=1.0.0',
-    'pandas>=2.0.0'
+    'pandas>=2.0.0',
+    'nexusformat>=1.0.1'
     ]
 
 [project.optional-dependencies]
