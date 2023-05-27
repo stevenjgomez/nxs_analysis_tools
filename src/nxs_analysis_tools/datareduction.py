@@ -314,7 +314,7 @@ class Scissors():
         self.window = window
         self.axis = axis
 
-        self.data_cut = None
+        self.integration_volume = None
         self.integrated_axes = None
         self.linecut = None
         self.integration_window = None
@@ -429,10 +429,12 @@ class Scissors():
         self.integrated_axes = tuple(i for i in range(data.ndim) if i != axis)
 
         # Perform integration along the integrated axes
-        integrated_data = np.sum(self.integration_volume[self.integration_volume.signal].nxdata, axis=self.integrated_axes)
-        
+        integrated_data = np.sum(self.integration_volume[self.integration_volume.signal].nxdata,
+            axis=self.integrated_axes)
+
         # Create an NXdata object for the linecut data
-        self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.signal), self.integration_volume[self.integration_volume.axes[axis]])
+        self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.signal),
+            self.integration_volume[self.integration_volume.axes[axis]])
 
         return self.linecut
 
@@ -446,11 +448,11 @@ class Scissors():
         window = self.window
         integrated_axes = self.integrated_axes
 
-        # Plot cross section
-        window_plane_slice_obj = [slice(None)]*data.ndim
-        window_plane_slice_obj[axis] = center[axis]
-        
-        p1 = plot_slice(data[window_plane_slice_obj],
+        # Plot cross section 1
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[axis] = center[axis]
+
+        p1 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[0]]],
                        Y=data[data.axes[integrated_axes[1]]],
                        vmin=1, logscale=True)
@@ -464,7 +466,11 @@ class Scissors():
         ax.add_patch(rect_diffuse)
         plt.show()
 
-        p2 = plot_slice(data[window_plane_slice_obj],
+        # Plot cross section 2
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[integrated_axes[1]] = center[integrated_axes[1]]
+
+        p2 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[0]]],
                        Y=data[data.axes[axis]],
                        vmin=1, logscale=True)
@@ -478,7 +484,11 @@ class Scissors():
         ax.add_patch(rect_diffuse)
         plt.show()
 
-        p3 = plot_slice(data[window_plane_slice_obj],
+        # Plot cross section 3
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[integrated_axes[0]] = center[integrated_axes[0]]
+
+        p3 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[1]]],
                        Y=data[data.axes[axis]],
                        vmin=1, logscale=True)
@@ -494,17 +504,19 @@ class Scissors():
 
         return (p1,p2,p3)
 
-    def plot_window(self):
-        '''
-        Plots 2D heatmap of integration window data on its own.
-        '''
-        data = self.data_cut
-        p = plot_slice(
-            data[self.window_plane_slice_obj],
-            data[data.axes[self.integrated_axes[0]]],
-            data[data.axes[self.integrated_axes[1]]],
-            vmin=1, logscale=True,
-            )
-        plt.show()
+    # def plot_window(self):
+    #     '''
+    #     Plots 2D heatmap of integration window data on its own.
+    #     '''
+    #     data = self.integration_volume
 
-        return p
+    #     # TODO: Adjust code to plot 3 different cross sections, create slice_obj
+    #     p = plot_slice(
+    #         data[slice_obj],
+    #         data[data.axes[self.integrated_axes[0]]],
+    #         data[data.axes[self.integrated_axes[1]]],
+    #         vmin=1, logscale=True,
+    #         )
+    #     plt.show()
+
+    #     return
