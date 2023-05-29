@@ -368,6 +368,16 @@ class Scissors():
         '''
         self.window = window
 
+        # Determine the axis for integration
+        self.axis = window.index(max(window))
+        print("Linecut axis: "+str(self.data.axes[self.axis]))
+
+        # Determine the integrated axes (axes other than the integration axis)
+        self.integrated_axes = tuple(i for i in range(self.data.ndim) if i != self.axis)
+        print("Integrated axes: "+str([self.data.axes[axis] for axis in self.integrated_axes]))
+
+
+
     def get_window(self):
         '''
         Get the extents of the integration window.
@@ -380,22 +390,10 @@ class Scissors():
         return self.window
 
 
-    def cut_data(self, axis=None):
+    def cut_data(self):
         '''
         Reduces data to 1D linecut with integration extents specified by window about a central
         coordinate.
-
-        Parameters:
-        -----------
-        data : ndarray
-            Input data array.
-        center : tuple or list
-            Central coordinate around which to perform the linecut.
-        window : tuple or list
-            Extents of the window for integration along each axis.
-        axis : int, optional
-            Axis along which to perform the integration.
-            If not specified, the axis with the largest extent in the window will be used.
 
         Returns:
         --------
@@ -408,12 +406,6 @@ class Scissors():
         data = self.data
         center = self.center
         window = self.window
-
-        # Determine the axis for integration
-        if axis is None:
-            self.axis = window.index(max(window))
-        else:
-            self.axis = axis
         axis = self.axis
 
         # Convert the center to a tuple of floats
@@ -427,9 +419,6 @@ class Scissors():
 
         # Perform the data cut
         self.integration_volume = data[slice_obj]
-
-        # Determine the integrated axes (axes other than the integration axis)
-        self.integrated_axes = tuple(i for i in range(data.ndim) if i != axis)
 
         # Perform integration along the integrated axes
         integrated_data = np.sum(self.integration_volume[self.integration_volume.signal].nxdata,
