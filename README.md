@@ -14,15 +14,6 @@ Install nxs-analysis-tools with ``pip``:
 ```{code-block} console
 pip install nxs_analysis_tools
 ```
-For a manual install get this package:
-
-```{code-block} console
-
-    wget https://github.com/stevenjgomez/nxs_analysis_tools/archive/master.zip
-    unzip master.zip
-    rm master.zip
-    cd nxs_analysis_tools-master
-```
 
 ## License
 
