@@ -5,7 +5,7 @@ Tools for reading scattering datasets collected at CHESS (ID4B).
 from nxs_analysis_tools import load_data, plot_slice, Scissors
 from nexusformat.nexus import NXentry
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+import matplotlib as mpl
 import numpy as np
 import os
 
@@ -71,15 +71,29 @@ class TempDependence():
 		self.linecuts = [scissors.linecut for scissors in self.scissors]
 		return self.linecuts
 
-	def plot_linecuts(self, **kwargs):
+	def plot_linecuts(self, vertical_offset=0, **kwargs):
 	    fig, ax = plt.subplots()
-	    
+
 	    # Get the Viridis colormap
-	    cmap = cm.get_cmap('viridis')
-	    
+	    cmap = mpl.colormaps.get_cmap('viridis')
+
 	    for i, linecut in enumerate(self.linecuts):
 	        x_data = linecut[linecut.axes[0]].nxdata
-	        y_data = linecut[linecut.signal].nxdata
-	        ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), **kwargs)
-	    
+	        y_data = linecut[linecut.signal].nxdata + i*vertical_offset
+	        ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=linecut.nxname, **kwargs)
+
+	    xlabel_components = [linecut.axes[0] if i == self.scissors[0].axis else str(c) for i,c in enumerate(self.scissors[0].center)]
+	    xlabel = ' '.join(xlabel_components)
+	    ax.set(xlabel=xlabel,
+               ylabel=linecut.signal)
+
+	    # Get the current legend handles and labels
+	    handles, labels = plt.gca().get_legend_handles_labels()
+
+	    # Reverse the order of handles and labels
+	    handles = handles[::-1]
+	    labels = labels[::-1]
+
+	    # Create a new legend with reversed order
+	    plt.legend(handles, labels)
 	    plt.show()
