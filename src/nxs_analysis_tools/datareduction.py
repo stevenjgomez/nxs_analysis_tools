@@ -259,8 +259,8 @@ class Scissors():
 
     Attributes
     ----------
-    data : ndarray or None
-        Input data array.
+    data : :class:`nexusformat.nexus.NXdata` or None
+        Input :class:`nexusformat.nexus.NXdata`.
     center : tuple or None
         Central coordinate around which to perform the linecut.
     window : tuple or None
@@ -271,7 +271,7 @@ class Scissors():
         Data array after applying the integration window.
     integrated_axes : tuple or None
         Indices of axes that were integrated.
-    linecut : NXdata or None
+    linecut : :class:`nexusformat.nexus.NXdata` or None
         1D linecut data after integration.
     window_plane_slice_obj : list or None
         Slice object representing the integration window in the data array.
@@ -279,9 +279,9 @@ class Scissors():
     Methods
     -------
     set_data(data)
-        Set the input data array.
+        Set the input :class:`nexusformat.nexus.NXdata`
     get_data()
-        Get the input data array.
+        Get the input :class:`nexusformat.nexus.NXdata`.
     set_center(center)
         Set the central coordinate for the linecut.
     set_window(window)
@@ -302,8 +302,8 @@ class Scissors():
 
         Parameters
         ----------
-        data : ndarray or None, optional
-            Input data array. Default is None.
+        data : :class:`nexusformat.nexus.NXdata` or None, optional
+            Input NXdata. Default is None.
         center : tuple or None, optional
             Central coordinate around which to perform the linecut. Default is None.
         window : tuple or None, optional
@@ -324,16 +324,14 @@ class Scissors():
 
     def set_data(self, data):
         '''
-        Set the input data array.
+        Set the input NXdata.
 
         Parameters
         ----------
-        data : ndarray
+        data : :class:`nexusformat.nexus.NXdata`
             Input data array.
         '''
         self.data = data
-
-        print(self.data.tree)
 
     def get_data(self):
         '''
@@ -376,8 +374,6 @@ class Scissors():
         self.integrated_axes = tuple(i for i in range(self.data.ndim) if i != self.axis)
         print("Integrated axes: "+str([self.data.axes[axis] for axis in self.integrated_axes]))
 
-
-
     def get_window(self):
         '''
         Get the extents of the integration window.
@@ -389,24 +385,36 @@ class Scissors():
         '''
         return self.window
 
-
-    def cut_data(self):
+    def cut_data(self, center=None, window=None, axis=None):
         '''
-        Reduces data to 1D linecut with integration extents specified by window about a central
+        Reduces data to a 1D linecut with integration extents specified by the window about a central
         coordinate.
+
+        Parameters:
+        -----------
+        center : float or None, optional
+            Central coordinate for the linecut. If not specified, the value from the object's
+            attribute will be used.
+        window : tuple or None, optional
+            Integration window extents around the central coordinate. If not specified, the value
+            from the object's attribute will be used.
+        axis : int or None, optional
+            The axis along which to perform the linecut. If not specified, the value from the
+            object's attribute will be used.
 
         Returns:
         --------
-        integrated_data : ndarray
+        integrated_data : :class:`nexusformat.nexus.NXdata`
             1D linecut data after integration.
-
         '''
 
         # Extract necessary attributes from the object
         data = self.data
-        center = self.center
-        window = self.window
-        axis = self.axis
+        center = center if center is not None else self.center
+        self.set_center(center)
+        window = window if window is not None else self.window
+        self.set_window(window)
+        axis = axis if axis is not None else self.axis
 
         # Convert the center to a tuple of floats
         center = tuple(float(c) for c in center)
@@ -419,6 +427,7 @@ class Scissors():
 
         # Perform the data cut
         self.integration_volume = data[slice_obj]
+        self.integration_volume.nxname = data.nxname
 
         # Perform integration along the integrated axes
         integrated_data = np.sum(self.integration_volume[self.integration_volume.signal].nxdata,
@@ -427,10 +436,11 @@ class Scissors():
         # Create an NXdata object for the linecut data
         self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.signal),
             self.integration_volume[self.integration_volume.axes[axis]])
+        self.linecut.nxname = self.integration_volume.nxname
 
         return self.linecut
 
-    def show_integration_window(self, label=None):
+    def show_integration_window(self, label=None, **kwargs):
         '''
         Plots integration window highlighted on 2D heatmap full dataset.
         '''
@@ -447,7 +457,7 @@ class Scissors():
         p1 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[0]]],
                        Y=data[data.axes[integrated_axes[1]]],
-                       vmin=1, logscale=True)
+                       **kwargs)
         ax = plt.gca()
         rect_diffuse = patches.Rectangle(
             (center[integrated_axes[0]]-window[integrated_axes[0]],
@@ -465,7 +475,7 @@ class Scissors():
         p2 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[0]]],
                        Y=data[data.axes[axis]],
-                       vmin=1, logscale=True)
+                       **kwargs)
         ax = plt.gca()
         rect_diffuse = patches.Rectangle(
             (center[integrated_axes[0]]-window[integrated_axes[0]],
@@ -483,7 +493,7 @@ class Scissors():
         p3 = plot_slice(data[slice_obj],
                        X=data[data.axes[integrated_axes[1]]],
                        Y=data[data.axes[axis]],
-                       vmin=1, logscale=True)
+                       **kwargs)
         ax = plt.gca()
         rect_diffuse = patches.Rectangle(
             (center[integrated_axes[1]]-window[integrated_axes[1]],
