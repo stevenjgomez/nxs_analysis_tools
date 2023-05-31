@@ -72,14 +72,10 @@ class TempDependence():
         self.temperatures = temperature_folders
 
         if temperatures_list is not None:
-            temperature_folders = [str(t) for t in temperatures_list]
-        else:
-            temperature_folders = self.temperatures
-
-        self.temperatures = temperature_folders
+            self.temperatures = [str(t) for t in temperatures_list]
 
         # Load .nxs files
-        for temperature in temperature_folders:
+        for temperature in self.temperatures:
             for file in os.listdir(os.path.join(self.folder, temperature)):
                 if file.endswith(file_ending):
                     filepath = os.path.join(self.folder, temperature, file)
@@ -168,7 +164,7 @@ class TempDependence():
         for i, linecut in enumerate(self.linecuts):
             x_data = linecut[linecut.axes[0]].nxdata
             y_data = linecut[linecut.signal].nxdata + i*vertical_offset
-            ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=linecut.nxname,
+            ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
             	**kwargs)
 
         xlabel_components = [self.linecuts[0].axes[0] if i == self.scissors[0].axis \
@@ -186,3 +182,5 @@ class TempDependence():
 
         # Create a new legend with reversed order
         plt.legend(handles, labels)
+                   
+        return fig
