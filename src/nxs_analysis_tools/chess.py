@@ -67,6 +67,9 @@ class TempDependence():
         temperature_folders.sort() # Sort from low to high T
         temperature_folders = [str(i) for i in temperature_folders] # Convert to strings
 
+        print('Found temperature folders:')
+        [print('['+str(i)+'] '+folder for i,folder in temperature_folders)]
+
         self.temperatures = temperature_folders
 
         if temperatures_list is not None:

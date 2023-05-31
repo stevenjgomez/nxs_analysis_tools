@@ -30,7 +30,11 @@ def load_data(path):
 
     '''
     g = nxload(path)
-    print(g.entry.data.tree)
+    try:
+        print(g.entry.data.tree)
+    except NeXusError:
+        pass
+
     return g.entry.data
 
 
