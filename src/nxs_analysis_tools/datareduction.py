@@ -354,7 +354,7 @@ class Scissors():
 
         Parameters
         ----------
-        center : tuple or None
+        center : tuple
             Central coordinate around which to perform the linecut.
         '''
         self.center = center
@@ -365,7 +365,7 @@ class Scissors():
 
         Parameters
         ----------
-        window : tuple or None
+        window : tuple
             Extents of the window for integration along each axis.
         '''
         self.window = window

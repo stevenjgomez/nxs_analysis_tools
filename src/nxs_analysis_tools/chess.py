@@ -19,7 +19,7 @@ class TempDependence():
         '''
         Initialize TempDependence class.
         '''
-        self.datasets=NXentry()
+        self.datasets=[]
         self.folder=None
         self.temperatures=None
         self.scissors=None
@@ -51,13 +51,12 @@ class TempDependence():
         folder : str
             The path to the folder where the datasets are located.
         file_ending : str, optional
-            The file ending of the datasets to be loaded. The default is 'hkli.nxs'.
+            The file extension of the datasets to be loaded. The default is 'hkli.nxs'.
         temperatures_list : list of int or None, optional
             The list of specific temperatures to load. If None, all available temperatures are
             loaded. The default is None.
         '''
-        self.folder = os.path.normpath(folder)
-
+        self.folder=os.path.normpath(folder)
         temperature_folders=[] # Empty list to store temperature folder names
         for item in os.listdir(self.folder):
             try:
@@ -68,7 +67,7 @@ class TempDependence():
         temperature_folders = [str(i) for i in temperature_folders] # Convert to strings
 
         print('Found temperature folders:')
-        [print('['+str(i)+'] '+folder for i,folder in temperature_folders)]
+        [print('['+str(i)+'] '+folder) for i,folder in enumerate(temperature_folders)]
 
         self.temperatures = temperature_folders
 
@@ -81,15 +80,45 @@ class TempDependence():
 
         # Load .nxs files
         for temperature in temperature_folders:
-            for file in os.listdir(os.path.join(self.folder,temperature)):
+            for file in os.listdir(os.path.join(self.folder, temperature)):
                 if file.endswith(file_ending):
-                    filepath = os.path.join(self.folder,temperature, file)
+                    filepath = os.path.join(self.folder, temperature, file)
                     print('-----------------------------------------------')
                     print('Loading ' + temperature + ' K indexed .nxs files...')
                     print('Found ' + filepath)
-                    self.datasets[temperature] = load_data(filepath)
+                    self.datasets.append(load_data(filepath))
 
-    def cut_data(self, center, window, axis=None):
+        self.scissors = [Scissors() for _ in range(len(self.datasets))]
+
+        for i,dataset in enumerate(self.datasets):
+            self.scissors[i].set_data(dataset)
+
+    def set_window(self, window):
+        '''
+        Set the extents of the integration window.
+
+        Parameters
+        ----------
+        window : tuple
+            Extents of the window for integration along each axis.
+        '''
+        for i,scissors in enumerate(self.scissors):
+            print("----------------------------------")
+            print("T = " + self.temperatures[i] + " K")
+            scissors.set_window(window)
+
+    def set_center(self, center):
+        '''
+        Set the central coordinate for the linecut.
+
+        Parameters
+        ----------
+        center : tuple
+            Central coordinate around which to perform the linecut.
+        '''
+        [scissors.set_center(center) for scissors in self.scissors]
+
+    def cut_data(self, center=None, window=None, axis=None):
         '''
         Perform data cutting for each temperature dataset.
 
@@ -108,11 +137,13 @@ class TempDependence():
         list
             A list of linecuts obtained from the cutting operation.
         '''
-        self.scissors = [Scissors() for _ in range(len(self.temperatures))]
+
+        center = center if center is not None else self.scissors[0].center
+        window = window if window is not None else self.scissors[0].window
+
         for i,T in enumerate(self.temperatures):
             print("-------------------------------")
             print("Cutting T = " + T + " K data...")
-            self.scissors[i].set_data(self.datasets[T])
             self.scissors[i].cut_data(center, window, axis)
 
         self.linecuts = [scissors.linecut for scissors in self.scissors]
@@ -155,4 +186,3 @@ class TempDependence():
 
         # Create a new legend with reversed order
         plt.legend(handles, labels)
-        plt.show()
