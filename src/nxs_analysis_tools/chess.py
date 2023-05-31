@@ -145,6 +145,7 @@ class TempDependence():
         self.linecuts = [scissors.linecut for scissors in self.scissors]
         return self.linecuts
 
+    # TODO: Add temperature_list parameter. Consider changing type(datasets) to dictionary.
     def plot_linecuts(self, vertical_offset=0, **kwargs):
         '''
         Plot the linecuts obtained from data cutting.
