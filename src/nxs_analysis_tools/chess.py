@@ -8,7 +8,7 @@ from nexusformat.nexus import NXentry
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from nxs_analysis_tools import load_data, Scissors
+from nxs_analysis_tools import load_data
 
 
 class TempDependence():
@@ -19,7 +19,7 @@ class TempDependence():
         '''
         Initialize TempDependence class.
         '''
-        self.datasets=[]
+        self.datasets={}
         self.folder=None
         self.temperatures=None
         self.scissors=None
@@ -40,7 +40,7 @@ class TempDependence():
         '''
         Clear the datasets stored in the TempDependence instance.
         '''
-        self.datasets=NXentry()
+        self.datasets={}
 
     def load_datasets(self, folder, file_ending='hkli.nxs', temperatures_list=None):
         '''
@@ -82,11 +82,11 @@ class TempDependence():
                     print('-----------------------------------------------')
                     print('Loading ' + temperature + ' K indexed .nxs files...')
                     print('Found ' + filepath)
-                    self.datasets.append(load_data(filepath))
+                    self.datasets[temperature] = load_data(filepath)
 
         self.scissors = [Scissors() for _ in range(len(self.datasets))]
 
-        for i,dataset in enumerate(self.datasets):
+        for i,dataset in enumerate(self.datasets.values()):
             self.scissors[i].set_data(dataset)
 
     def set_window(self, window):
@@ -184,4 +184,10 @@ class TempDependence():
         # Create a new legend with reversed order
         plt.legend(handles, labels)
                    
-        return fig
+        return ax
+
+    def show_integration_window(self, temperature=None):
+        if temperature is not None:
+            self.scissors[0].show_integration_window(data=self.datasets[temperature])
+        else:
+            self.scissors[0].show_integration_window(data=self.datasets[self.temperatures[0]])

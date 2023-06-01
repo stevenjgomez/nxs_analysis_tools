@@ -444,11 +444,11 @@ class Scissors():
 
         return self.linecut
 
-    def show_integration_window(self, label=None, **kwargs):
+    def show_integration_window(self, data=None, label=None, **kwargs):
         '''
         Plots integration window highlighted on 2D heatmap full dataset.
         '''
-        data = self.data
+        data = self.data if data is None else data
         axis = self.axis
         center = self.center
         window = self.window
