@@ -4,11 +4,10 @@ This module provides classes and functions for analyzing scattering datasets col
 plotting linecuts.
 '''
 import os
-from nexusformat.nexus import NXentry
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from nxs_analysis_tools import load_data
+from nxs_analysis_tools import load_data, Scissors
 
 
 class TempDependence():
@@ -145,7 +144,6 @@ class TempDependence():
         self.linecuts = [scissors.linecut for scissors in self.scissors]
         return self.linecuts
 
-    # TODO: Add temperature_list parameter. Consider changing type(datasets) to dictionary.
     def plot_linecuts(self, vertical_offset=0, **kwargs):
         '''
         Plot the linecuts obtained from data cutting.
@@ -183,10 +181,22 @@ class TempDependence():
 
         # Create a new legend with reversed order
         plt.legend(handles, labels)
-                   
-        return ax
+
+        return fig,ax
 
     def show_integration_window(self, temperature=None):
+        '''
+        Displays the integration window plot for a specific temperature or for all temperatures if
+        none is provided.
+
+        Parameters
+        ----------
+        temperature : str, optional
+            The temperature at which to display the integration window plot. If provided, the plot
+            will be generated using the dataset corresponding to the specified temperature. If not
+            provided, the integration window plots will be generated for all available
+            temperatures.
+        '''
         if temperature is not None:
             self.scissors[0].show_integration_window(data=self.datasets[temperature])
         else:

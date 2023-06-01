@@ -447,6 +447,16 @@ class Scissors():
     def show_integration_window(self, data=None, label=None, **kwargs):
         '''
         Plots integration window highlighted on 2D heatmap full dataset.
+
+        Parameters
+        ----------
+        data : array-like, optional
+            The 2D heatmap dataset to plot. If not provided, the dataset stored in `self.data` will be used.
+        label : str, optional
+            The label for the integration window plot.
+        **kwargs : keyword arguments, optional
+            Additional keyword arguments to customize the plot.
+
         '''
         data = self.data if data is None else data
         axis = self.axis
