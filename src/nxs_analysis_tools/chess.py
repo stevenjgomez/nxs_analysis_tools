@@ -198,6 +198,8 @@ class TempDependence():
             temperatures.
         '''
         if temperature is not None:
-            self.scissors[0].highlight_integration_window(data=self.datasets[temperature], **kwargs)
+            p = self.scissors[0].highlight_integration_window(data=self.datasets[temperature], **kwargs)
         else:
-            self.scissors[0].highlight_integration_window(data=self.datasets[self.temperatures[0]], **kwargs)
+            p = self.scissors[0].highlight_integration_window(data=self.datasets[self.temperatures[0]], **kwargs)
+
+        return p

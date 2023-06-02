@@ -447,7 +447,7 @@ class Scissors():
 
     # TODO: add parameter for rectangle color
     # TODO: add legend
-    def highlight_integration_window(self, data=None, label=None, **kwargs):
+    def highlight_integration_window(self, data=None, label=None, highlight_color='red', **kwargs):
         '''
         Plots integration window highlighted on the three principal cross sections of the first
         temperature dataset.
@@ -459,6 +459,8 @@ class Scissors():
             be used.
         label : str, optional
             The label for the integration window plot.
+        highlight_color : str, optional
+            The edge color used to highlight the integration window. Default is 'red'.
         **kwargs : keyword arguments, optional
             Additional keyword arguments to customize the plot.
 
@@ -486,7 +488,7 @@ class Scissors():
             (center[0]-window[0],
             center[1]-window[1]),
             2*window[0], 2*window[1],
-            linewidth=1, edgecolor='r', facecolor='none', transform=p1.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p1.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -504,7 +506,7 @@ class Scissors():
             (center[0]-window[0],
             center[2]-window[2]),
             2*window[0], 2*window[2],
-            linewidth=1, edgecolor='r', facecolor='none', transform=p2.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p2.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -522,7 +524,7 @@ class Scissors():
             (center[1]-window[1],
             center[2]-window[2]),
             2*window[1], 2*window[2],
-            linewidth=1, edgecolor='r', facecolor='none', transform=p3.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p3.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -531,8 +533,7 @@ class Scissors():
 
         plt.show()
 
-        return (p1, p2, p3)
-
+        return p1, p2, p3
 
     def plot_integration_window(self, integrated=False, **kwargs):
         """
@@ -590,4 +591,4 @@ class Scissors():
 
         plt.show()
 
-        return (p1, p2, p3)
+        return p1, p2, p3
