@@ -445,6 +445,8 @@ class Scissors():
 
         return self.linecut
 
+    # TODO: add parameter for rectangle color
+    # TODO: add legend
     def highlight_integration_window(self, data=None, label=None, **kwargs):
         '''
         Plots integration window highlighted on the three principal cross sections of the first
@@ -563,23 +565,25 @@ class Scissors():
 
         # Plot cross section 2
         slice_obj = [slice(None)] * data.ndim
-        slice_obj[0] = center[0]
-        p2 = plot_slice(data[slice_obj],
-                        X=data[data.axes[1]],
-                        Y=data[data.axes[2]],
-                        ax=axes[1],
-                        **kwargs)
-        axes[1].set_aspect(len(data[data.axes[1]].nxdata)/len(data[data.axes[2]].nxdata))
-
-        # Plot cross section 3
-        slice_obj = [slice(None)] * data.ndim
         slice_obj[1] = center[1]
         p3 = plot_slice(data[slice_obj],
                         X=data[data.axes[0]],
                         Y=data[data.axes[2]],
+                        ax=axes[1],
+                        **kwargs)
+        axes[1].set_aspect(len(data[data.axes[0]].nxdata)/len(data[data.axes[2]].nxdata))
+
+        # Plot cross section 3
+        slice_obj = [slice(None)] * data.ndim
+        slice_obj[0] = center[0]
+        p2 = plot_slice(data[slice_obj],
+                        X=data[data.axes[1]],
+                        Y=data[data.axes[2]],
                         ax=axes[2],
                         **kwargs)
-        axes[2].set_aspect(len(data[data.axes[0]].nxdata)/len(data[data.axes[2]].nxdata))
+        axes[2].set_aspect(len(data[data.axes[1]].nxdata)/len(data[data.axes[2]].nxdata))
+
+
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.3)
