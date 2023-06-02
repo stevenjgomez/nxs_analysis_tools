@@ -444,14 +444,15 @@ class Scissors():
 
         return self.linecut
 
-    def show_integration_window(self, data=None, label=None, **kwargs):
+    def highlight_integration_window(self, data=None, label=None, **kwargs):
         '''
-        Plots integration window highlighted on 2D heatmap full dataset.
+        Plots integration window highlighted on 2D heatmap of full dataset along.
 
         Parameters
         ----------
         data : array-like, optional
-            The 2D heatmap dataset to plot. If not provided, the dataset stored in `self.data` will be used.
+            The 2D heatmap dataset to plot. If not provided, the dataset stored in `self.data` will
+            be used.
         label : str, optional
             The label for the integration window plot.
         **kwargs : keyword arguments, optional
@@ -520,19 +521,5 @@ class Scissors():
 
         return (p1,p2,p3)
 
-    # def plot_window(self):
-    #     '''
-    #     Plots 2D heatmap of integration window data on its own.
-    #     '''
-    #     data = self.integration_volume
-
-    #     # TODO: Adjust code to plot 3 different cross sections, create slice_obj
-    #     p = plot_slice(
-    #         data[slice_obj],
-    #         data[data.axes[self.integrated_axes[0]]],
-    #         data[data.axes[self.integrated_axes[1]]],
-    #         vmin=1, logscale=True,
-    #         )
-    #     plt.show()
-
-    #     return
+    def plot_integration_window(self):
+        
