@@ -446,7 +446,8 @@ class Scissors():
 
     def highlight_integration_window(self, data=None, label=None, **kwargs):
         '''
-        Plots integration window highlighted on 2D heatmap of full dataset along.
+        Plots integration window highlighted on the three principal cross sections of the first
+        temperature dataset.
 
         Parameters
         ----------
@@ -521,5 +522,48 @@ class Scissors():
 
         return (p1,p2,p3)
 
-    def plot_integration_window(self):
+    def plot_integration_window(self, integrated=False, **kwargs):
+        '''
+        Plots the three principal cross sections of the integration volume on a 2D heatmap.
+
+        Parameters
+        ----------
         
+        '''
+        data = self.integration_volume
+        axis = self.axis
+        center = self.center
+        window = self.window
+        integrated_axes = self.integrated_axes
+
+        # Plot cross section 1
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[axis] = center[axis]
+
+        p1 = plot_slice(data[slice_obj],
+                       X=data[data.axes[integrated_axes[0]]],
+                       Y=data[data.axes[integrated_axes[1]]],
+                       **kwargs)
+        plt.show()
+
+        # Plot cross section 2
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[integrated_axes[1]] = center[integrated_axes[1]]
+
+        p2 = plot_slice(data[slice_obj],
+                       X=data[data.axes[integrated_axes[0]]],
+                       Y=data[data.axes[axis]],
+                       **kwargs)
+        plt.show()
+
+        # Plot cross section 3
+        slice_obj = [slice(None)]*data.ndim
+        slice_obj[integrated_axes[0]] = center[integrated_axes[0]]
+
+        p3 = plot_slice(data[slice_obj],
+                       X=data[data.axes[integrated_axes[1]]],
+                       Y=data[data.axes[axis]],
+                       **kwargs)
+        plt.show()
+
+        return (p1,p2,p3)
