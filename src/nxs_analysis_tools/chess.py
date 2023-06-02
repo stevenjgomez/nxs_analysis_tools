@@ -91,32 +91,32 @@ class TempDependence():
             self.scissors[i].set_data(dataset)
 
     def set_window(self, window):
-        '''
+        """
         Set the extents of the integration window.
 
         Parameters
         ----------
         window : tuple
             Extents of the window for integration along each axis.
-        '''
+        """
         for i,scissors in enumerate(self.scissors):
             print("----------------------------------")
             print("T = " + self.temperatures[i] + " K")
             scissors.set_window(window)
 
     def set_center(self, center):
-        '''
+        """
         Set the central coordinate for the linecut.
 
         Parameters
         ----------
         center : tuple
             Central coordinate around which to perform the linecut.
-        '''
+        """
         [scissors.set_center(center) for scissors in self.scissors]
 
     def cut_data(self, center=None, window=None, axis=None):
-        '''
+        """
         Perform data cutting for each temperature dataset.
 
         Parameters
@@ -133,7 +133,7 @@ class TempDependence():
         -------
         list
             A list of linecuts obtained from the cutting operation.
-        '''
+        """
 
         center = center if center is not None else self.scissors[0].center
         window = window if window is not None else self.scissors[0].window
@@ -146,7 +146,7 @@ class TempDependence():
         return self.linecuts
 
     def plot_linecuts(self, vertical_offset=0, **kwargs):
-        '''
+        """
         Plot the linecuts obtained from data cutting.
 
         Parameters
@@ -155,13 +155,13 @@ class TempDependence():
             The vertical offset between linecuts on the plot. The default is 0.
         **kwargs
             Additional keyword arguments to be passed to the plot function.
-        '''
+        """
         fig, ax = plt.subplots()
 
         # Get the Viridis colormap
         cmap = mpl.colormaps.get_cmap('viridis')
 
-        for i, linecut in enumerate(self.linecuts):
+        for i, linecut in enumerate(self.linecuts.values()):
             x_data = linecut[linecut.axes[0]].nxdata
             y_data = linecut[linecut.signal].nxdata + i*vertical_offset
             ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
@@ -186,7 +186,7 @@ class TempDependence():
         return fig,ax
 
     def highlight_integration_window(self, temperature=None, **kwargs):
-        '''
+        """
         Displays the integration window plot for a specific temperature or for all temperatures if
         none is provided.
 
@@ -197,7 +197,8 @@ class TempDependence():
             will be generated using the dataset corresponding to the specified temperature. If not
             provided, the integration window plots will be generated for all available
             temperatures.
-        '''
+        """
+
         if temperature is not None:
             p = self.scissors[0].highlight_integration_window(data=self.datasets[temperature], **kwargs)
         else:
