@@ -4,6 +4,7 @@ This module provides classes and functions for analyzing scattering datasets col
 plotting linecuts.
 '''
 import os
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -14,6 +15,7 @@ class TempDependence():
     '''
     Class for analyzing scattering datasets collected at CHESS (ID4B) with temperature dependence.
     '''
+
     def __init__(self):
         '''
         Initialize TempDependence class.
@@ -22,7 +24,7 @@ class TempDependence():
         self.folder=None
         self.temperatures=None
         self.scissors=None
-        self.linecuts=None
+        self.linecuts={}
 
     def get_folder(self):
         '''
@@ -140,8 +142,7 @@ class TempDependence():
             print("-------------------------------")
             print("Cutting T = " + T + " K data...")
             self.scissors[i].cut_data(center, window, axis)
-
-        self.linecuts = [scissors.linecut for scissors in self.scissors]
+            self.linecuts[T] = self.scissors[i].linecut
         return self.linecuts
 
     def plot_linecuts(self, vertical_offset=0, **kwargs):
