@@ -472,54 +472,54 @@ class Scissors():
 
         # Plot cross section 1
         slice_obj = [slice(None)]*data.ndim
-        slice_obj[axis] = center[axis]
+        slice_obj[2] = center[2]
 
         p1 = plot_slice(data[slice_obj],
-                       X=data[data.axes[integrated_axes[0]]],
-                       Y=data[data.axes[integrated_axes[1]]],
+                       X=data[data.axes[0]],
+                       Y=data[data.axes[1]],
                        ax=axes[0],
                        **kwargs)
         ax = axes[0]
         rect_diffuse = patches.Rectangle(
-            (center[integrated_axes[0]]-window[integrated_axes[0]],
-            center[integrated_axes[1]]-window[integrated_axes[1]]),
-            2*window[integrated_axes[0]], 2*window[integrated_axes[1]],
+            (center[0]-window[0],
+            center[1]-window[1]),
+            2*window[0], 2*window[1],
             linewidth=1, edgecolor='r', facecolor='none', transform=p1.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
         # Plot cross section 2
         slice_obj = [slice(None)]*data.ndim
-        slice_obj[integrated_axes[1]] = center[integrated_axes[1]]
+        slice_obj[1] = center[1]
 
         p2 = plot_slice(data[slice_obj],
-                       X=data[data.axes[integrated_axes[0]]],
-                       Y=data[data.axes[axis]],
+                       X=data[data.axes[0]],
+                       Y=data[data.axes[2]],
                        ax=axes[1],
                        **kwargs)
         ax = axes[1]
         rect_diffuse = patches.Rectangle(
-            (center[integrated_axes[0]]-window[integrated_axes[0]],
-            center[axis]-window[axis]),
-            2*window[integrated_axes[0]], 2*window[axis],
+            (center[0]-window[0],
+            center[2]-window[2]),
+            2*window[0], 2*window[2],
             linewidth=1, edgecolor='r', facecolor='none', transform=p2.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
         # Plot cross section 3
         slice_obj = [slice(None)]*data.ndim
-        slice_obj[integrated_axes[0]] = center[integrated_axes[0]]
+        slice_obj[0] = center[0]
 
         p3 = plot_slice(data[slice_obj],
-                       X=data[data.axes[integrated_axes[1]]],
-                       Y=data[data.axes[axis]],
+                       X=data[data.axes[1]],
+                       Y=data[data.axes[2]],
                        ax=axes[2],
                        **kwargs)
         ax = axes[2]
         rect_diffuse = patches.Rectangle(
-            (center[integrated_axes[1]]-window[integrated_axes[1]],
-            center[axis]-window[axis]),
-           2*window[integrated_axes[1]], 2*window[axis],
+            (center[1]-window[1],
+            center[2]-window[2]),
+            2*window[1], 2*window[2],
             linewidth=1, edgecolor='r', facecolor='none', transform=p3.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
@@ -533,7 +533,7 @@ class Scissors():
 
 
     def plot_integration_window(self, integrated=False, **kwargs):
-        '''
+        """
         Plots the three principal cross sections of the integration volume on a single figure.
 
         Parameters
@@ -542,7 +542,7 @@ class Scissors():
             Flag indicating whether the integration volume is already integrated.
         **kwargs : keyword arguments, optional
             Additional keyword arguments to customize the plot.
-        '''
+        """
         data = self.integration_volume
         axis = self.axis
         center = self.center
@@ -553,33 +553,33 @@ class Scissors():
 
         # Plot cross section 1
         slice_obj = [slice(None)] * data.ndim
-        slice_obj[axis] = center[axis]
+        slice_obj[2] = center[2]
         p1 = plot_slice(data[slice_obj],
-                        X=data[data.axes[integrated_axes[0]]],
-                        Y=data[data.axes[integrated_axes[1]]],
+                        X=data[data.axes[0]],
+                        Y=data[data.axes[1]],
                         ax=axes[0],
                         **kwargs)
-        axes[0].set_aspect(len(data[data.axes[integrated_axes[0]]].nxdata)/len(data[data.axes[integrated_axes[1]]].nxdata))
+        axes[0].set_aspect(len(data[data.axes[0]].nxdata)/len(data[data.axes[1]].nxdata))
 
         # Plot cross section 2
         slice_obj = [slice(None)] * data.ndim
-        slice_obj[integrated_axes[1]] = center[integrated_axes[1]]
+        slice_obj[0] = center[0]
         p2 = plot_slice(data[slice_obj],
-                        X=data[data.axes[integrated_axes[0]]],
-                        Y=data[data.axes[axis]],
+                        X=data[data.axes[1]],
+                        Y=data[data.axes[2]],
                         ax=axes[1],
                         **kwargs)
-        axes[1].set_aspect(len(data[data.axes[integrated_axes[0]]].nxdata)/len(data[data.axes[axis]].nxdata))
+        axes[1].set_aspect(len(data[data.axes[1]].nxdata)/len(data[data.axes[2]].nxdata))
 
         # Plot cross section 3
         slice_obj = [slice(None)] * data.ndim
-        slice_obj[integrated_axes[0]] = center[integrated_axes[0]]
+        slice_obj[1] = center[1]
         p3 = plot_slice(data[slice_obj],
-                        X=data[data.axes[integrated_axes[1]]],
-                        Y=data[data.axes[axis]],
+                        X=data[data.axes[0]],
+                        Y=data[data.axes[2]],
                         ax=axes[2],
                         **kwargs)
-        axes[2].set_aspect(len(data[data.axes[integrated_axes[1]]].nxdata)/len(data[data.axes[axis]].nxdata))
+        axes[2].set_aspect(len(data[data.axes[0]].nxdata)/len(data[data.axes[2]].nxdata))
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.3)
