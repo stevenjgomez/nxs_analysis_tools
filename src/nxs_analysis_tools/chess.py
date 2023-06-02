@@ -184,7 +184,7 @@ class TempDependence():
 
         return fig,ax
 
-    def highlight_integration_window(self, temperature=None):
+    def highlight_integration_window(self, temperature=None, **kwargs):
         '''
         Displays the integration window plot for a specific temperature or for all temperatures if
         none is provided.
@@ -198,6 +198,6 @@ class TempDependence():
             temperatures.
         '''
         if temperature is not None:
-            self.scissors[0].highlight_integration_window(data=self.datasets[temperature])
+            self.scissors[0].highlight_integration_window(data=self.datasets[temperature], **kwargs)
         else:
-            self.scissors[0].highlight_integration_window(data=self.datasets[self.temperatures[0]])
+            self.scissors[0].highlight_integration_window(data=self.datasets[self.temperatures[0]], **kwargs)
