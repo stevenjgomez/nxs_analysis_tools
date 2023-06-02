@@ -531,6 +531,7 @@ class Scissors():
 
         return (p1, p2, p3)
 
+
     def plot_integration_window(self, integrated=False, **kwargs):
         '''
         Plots the three principal cross sections of the integration volume on a single figure.
@@ -558,6 +559,7 @@ class Scissors():
                         Y=data[data.axes[integrated_axes[1]]],
                         ax=axes[0],
                         **kwargs)
+        axes[0].set_aspect(len(data[data.axes[integrated_axes[0]]].nxdata)/len(data[data.axes[integrated_axes[1]]].nxdata))
 
         # Plot cross section 2
         slice_obj = [slice(None)] * data.ndim
@@ -567,6 +569,7 @@ class Scissors():
                         Y=data[data.axes[axis]],
                         ax=axes[1],
                         **kwargs)
+        axes[1].set_aspect(len(data[data.axes[integrated_axes[0]]].nxdata)/len(data[data.axes[axis]].nxdata))
 
         # Plot cross section 3
         slice_obj = [slice(None)] * data.ndim
@@ -576,6 +579,7 @@ class Scissors():
                         Y=data[data.axes[axis]],
                         ax=axes[2],
                         **kwargs)
+        axes[2].set_aspect(len(data[data.axes[integrated_axes[1]]].nxdata)/len(data[data.axes[axis]].nxdata))
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.3)
