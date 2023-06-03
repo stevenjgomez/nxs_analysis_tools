@@ -167,11 +167,11 @@ class TempDependence():
             ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
             	**kwargs)
 
-        xlabel_components = [self.linecuts[0].axes[0] if i == self.scissors[0].axis \
+        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0] if i == self.scissors[0].axis \
         	else str(c) for i,c in enumerate(self.scissors[0].center)]
         xlabel = ' '.join(xlabel_components)
         ax.set(xlabel=xlabel,
-                ylabel=self.linecuts[0].signal)
+                ylabel=self.linecuts[self.temperatures[0]].signal)
 
         # Get the current legend handles and labels
         handles, labels = plt.gca().get_legend_handles_labels()

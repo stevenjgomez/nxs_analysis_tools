@@ -9,6 +9,8 @@ docs/build/
 __pycache__/
 *.py[cod]
 
+src/nxs_analysis_tools/pairdistribution.py
+
 # Distribution / packaging
 bin/
 build/

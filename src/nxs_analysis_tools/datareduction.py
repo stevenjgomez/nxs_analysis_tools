@@ -466,7 +466,6 @@ class Scissors():
 
         '''
         data = self.data if data is None else data
-        axis = self.axis
         center = self.center
         window = self.window
         integrated_axes = self.integrated_axes
