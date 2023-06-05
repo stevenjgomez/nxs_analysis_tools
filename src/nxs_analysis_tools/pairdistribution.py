@@ -196,6 +196,9 @@ class Symmetrizer2D():
 
         reconstructed_unpadded = p.unpad(reconstructed)
 
+        # Fix any overlapping pixels by truncating counts to max
+        reconstructed_unpadded[reconstructed_unpadded > data[data.signal].nxdata.max()] = data[data.signal].nxdata.max()
+
         symmetrized = NXdata(NXfield(reconstructed_unpadded, name=data.signal),
                              (data[data.axes[0]],
                               data[data.axes[1]]))
@@ -216,7 +219,7 @@ class Symmetrizer3D():
         self.plane2 = self.q1.nxname + self.q3.nxname
         self.plane3 = self.q2.nxname + self.q3.nxname
 
-        print("\nPlane 1: " + self.plane1)
+        print("Plane 1: " + self.plane1)
         print("Plane 2: " + self.plane2)
         print("Plane 3: " + self.plane3)
 
@@ -281,14 +284,14 @@ class Symmetrizer3D():
         print('Symmetrizing ' + self.plane2 + ' planes...')
         for j in range(0, len(q2)):
             print('Symmetrizing ' + q2.nxname + '=' + str(q2[j]) + "...", end='\r')
-            data_symmetrized = self.plane2symmetrizer.symmetrize_2d(data[:, j, :])
+            data_symmetrized = self.plane2symmetrizer.symmetrize_2d(out_array[:, j, :])
             out_array[:, j, :] = data_symmetrized[data.signal].nxdata
         print('Symmetrized ' + self.plane2 + ' planes.')
 
         print('Symmetrizing ' + self.plane3 + ' planes...')
         for i in range(0, len(q1)):
             print('Symmetrizing ' + q1.nxname + '=' + str(q1[i]) + "...", end='\r')
-            data_symmetrized = self.plane3symmetrizer.symmetrize_2d(data[i, :, :])
+            data_symmetrized = self.plane3symmetrizer.symmetrize_2d(out_array[i, :, :])
             out_array[i, :, :] = data_symmetrized[data.signal].nxdata
         print('Symmetrized ' + self.plane3 + ' planes.')
 
@@ -299,6 +302,8 @@ class Symmetrizer3D():
         print("Symmetriztaion finished in " + str((stoptime - starttime)/60) + " minutes.")
 
         self.symmetrized = NXdata(NXfield(out_array, name=data.signal), tuple([data[axis] for axis in data.axes]))
+
+        return self.symmetrized
 
     def save(self):
         print("Saving file...")
@@ -313,14 +318,11 @@ class Symmetrizer3D():
 class Puncher():
     pass
 
-
 class Reducer():
     pass
 
-
 class Interpolator():
     pass
-
 
 class FourierTransformer():
     pass

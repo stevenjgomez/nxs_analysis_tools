@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../src/nxs_analysis_tools/')
-from datareduction import load_data, plot_slice
+from datareduction import load_data
 from pairdistribution import Symmetrizer3D
 import matplotlib.pyplot as plt
 
