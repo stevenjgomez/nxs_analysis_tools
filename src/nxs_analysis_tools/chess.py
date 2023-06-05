@@ -140,7 +140,7 @@ class TempDependence():
         center = center if center is not None else self.scissors[self.temperatures[0]].center
         window = window if window is not None else self.scissors[self.temperatures[0]].window
 
-        for i,T in enumerate(self.temperatures):
+        for T in self.temperatures:
             print("-------------------------------")
             print("Cutting T = " + T + " K data...")
             self.scissors[T].cut_data(center, window, axis)

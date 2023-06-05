@@ -1,3 +1,6 @@
+"""
+Tools for generating single crystal pair distribution functions.
+"""
 import time
 import os
 from scipy import ndimage
@@ -9,7 +12,33 @@ from nxs_analysis_tools import plot_slice
 
 
 class Padder():
-    def __init__(self, data):
+    """
+    A class to pad and unpad datasets with a symmetric region of zeros.
+    """
+
+    def __init__(self, data=None):
+        """
+        Initialize the Symmetrizer3D object.
+
+        Parameters
+        ----------
+        data : NXdata, optional
+            The input data to be symmetrized. If provided, the `set_data` method is called to set the data.
+
+        """
+        if data is not None:
+            self.set_data(data)
+
+    def set_data(self, data):
+        """
+        Set the input data for symmetrization.
+
+        Parameters
+        ----------
+        data : NXdata
+            The input data to be symmetrized.
+
+        """
         self.data = data
 
         self.steps = tuple([(data[axis].nxdata[1] - data[axis].nxdata[0]) for axis in data.axes])
@@ -18,6 +47,14 @@ class Padder():
         self.maxes = tuple([data[axis].nxdata.max() for axis in data.axes])
 
     def pad(self, padding):
+        """
+        Symmetrically pads the data with zero values.
+
+        Parameters
+        ----------
+        padding : tuple
+            The number of zero-value pixels to add along each edge of the array.
+        """
         data = self.data
         self.padding = padding
 
@@ -27,7 +64,7 @@ class Padder():
         padded = np.zeros(padded_shape)
 
         slice_obj = [slice(None)] * data.ndim
-        for i in range(len(slice_obj)):
+        for i, _ in enumerate(slice_obj):
             slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
         slice_obj = tuple(slice_obj)
         padded[slice_obj] = data[data.signal].nxdata
@@ -42,7 +79,15 @@ class Padder():
         self.padded = padded
         return padded
 
-    def save(self):
+    def save(self, fout_name=None):
+        """
+        Saves the padded dataset to a .nxs file.
+
+        Parameters
+        ----------
+        fout_name : str, optional
+            The output file name. Default is padded_(Hpadding)_(Kpadding)_(Lpadding).nxs
+        """
         padH, padK, padL = self.padding
 
         # Save padded dataset
@@ -50,7 +95,8 @@ class Padder():
         f = NXroot()
         f['entry'] = NXentry()
         f['entry']['data'] = self.padded
-        fout_name = 'padded_' + str(padH) + '_' + str(padK) + '_' + str(padL) + '.nxs'
+        if fout_name is None:
+            fout_name = 'padded_' + str(padH) + '_' + str(padK) + '_' + str(padL) + '.nxs'
         nxsave(fout_name, f)
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
@@ -62,14 +108,29 @@ class Padder():
         return data[slice_obj]
 
 
-class Symmetrizer2D():
+class Symmetrizer2D:
+    """
+    A class for symmetrizing 2D datasets.
+    """
+
     def __init__(self, **kwargs):
         if kwargs != {}:
             self.set_parameters(**kwargs)
 
     def set_parameters(self, theta_min, theta_max, skew_angle=90, mirror=True):
         """
+        Sets the parameters for the symmetrization operation.
 
+        Parameters
+        ----------
+        theta_min : float
+            The minimum angle in degrees for symmetrization.
+        theta_max : float
+            The maximum angle in degrees for symmetrization.
+        skew_angle : float, optional
+            The angle in degrees to skew the data during symmetrization (default: 90).
+        mirror : bool, optional
+            If True, perform mirroring during symmetrization (default: True).
         """
         self.theta_min = theta_min
         self.theta_max = theta_max
@@ -101,6 +162,19 @@ class Symmetrizer2D():
         self.symmetrized = None
 
     def symmetrize_2d(self, data):
+        """
+        Symmetrizes a 2D dataset based on the set parameters.
+
+        Parameters
+        ----------
+        data : NXdata
+            The input 2D dataset to be symmetrized.
+
+        Returns
+        -------
+        symmetrized : NXdata
+            The symmetrized 2D dataset.
+        """
         theta_min = self.theta_min
         theta_max = self.theta_max
         mirror = self.mirror
@@ -202,6 +276,39 @@ class Symmetrizer2D():
         return symmetrized
 
     def test(self, data):
+        """
+        Performs a test visualization of the symmetrization process.
+
+        Parameters
+        ----------
+        data : ndarray
+            The input 2D dataset to be used for the test visualization.
+
+        Returns
+        -------
+        fig : Figure
+            The matplotlib Figure object that contains the test visualization plot.
+        axesarr : ndarray
+            The numpy array of Axes objects representing the subplots in the test visualization.
+
+        Notes
+        -----
+        This method uses the `symmetrize_2d` method to perform the symmetrization on the input data and visualize
+        the process.
+
+        The test visualization plot includes the following subplots:
+        - Subplot 1: The original dataset.
+        - Subplot 2: The symmetrization mask.
+        - Subplot 3: The wedge slice used for reconstruction of the full symmetrized dataset.
+        - Subplot 4: The symmetrized dataset.
+
+        Example usage:
+        ```
+        s = Scissors()
+        s.set_parameters(theta_min, theta_max, skew_angle, mirror)
+        s.test(data)
+        ```
+        """
         s = self
         symm_test = s.symmetrize_2d(data)
         fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
@@ -212,10 +319,24 @@ class Symmetrizer2D():
         plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
         plt.subplots_adjust(wspace=0.4)
         plt.show()
+        return fig, axesarr
 
 
 class Symmetrizer3D():
+    """
+    A class to symmetrize 3D datasets.
+    """
+
     def __init__(self, data):
+        """
+        Initialize the Symmetrizer3D object.
+
+        Parameters
+        ----------
+        data : NXdata
+            The input 3D dataset to be symmetrized.
+
+        """
         self.data = data
         self.q1 = data[data.axes[0]]
         self.q2 = data[data.axes[1]]
@@ -232,6 +353,15 @@ class Symmetrizer3D():
         print("Plane 3: " + self.plane3)
 
     def symmetrize(self):
+        """
+        Perform the symmetrization of the 3D dataset.
+
+        Returns
+        -------
+        symmetrized : NXdata
+            The symmetrized 3D dataset.
+
+        """
         starttime = time.time()
         data = self.data
         q1, q2, q3 = self.q1, self.q2, self.q3
@@ -271,27 +401,38 @@ class Symmetrizer3D():
 
         return self.symmetrized
 
-    def save(self):
+    def save(self, fout_name=None):
+        """
+        Save the symmetrized dataset to a file.
+
+        Parameters
+        ----------
+        fout_name : str, optional
+            The name of the output file. If not provided, the default name 'symmetrized.nxs' will be used.
+
+        """
         print("Saving file...")
 
         f = NXroot()
         f['entry'] = NXentry()
         f['entry']['data'] = self.symmetrized
-        nxsave('symmetrized.nxs', f)
-        print("Output file saved to: " + os.path.join(os.getcwd(), 'symmetrized.nxs'))
+        if fout_name is None:
+            fout_name = 'symmetrized.nxs'
+        nxsave(fout_name, f)
+        print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
 
-class Puncher():
-    pass
-
-
-class Reducer():
-    pass
-
-
-class Interpolator():
-    pass
-
-
-class FourierTransformer():
-    pass
+# class Puncher():
+#     pass
+#
+#
+# class Reducer():
+#     pass
+#
+#
+# class Interpolator():
+#     pass
+#
+#
+# class FourierTransformer():
+#     pass
