@@ -23,7 +23,7 @@ class TempDependence():
         self.datasets={}
         self.folder=None
         self.temperatures=None
-        self.scissors=None
+        self.scissors= {}
         self.linecuts={}
 
     def get_folder(self):
@@ -83,12 +83,13 @@ class TempDependence():
                     print('-----------------------------------------------')
                     print('Loading ' + temperature + ' K indexed .nxs files...')
                     print('Found ' + filepath)
+
+                    # Load dataset at each temperature
                     self.datasets[temperature] = load_data(filepath)
 
-        self.scissors = [Scissors() for _ in range(len(self.datasets))]
-
-        for i,dataset in enumerate(self.datasets.values()):
-            self.scissors[i].set_data(dataset)
+                    # Initialize scissors object at each temperature
+                    self.scissors[temperature] = Scissors()
+                    self.scissors[temperature].set_data(self.datasets[temperature])
 
     def set_window(self, window):
         """
@@ -99,10 +100,10 @@ class TempDependence():
         window : tuple
             Extents of the window for integration along each axis.
         """
-        for i,scissors in enumerate(self.scissors):
+        for T in self.temperatures:
             print("----------------------------------")
-            print("T = " + self.temperatures[i] + " K")
-            scissors.set_window(window)
+            print("T = " + T + " K")
+            self.scissors[T].set_window(window)
 
     def set_center(self, center):
         """
@@ -113,7 +114,8 @@ class TempDependence():
         center : tuple
             Central coordinate around which to perform the linecut.
         """
-        [scissors.set_center(center) for scissors in self.scissors]
+        for T in self.temperatures:
+            self.scissors[T].set_center(center)
 
     def cut_data(self, center=None, window=None, axis=None):
         """
@@ -135,14 +137,14 @@ class TempDependence():
             A list of linecuts obtained from the cutting operation.
         """
 
-        center = center if center is not None else self.scissors[0].center
-        window = window if window is not None else self.scissors[0].window
+        center = center if center is not None else self.scissors[self.temperatures[0]].center
+        window = window if window is not None else self.scissors[self.temperatures[0]].window
 
         for i,T in enumerate(self.temperatures):
             print("-------------------------------")
             print("Cutting T = " + T + " K data...")
-            self.scissors[i].cut_data(center, window, axis)
-            self.linecuts[T] = self.scissors[i].linecut
+            self.scissors[T].cut_data(center, window, axis)
+            self.linecuts[T] = self.scissors[T].linecut
         return self.linecuts
 
     def plot_linecuts(self, vertical_offset=0, **kwargs):
@@ -167,8 +169,9 @@ class TempDependence():
             ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
             	**kwargs)
 
-        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0] if i == self.scissors[0].axis \
-        	else str(c) for i,c in enumerate(self.scissors[0].center)]
+        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0]
+                             if i == self.scissors[self.temperatures[0]].axis \
+                                 else str(c) for i,c in enumerate(self.scissors[self.temperatures[0]].center)]
         xlabel = ' '.join(xlabel_components)
         ax.set(xlabel=xlabel,
                 ylabel=self.linecuts[self.temperatures[0]].signal)
@@ -187,7 +190,7 @@ class TempDependence():
 
     def highlight_integration_window(self, temperature=None, **kwargs):
         """
-        Displays the integration window plot for a specific temperature or for all temperatures if
+        Displays the integration window plot for a specific temperature, or for the first temperature if
         none is provided.
 
         Parameters
@@ -195,13 +198,39 @@ class TempDependence():
         temperature : str, optional
             The temperature at which to display the integration window plot. If provided, the plot
             will be generated using the dataset corresponding to the specified temperature. If not
-            provided, the integration window plots will be generated for all available
-            temperatures.
+            provided, the integration window plots will be generated for the first temperature.
+        **kwargs : keyword arguments, optional
+            Additional keyword arguments to customize the plot.
         """
 
         if temperature is not None:
-            p = self.scissors[0].highlight_integration_window(data=self.datasets[temperature], **kwargs)
+            p = self.scissors[self.temperatures[0]].highlight_integration_window(data=self.datasets[temperature],
+                                                                                 **kwargs)
         else:
-            p = self.scissors[0].highlight_integration_window(data=self.datasets[self.temperatures[0]], **kwargs)
+            p = self.scissors[self.temperatures[0]].highlight_integration_window(
+                data=self.datasets[self.temperatures[0]], **kwargs
+            )
+
+        return p
+
+    def plot_integration_window(self, temperature=None, **kwargs):
+        """
+        Plots the three principal cross-sections of the integration volume on a single figure for a specific
+        temperature, or for the first temperature if none is provided.
+
+        Parameters
+        ----------
+        temperature : str, optional
+            The temperature at which to plot the integration volume. If provided, the plot
+            will be generated using the dataset corresponding to the specified temperature. If not
+            provided, the integration window plots will be generated for the first temperature.
+        **kwargs : keyword arguments, optional
+            Additional keyword arguments to customize the plot.
+        """
+
+        if temperature is not None:
+            p = self.scissors[self.temperatures[0]].plot_integration_window(**kwargs)
+        else:
+            p = self.scissors[self.temperatures[0]].plot_integration_window(**kwargs)
 
         return p

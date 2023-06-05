@@ -8,7 +8,6 @@ import numpy as np
 from nxs_analysis_tools import plot_slice
 
 
-
 class Padder():
     def __init__(self, data):
         self.data = data
@@ -22,21 +21,21 @@ class Padder():
         data = self.data
         self.padding = padding
 
-        padded_shape = tuple([data[data.signal].nxdata.shape[i] + self.padding[i]*2 for i in range(data.ndim)])
+        padded_shape = tuple([data[data.signal].nxdata.shape[i] + self.padding[i] * 2 for i in range(data.ndim)])
 
         # Create padded dataset
         padded = np.zeros(padded_shape)
 
-        slice_obj = [slice(None)]*data.ndim
+        slice_obj = [slice(None)] * data.ndim
         for i in range(len(slice_obj)):
-            slice_obj[i] = slice(self.padding[i],-self.padding[i],None)
+            slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
         slice_obj = tuple(slice_obj)
         padded[slice_obj] = data[data.signal].nxdata
 
         padmaxes = tuple([self.maxes[i] + self.padding[i] * self.steps[i] for i in range(data.ndim)])
 
         padded = NXdata(NXfield(padded, name=data.signal),
-                        tuple([NXfield(np.linspace(-padmaxes[i],padmaxes[i],padded_shape[i]),
+                        tuple([NXfield(np.linspace(-padmaxes[i], padmaxes[i], padded_shape[i]),
                                        name=data.axes[i])
                                for i in range(data.ndim)]))
 
@@ -53,26 +52,24 @@ class Padder():
         f['entry']['data'] = self.padded
         fout_name = 'padded_' + str(padH) + '_' + str(padK) + '_' + str(padL) + '.nxs'
         nxsave(fout_name, f)
-        print("Output file saved to: " + os.path.join(os.getcwd(),fout_name))
+        print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
-    def unpad(self,data):
-        slice_obj = [slice(None)]*data.ndim
+    def unpad(self, data):
+        slice_obj = [slice(None)] * data.ndim
         for i in range(data.ndim):
-            slice_obj[i] = slice(self.padding[i],-self.padding[i],None)
+            slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
         slice_obj = tuple(slice_obj)
         return data[slice_obj]
 
 
 class Symmetrizer2D():
-    def __init__(self, theta_min, theta_max, skew_angle=90, mirror=True):
+    def __init__(self, **kwargs):
+        if kwargs != {}:
+            self.set_parameters(**kwargs)
+
+    def set_parameters(self, theta_min, theta_max, skew_angle=90, mirror=True):
         """
 
-        Args:
-            data:
-            theta_min:
-            theta_max:
-            skew_angle:
-            mirror:
         """
         self.theta_min = theta_min
         self.theta_max = theta_max
@@ -146,7 +143,7 @@ class Symmetrizer2D():
                                          order=0,
                                          ) * symmetrization_mask
 
-        scale2 = counts.shape[0]/counts.shape[1]
+        scale2 = counts.shape[0] / counts.shape[1]
         wedge = ndimage.affine_transform(wedge,
                                          Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
                                          offset=[(1 - scale2) * counts.shape[0] / 2, 0],
@@ -156,7 +153,6 @@ class Symmetrizer2D():
         # Reconstruct full dataset from wedge
         reconstructed = np.zeros(counts.shape)
         for n in range(0, rotations):
-
             # The following are attempts to combine images with minimal overlapping pixels
             reconstructed += wedge
             # reconstructed = np.where(reconstructed == 0, reconstructed + wedge, reconstructed)
@@ -168,14 +164,14 @@ class Symmetrizer2D():
 
         if mirror:
             # The following are attempts to combine images with minimal overlapping pixels
-            reconstructed = np.where(reconstructed==0,reconstructed+np.flip(reconstructed, axis=0),reconstructed)
+            reconstructed = np.where(reconstructed == 0, reconstructed + np.flip(reconstructed, axis=0), reconstructed)
             # reconstructed += np.flip(reconstructed, axis=0)
 
         # self.rotated_and_mirrored = NXdata(NXfield(reconstructed, name=data.signal),
         #                                    (q1, q2))
 
         reconstructed = ndimage.affine_transform(reconstructed,
-                                                 Affine2D().scale(scale2,1).inverted().get_matrix()[:2, :2],
+                                                 Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
                                                  offset=[-(1 - scale2) * counts.shape[
                                                      0] / 2 / scale2, 0],
                                                  order=0,
@@ -205,6 +201,18 @@ class Symmetrizer2D():
 
         return symmetrized
 
+    def test(self, data):
+        s = self
+        symm_test = s.symmetrize_2d(data)
+        fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
+        axes = axesarr.reshape(-1)
+        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data')
+        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
+        plot_slice(s.wedge, ax=axes[2], title='wedge')
+        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
+        plt.subplots_adjust(wspace=0.4)
+        plt.show()
+
 
 class Symmetrizer3D():
     def __init__(self, data):
@@ -212,9 +220,9 @@ class Symmetrizer3D():
         self.q1 = data[data.axes[0]]
         self.q2 = data[data.axes[1]]
         self.q3 = data[data.axes[2]]
-        self.plane1symmetrizer = None
-        self.plane2symmetrizer = None
-        self.plane3symmetrizer = None
+        self.plane1symmetrizer = Symmetrizer2D()
+        self.plane2symmetrizer = Symmetrizer2D()
+        self.plane3symmetrizer = Symmetrizer2D()
         self.plane1 = self.q1.nxname + self.q2.nxname
         self.plane2 = self.q1.nxname + self.q3.nxname
         self.plane3 = self.q2.nxname + self.q3.nxname
@@ -223,83 +231,41 @@ class Symmetrizer3D():
         print("Plane 2: " + self.plane2)
         print("Plane 3: " + self.plane3)
 
-    def set_plane1symmetrizer(self, *args, **kwargs):
-        s = Symmetrizer2D(*args, **kwargs)
-        self.plane1symmetrizer = s
-
-    def test_plane1(self, data):
-        s = self.plane1symmetrizer
-        symm_test = s.symmetrize_2d(data)
-        fig, axes = plt.subplots(1, 4, figsize=(15, 3))
-        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data')
-        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
-        plot_slice(s.wedge, ax=axes[2], title='wedge')
-        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
-        plt.subplots_adjust(wspace=0.2)
-        plt.show()
-
-    def set_plane2symmetrizer(self, *args, **kwargs):
-        s = Symmetrizer2D(*args, **kwargs)
-        self.plane2symmetrizer = s
-
-    def test_plane2(self, data):
-        s = self.plane2symmetrizer
-        symm_test = s.symmetrize_2d(data)
-        fig, axes = plt.subplots(1, 4, figsize=(15, 3))
-        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data')
-        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
-        plot_slice(s.wedge, ax=axes[2], title='wedge')
-        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
-        plt.subplots_adjust(wspace=0.2)
-        plt.show()
-
-    def set_plane3symmetrizer(self, *args, **kwargs):
-        s = Symmetrizer2D(*args, **kwargs)
-        self.plane3symmetrizer = s
-
-    def test_plane3(self, data):
-        s = self.plane3symmetrizer
-        symm_test = s.symmetrize_2d(data)
-        fig, axes = plt.subplots(1, 4, figsize=(15, 3))
-        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data')
-        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
-        plot_slice(s.wedge, ax=axes[2], title='wedge')
-        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
-        plt.subplots_adjust(wspace=0.2)
-        plt.show()
-
     def symmetrize(self):
         starttime = time.time()
         data = self.data
-        q1,q2,q3 = self.q1,self.q2,self.q3
+        q1, q2, q3 = self.q1, self.q2, self.q3
         out_array = np.zeros(data[data.signal].shape)
 
-        print('Symmetrizing ' + self.plane1 +' planes...')
+        print('Symmetrizing ' + self.plane1 + ' planes...')
         for k in range(0, len(q3)):
-            print('Symmetrizing ' + q3.nxname + '=' + str(q3[k]) + "...", end='\r')
-            data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:,:,k])
+            print('Symmetrizing ' + q3.nxname + '=' + "{:.02f}".format(q3[k]) + "...", end='\r')
+            data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
             out_array[:, :, k] = data_symmetrized[data.signal].nxdata
-        print('Symmetrized ' + self.plane1 +' planes.')
+        print('\nSymmetrized ' + self.plane1 + ' planes.')
 
         print('Symmetrizing ' + self.plane2 + ' planes...')
         for j in range(0, len(q2)):
-            print('Symmetrizing ' + q2.nxname + '=' + str(q2[j]) + "...", end='\r')
-            data_symmetrized = self.plane2symmetrizer.symmetrize_2d(out_array[:, j, :])
+            print('Symmetrizing ' + q2.nxname + '=' + "{:.02f}".format(q2[j]) + "...", end='\r')
+            data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
+                NXdata(NXfield(out_array[:, j, :], name=data.signal),
+                       (q1, q3)))
             out_array[:, j, :] = data_symmetrized[data.signal].nxdata
-        print('Symmetrized ' + self.plane2 + ' planes.')
+        print('\nSymmetrized ' + self.plane2 + ' planes.')
 
         print('Symmetrizing ' + self.plane3 + ' planes...')
         for i in range(0, len(q1)):
-            print('Symmetrizing ' + q1.nxname + '=' + str(q1[i]) + "...", end='\r')
-            data_symmetrized = self.plane3symmetrizer.symmetrize_2d(out_array[i, :, :])
+            print('Symmetrizing ' + q1.nxname + '=' + "{:.02f}".format(q1[i]) + "...", end='\r')
+            data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
+                NXdata(NXfield(out_array[i, :, :], name=data.signal),
+                       (q2, q3)))
             out_array[i, :, :] = data_symmetrized[data.signal].nxdata
-        print('Symmetrized ' + self.plane3 + ' planes.')
-
+        print('\nSymmetrized ' + self.plane3 + ' planes.')
 
         out_array[out_array < 0] = 0
 
         stoptime = time.time()
-        print("Symmetriztaion finished in " + str((stoptime - starttime)/60) + " minutes.")
+        print("\nSymmetriztaion finished in " + "{:.02f}".format((stoptime - starttime) / 60) + " minutes.")
 
         self.symmetrized = NXdata(NXfield(out_array, name=data.signal), tuple([data[axis] for axis in data.axes]))
 
@@ -312,17 +278,20 @@ class Symmetrizer3D():
         f['entry'] = NXentry()
         f['entry']['data'] = self.symmetrized
         nxsave('symmetrized.nxs', f)
-        print("Output file saved to: " + os.path.join(os.getcwd(),'symmetrized.nxs'))
+        print("Output file saved to: " + os.path.join(os.getcwd(), 'symmetrized.nxs'))
 
 
 class Puncher():
     pass
 
+
 class Reducer():
     pass
 
+
 class Interpolator():
     pass
+
 
 class FourierTransformer():
     pass
