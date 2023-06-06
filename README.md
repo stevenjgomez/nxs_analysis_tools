@@ -2,8 +2,7 @@
 
 ## Overview
 
-nxs-analysis-tools provides a suite of tools for slicing (2D) cutting (1D) and transforming (e.g., symmetrizing, interpolating, deltaPDF) nexus format (.nxs) scattering data.
-
+nxs-analysis-tools provides a suite of tools for slicing (2D), cutting (1D), and transforming (e.g., symmetrizing, interpolating, deltaPDF) nexus format (.nxs) scattering data.
 
 View the documentation [here](https://nxs-analysis-tools.readthedocs.io/en/stable/).
 
@@ -12,7 +11,7 @@ View the documentation [here](https://nxs-analysis-tools.readthedocs.io/en/stabl
 Install nxs-analysis-tools with ``pip``:
 
 ```{code-block} console
-pip install nxs_analysis_tools
+pip install nxs-analysis-tools
 ```
 
 ## License
