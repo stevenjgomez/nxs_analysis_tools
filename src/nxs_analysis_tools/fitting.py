@@ -2,124 +2,86 @@
 Module for fitting of linecuts using the lmfit package.
 """
 
-import lmfit
-
-# Provide model
-# Extract parameters from model
-# Perform guess
-# Identify which components are peaks
-# Take peaks and calculate correlation lengths
+from lmfit.model import CompositeModel
+import operator
+import matplotlib.pyplot as plt
+import numpy as np
 
 
+class LinecutModel:
+    def __init__(self):
+        self.y_fit_components = None
+        self.y_fit = None
+        self.x_fit = None
+        self.y_init_fit = None
+        self.params = None
+        self.model_components = None
+        self.model = None
+        self.model_result = None
 
-# # Create empty lists to store fit results
-# outs = []  # stores the "out" model from lmfit at each temperature
-# fits = []  # stores the x_fit, y_fit, and each component of the fit at each temperature
-# # for i in range(0,len(dfs)):
-# for i, dataset in enumerate(datasets):
-#     # Obtain temperature of current dataset
-#     T = dataset['T']
-#
-#     # Extract x and y
-#     x = dfs[i].x
-#     y = dfs[i].y
-#
-#     # Select subset of data to fit
-#     #     idxs = x<3.4
-#     #     x = x[idxs]
-#     #     y = y[idxs]
-#
-#     #     idxs = x>2.6
-#     #     x = x[idxs]
-#     #     y = y[idxs]
-#
-#     #     x = x.reset_index(drop=1)
-#     #     y = y.reset_index(drop=1)
-#     y = y - y.min()
-#
-#     # Create model
-#     mod = PseudoVoigtModel(prefix='peak1') + PseudoVoigtModel(prefix='peak2') + LorentzianModel(
-#         prefix='diffuse') + LinearModel(prefix='background')
-#
-#     # Perform initial guess for parameters
-#     pars = mod.left.left.left.guess(y, x=x) + mod.left.left.right.guess(y, x=x) + mod.left.right.guess(y,
-#                                                                                                        x=x) + mod.right.guess(
-#         y, x=x)
-#
-#     # Set limits, values, vary or not
-#     pars['peak1center'].set(min=-0.1, max=0.1, vary=True, value=0.05)
-#     pars['peak1amplitude'].set(min=0, max=y.max())
-#     pars['peak1sigma'].set(min=0)
-#     pars['peak2center'].set(min=0.9, max=1.1, vary=True, value=1.04605213)
-#     pars['peak2amplitude'].set(min=0, max=y.max())
-#     pars['peak2sigma'].set(min=0)
-#     pars['diffusecenter'].set(min=0.4, max=0.6, vary=True, value=0.5)
-#     pars['diffuseamplitude'].set(min=0)
-#     pars['backgroundslope'].set(min=-2000, max=2000)
-#
-#     # Perform fit
-#     out = mod.fit(y, pars, x=x)
-#     outs.append(out)
-#
-#     # Store results
-#     x_fit = np.linspace(x.min(), x.max(), 1000)
-#     y_fit = out.eval(x=x_fit)
-#     comps = out.eval_components(x=x_fit)
-#     fits.append(pd.DataFrame({'x_fit': x_fit, 'y_fit': y_fit,
-#                               'y_peak1': comps['peak1'],
-#                               'y_peak2': comps['peak2'],
-#                               'y_diffuse': comps['diffuse'],
-#                               'y_bkg': comps['background'],
-#                               })
-#                 )
-#
-# # Calculate correlation length
-# results = pd.DataFrame({'T': [int(dataset['T']) for dataset in datasets],
-#                         'corr_length': [(2 * np.pi) / out.values['diffusefwhm'] for out in outs],
-#                         'corr_length_err': [
-#                             ((2 * np.pi) / out.values['diffusefwhm'] ** 2) * out.params['diffusefwhm'].stderr if
-#                             out.params['diffusefwhm'].stderr != None else None for out in outs],
-#                         # 'fraction':[out.values['peakfraction'] for out in outs],
-#                         # 'fraction_err':[out.params['peakfraction'].stderr for out in outs]
-#                         })
-#
-# # Present results
-# for i, fit in enumerate(fits):
-#     # Create Markdown heading
-#     display(Markdown('### ' + str(datasets[i]['T']) + ' K Fit'))
-#
-#     # Plot data and best fit
-#     outs[i].plot(numpoints=1000,
-#                  data_kws={'mfc': 'None'})
-#
-#     # Plot components
-#     plt.plot(fit.x_fit, fit.y_peak1, label='peak1',
-#              color='red')
-#     plt.plot(fit.x_fit, fit.y_peak2, label='peak2',
-#              color='orange')
-#     plt.plot(fit.x_fit, fit.y_diffuse, label='diffuse',
-#              color='red')
-#     plt.plot(fit.x_fit, fit.y_bkg, label='bkg',
-#              color='blue')
-#     plt.legend()
-#     plt.ylim(0, 500)
-#     plt.show()
-#
-#     # Show fit report
-#     print(out.fit_report())
-#
-#     display(Markdown('### Table'))
-# results
-#
-# display(Markdown('### Figure'))
-# fig = plt.figure(figsize=(4, 2), dpi=150)
-# ax = fig.add_axes([0, 0, 1, 1])
-# results.plot(x='T', y='corr_length', yerr='corr_length_err', marker='o', ls='None', legend=False, ax=ax, capsize=3)
-# # ax.errorbar(x=results['T'], y=results['corr_length'], yerr=results['corr_length_err'])
-# ax.set(xlabel='$T$ (K)',
-#        ylabel=r'$\xi~(\mathring{A})$',
-#        )
-# ax.tick_params(direction='in', top=True, right=True, which='both')
-# ax.xaxis.set_major_locator(MultipleLocator(25))
-# # ax.yaxis.set_major_locator(MultipleLocator(0.5))
-# plt.show()
+    def set_data(self, data):
+        self.data = data
+        self.x = data[data.axes[0]].nxdata
+        self.y = data[data.signal].nxdata
+
+    def set_model_components(self, model_components):
+        """
+        Create composite model
+        """
+        self.model_components = model_components
+        self.model = CompositeModel(*model_components, operator.add)
+
+        # Intialize empty parameters (in function)
+        params = self.model.make_params()
+        self.params = params
+        fwhm_params = {key: value for key, value in params.items() if 'fwhm' in key}
+        for key, value in fwhm_params.items():
+            pi_str = str(np.pi)
+            params.add(key.replace('fwhm', 'corrlength'), expr='(2 * ' + pi_str + ') / ' + key)
+
+    def guess(self):
+        """
+        Perform initial guesses for each model component.
+        """
+        for model_component in self.model_components:
+            self.params.update(model_component.guess(self.y, x=self.x))
+
+    def print_initial_params(self):
+        """
+        Print out initial guesses for each parameter of the model.
+        """
+        model = self.model
+        for param, hint in model.param_hints.items():
+            print(f'{param}')
+            for key, value in hint.items():
+                print(f'\t{key}: {value}')
+
+    def plot_initial_guess(self):
+        """
+        Plot initial guess.
+        """
+        model = self.model
+        params = self.params
+        x = self.x
+        y = self.y
+        y_init_fit = model.eval(params=params, x=x)
+        self.y_init_fit = y_init_fit
+        plt.plot(x, y_init_fit, '--', label='guess')
+        plt.plot(x, y, 'o', label='data')
+        plt.legend()
+        plt.show()
+
+    def fit(self):
+        self.model_result = self.model.fit(self.y, self.params, x=self.x)
+        self.y_fit = self.model_result.eval(x=self.x)
+        self.y_fit_components = self.model_result.eval_components(x=self.x)
+
+    def plot_fit(self, **kwargs):
+        self.model_result.plot(**kwargs)
+        plt.show()
+
+    def print_fit_report(self):
+        """
+        Show fit report.
+        """
+        print(self.model_result.fit_report())
