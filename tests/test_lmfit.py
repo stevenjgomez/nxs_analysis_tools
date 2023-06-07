@@ -5,11 +5,11 @@ from datareduction import load_data, Scissors
 # from fitting import *
 
 
-from lmfit.models import GaussianModel
-from lmfit.models import PseudoVoigtModel
-from lmfit.models import LorentzianModel
-from lmfit.models import LinearModel
-from lmfit.model import CompositeModel
+from test_lmfit.models import GaussianModel
+from test_lmfit.models import PseudoVoigtModel
+from test_lmfit.models import LorentzianModel
+from test_lmfit.models import LinearModel
+from test_lmfit.model import CompositeModel
 import operator
 import matplotlib.pyplot as plt
 import numpy as np

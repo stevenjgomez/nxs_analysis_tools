@@ -1,50 +1,49 @@
-'''
+"""
 This module provides classes and functions for analyzing scattering datasets collected at CHESS
 (ID4B) with temperature dependence. It includes functions for loading data, cutting data, and
 plotting linecuts.
-'''
+"""
 import os
-
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
 from nxs_analysis_tools import load_data, Scissors
+from nxs_analysis_tools.fitting import LinecutModel
 
-
-class TempDependence():
-    '''
+class TempDependence:
+    """
     Class for analyzing scattering datasets collected at CHESS (ID4B) with temperature dependence.
-    '''
+    """
 
     def __init__(self):
-        '''
+        """
         Initialize TempDependence class.
-        '''
-        self.datasets={}
-        self.folder=None
-        self.temperatures=None
-        self.scissors= {}
-        self.linecuts={}
+        """
+        self.datasets = {}
+        self.folder = None
+        self.temperatures = None
+        self.scissors = {}
+        self.linecuts = {}
+        self.linecutmodels = {}
 
     def get_folder(self):
-        '''
+        """
         Get the folder path where the datasets are located.
 
         Returns
         -------
             str:
                 The folder path.
-        '''
+        """
         return self.folder
 
     def clear_datasets(self):
-        '''
+        """
         Clear the datasets stored in the TempDependence instance.
-        '''
-        self.datasets={}
+        """
+        self.datasets = {}
 
     def load_datasets(self, folder, file_ending='hkli.nxs', temperatures_list=None):
-        '''
+        """
         Load scattering datasets from the specified folder.
 
         Parameters
@@ -56,19 +55,19 @@ class TempDependence():
         temperatures_list : list of int or None, optional
             The list of specific temperatures to load. If None, all available temperatures are
             loaded. The default is None.
-        '''
-        self.folder=os.path.normpath(folder)
-        temperature_folders=[] # Empty list to store temperature folder names
+        """
+        self.folder = os.path.normpath(folder)
+        temperature_folders = []  # Empty list to store temperature folder names
         for item in os.listdir(self.folder):
             try:
-                temperature_folders.append(int(item)) # If folder name can be int, add it
+                temperature_folders.append(int(item))  # If folder name can be int, add it
             except ValueError:
-                pass # Otherwise don't add it
-        temperature_folders.sort() # Sort from low to high T
-        temperature_folders = [str(i) for i in temperature_folders] # Convert to strings
+                pass  # Otherwise don't add it
+        temperature_folders.sort()  # Sort from low to high T
+        temperature_folders = [str(i) for i in temperature_folders]  # Convert to strings
 
         print('Found temperature folders:')
-        [print('['+str(i)+'] '+folder) for i,folder in enumerate(temperature_folders)]
+        [print('[' + str(i) + '] ' + folder) for i, folder in enumerate(temperature_folders)]
 
         self.temperatures = temperature_folders
 
@@ -76,20 +75,23 @@ class TempDependence():
             self.temperatures = [str(t) for t in temperatures_list]
 
         # Load .nxs files
-        for temperature in self.temperatures:
-            for file in os.listdir(os.path.join(self.folder, temperature)):
+        for T in self.temperatures:
+            for file in os.listdir(os.path.join(self.folder, T)):
                 if file.endswith(file_ending):
-                    filepath = os.path.join(self.folder, temperature, file)
+                    filepath = os.path.join(self.folder, T, file)
                     print('-----------------------------------------------')
-                    print('Loading ' + temperature + ' K indexed .nxs files...')
+                    print('Loading ' + T + ' K indexed .nxs files...')
                     print('Found ' + filepath)
 
                     # Load dataset at each temperature
-                    self.datasets[temperature] = load_data(filepath)
+                    self.datasets[T] = load_data(filepath)
 
                     # Initialize scissors object at each temperature
-                    self.scissors[temperature] = Scissors()
-                    self.scissors[temperature].set_data(self.datasets[temperature])
+                    self.scissors[T] = Scissors()
+                    self.scissors[T].set_data(self.datasets[T])
+
+                    # Initialize linecutmodel object at each temperature
+                    self.linecutmodels[T] = LinecutModel()
 
     def set_window(self, window):
         """
@@ -124,7 +126,7 @@ class TempDependence():
         Parameters
         ----------
         center : tuple
-            The center point( for cutting the data.
+            The center point for cutting the data.
         window : tuple
             The window size for cutting the data.
         axis : int or None, optional
@@ -145,6 +147,13 @@ class TempDependence():
             print("Cutting T = " + T + " K data...")
             self.scissors[T].cut_data(center, window, axis)
             self.linecuts[T] = self.scissors[T].linecut
+            self.linecutmodels[T].set_data(self.linecuts[T])
+
+        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0]
+                             if i == self.scissors[self.temperatures[0]].axis
+                             else str(c) for i, c in enumerate(self.scissors[self.temperatures[0]].center)]
+        self.xlabel = ' '.join(xlabel_components)
+
         return self.linecuts
 
     def plot_linecuts(self, vertical_offset=0, **kwargs):
@@ -165,16 +174,12 @@ class TempDependence():
 
         for i, linecut in enumerate(self.linecuts.values()):
             x_data = linecut[linecut.axes[0]].nxdata
-            y_data = linecut[linecut.signal].nxdata + i*vertical_offset
+            y_data = linecut[linecut.signal].nxdata + i * vertical_offset
             ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
-            	**kwargs)
+                    **kwargs)
 
-        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0]
-                             if i == self.scissors[self.temperatures[0]].axis \
-                                 else str(c) for i,c in enumerate(self.scissors[self.temperatures[0]].center)]
-        xlabel = ' '.join(xlabel_components)
-        ax.set(xlabel=xlabel,
-                ylabel=self.linecuts[self.temperatures[0]].signal)
+        ax.set(xlabel=self.xlabel,
+               ylabel=self.linecuts[self.temperatures[0]].signal)
 
         # Get the current legend handles and labels
         handles, labels = plt.gca().get_legend_handles_labels()
@@ -186,7 +191,7 @@ class TempDependence():
         # Create a new legend with reversed order
         plt.legend(handles, labels)
 
-        return fig,ax
+        return fig, ax
 
     def highlight_integration_window(self, temperature=None, **kwargs):
         """
@@ -234,3 +239,38 @@ class TempDependence():
             p = self.scissors[self.temperatures[0]].plot_integration_window(**kwargs)
 
         return p
+
+    def set_model_components(self, model_components):
+        [linecutmodel.set_model_components(model_components) for linecutmodel in self.linecutmodels.values()]
+
+    def set_param_hint(self, *args, **kwargs):
+        [linecutmodel.set_param_hint(*args, **kwargs) for linecutmodel in self.linecutmodels.values()]
+
+    def make_params(self):
+        [linecutmodel.make_params() for linecutmodel in self.linecutmodels.values()]
+
+    def guess(self):
+        [linecutmodel.guess() for linecutmodel in self.linecutmodels.values()]
+
+    def print_initial_params(self):
+        [linecutmodel.print_initial_params() for linecutmodel in self.linecutmodels.values()]
+
+    def plot_initial_guess(self):
+        for T, linecutmodel in self.linecutmodels.items():
+            fig, ax = plt.subplots()
+            ax.set(title=T + ' K')
+            linecutmodel.plot_initial_guess()
+
+    def fit(self):
+        for T, linecutmodel in self.linecutmodels.items():
+            print(f"Fitting {T} K  data...")
+            linecutmodel.fit()
+            print("Done.")
+        print("Fits completed.")
+
+    def plot_fit(self):
+        for T, linecutmodel in self.linecutmodels.items():
+            linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K")
+
+    def print_fit_report(self):
+        [linecutmodel.print_fit_report() for linecutmodel in self.linecutmodels.values()]

@@ -2,6 +2,7 @@
 Module for fitting of linecuts using the lmfit package.
 """
 
+from lmfit.model import Model
 from lmfit.model import CompositeModel
 import operator
 import matplotlib.pyplot as plt
@@ -10,6 +11,9 @@ import numpy as np
 
 class LinecutModel:
     def __init__(self):
+        self.y_eval = None
+        self.x_eval = None
+        self.y_eval_components = None
         self.y_fit_components = None
         self.y_fit = None
         self.x_fit = None
@@ -28,9 +32,18 @@ class LinecutModel:
         """
         Create composite model
         """
-        self.model_components = model_components
-        self.model = CompositeModel(*model_components, operator.add)
+        # If the model only has one component, then use it as the model
+        if isinstance(model_components, Model):
+            self.model = model_components
+        # Else, combine the components into a composite model and use that as the
+        else:
+            self.model_components = model_components
+            self.model = CompositeModel(*model_components, operator.add)
 
+    def set_param_hint(self, *args, **kwargs):
+        self.model.set_param_hint(*args, **kwargs)
+
+    def make_params(self):
         # Intialize empty parameters (in function)
         params = self.model.make_params()
         self.params = params
@@ -39,11 +52,13 @@ class LinecutModel:
             pi_str = str(np.pi)
             params.add(key.replace('fwhm', 'corrlength'), expr='(2 * ' + pi_str + ') / ' + key)
 
+        return params
+
     def guess(self):
         """
         Perform initial guesses for each model component.
         """
-        for model_component in self.model_components:
+        for model_component in list(self.model_components):
             self.params.update(model_component.guess(self.y, x=self.x))
 
     def print_initial_params(self):
@@ -76,9 +91,21 @@ class LinecutModel:
         self.y_fit = self.model_result.eval(x=self.x)
         self.y_fit_components = self.model_result.eval_components(x=self.x)
 
-    def plot_fit(self, **kwargs):
-        self.model_result.plot(**kwargs)
+    def plot_fit(self, numpoints=None, **kwargs):
+        if numpoints is None:
+            numpoints = len(self.x)
+        self.x_eval = np.linspace(self.x.min(), self.x.max(), numpoints)
+        self.x_eval = np.linspace(self.x.min(), self.x.max(), numpoints)
+        self.y_eval = self.model_result.eval(x=self.x_eval)
+        self.y_eval_components = self.model_result.eval_components(x=self.x_eval)
+        self.model_result.plot(numpoints=numpoints, **kwargs)
+        ax = plt.gca()
+        for model_component, value in self.y_eval_components.items():
+            ax.fill_between(self.x_eval, value, alpha=0.3, label=model_component)
+            # ax.plot(self.x_eval, value, label=model_component)
+        plt.legend()
         plt.show()
+        return ax
 
     def print_fit_report(self):
         """
