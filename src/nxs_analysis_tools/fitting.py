@@ -189,7 +189,7 @@ class LinecutModel:
         plt.legend()
         plt.show()
         if fit_report:
-            self.modelresult.fit_report()
+            print(self.modelresult.fit_report())
         return ax
 
     def print_fit_report(self):
