@@ -357,4 +357,6 @@ class TempDependence:
         and sets the xlabel, ylabel, and title for the plot.
 
         """
-        [linecutmodel.print_fit_report() for linecutmodel in self.linecutmodels.values()]
+        for T, linecutmodel in self.linecutmodels.items():
+            print(f"[[[{T} K Fit Report]]]")
+            linecutmodel.print_fit_report()
