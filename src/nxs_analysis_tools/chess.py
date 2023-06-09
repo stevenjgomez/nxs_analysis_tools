@@ -241,27 +241,89 @@ class TempDependence:
         return p
 
     def set_model_components(self, model_components):
+        """
+        Set the model components for all line cut models.
+
+        This method sets the same model components for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `set_model_components` method
+        with the provided `model_components`.
+
+        Parameters
+        ----------
+        model_components : Model or iterable of Model
+            The model components to set for all line cut models.
+
+        """
         [linecutmodel.set_model_components(model_components) for linecutmodel in self.linecutmodels.values()]
 
     def set_param_hint(self, *args, **kwargs):
+        """
+        Set parameter hints for all line cut models.
+
+        This method sets the parameter hints for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `set_param_hint` method
+        with the provided arguments and keyword arguments.
+
+        Parameters
+        ----------
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        """
         [linecutmodel.set_param_hint(*args, **kwargs) for linecutmodel in self.linecutmodels.values()]
 
     def make_params(self):
+        """
+        Make parameters for all line cut models.
+
+        This method creates the parameters for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `make_params` method.
+        """
         [linecutmodel.make_params() for linecutmodel in self.linecutmodels.values()]
 
     def guess(self):
+        """
+        Make initial parameter guesses for all line cut models.
+
+        This method generates initial parameter guesses for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `guess` method.
+
+        """
         [linecutmodel.guess() for linecutmodel in self.linecutmodels.values()]
 
     def print_initial_params(self):
+        """
+        Print the initial parameter values for all line cut models.
+
+        This method prints the initial parameter values for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `print_initial_params` method.
+
+        """
         [linecutmodel.print_initial_params() for linecutmodel in self.linecutmodels.values()]
 
     def plot_initial_guess(self):
+        """
+        Plot the initial guess for all line cut models.
+
+        This method plots the initial guess for all line cut models in the analysis.
+        It iterates over each line cut model and calls their respective `plot_initial_guess` method.
+
+        """
         for T, linecutmodel in self.linecutmodels.items():
             fig, ax = plt.subplots()
             ax.set(title=T + ' K')
             linecutmodel.plot_initial_guess()
 
     def fit(self):
+        """
+        Fit the line cut models.
+
+        This method fits the line cut models for each temperature in the analysis.
+        It iterates over each line cut model, performs the fit, and prints the fitting progress.
+
+        """
         for T, linecutmodel in self.linecutmodels.items():
             print(f"Fitting {T} K  data...")
             linecutmodel.fit()
@@ -269,8 +331,24 @@ class TempDependence:
         print("Fits completed.")
 
     def plot_fit(self):
+        """
+        Plot the fit results.
+
+        This method plots the fit results for each temperature in the analysis.
+        It iterates over each line cut model, calls their respective `plot_fit` method,
+        and sets the xlabel, ylabel, and title for the plot.
+
+        """
         for T, linecutmodel in self.linecutmodels.items():
             linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K")
 
     def print_fit_report(self):
+        """
+        Plot the fit results.
+
+        This method plots the fit results for each temperature in the analysis.
+        It iterates over each line cut model, calls their respective `plot_fit` method,
+        and sets the xlabel, ylabel, and title for the plot.
+
+        """
         [linecutmodel.print_fit_report() for linecutmodel in self.linecutmodels.values()]
