@@ -2,14 +2,73 @@
 Module for fitting of linecuts using the lmfit package.
 """
 
+import operator
 from lmfit.model import Model
 from lmfit.model import CompositeModel
-import operator
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 class LinecutModel:
+    """
+    A class representing a linecut model for data analysis and fitting.
+
+    Attributes
+    ----------
+    y : array-like or None
+        The dependent variable data.
+    x : array-like or None
+        The independent variable data.
+    y_eval : array-like or None
+        The evaluated y-values of the fitted model.
+    x_eval : array-like or None
+        The x-values used for evaluation.
+    y_eval_components : dict or None
+        The evaluated y-values of the model components.
+    y_fit_components : dict or None
+        The fitted y-values of the model components.
+    y_fit : array-like or None
+        The fitted y-values of the model.
+    x_fit : array-like or None
+        The x-values used for fitting.
+    y_init_fit : array-like or None
+        The initial guess of the y-values.
+    params : Parameters or None
+        The parameters of the model.
+    model_components : Model or list of Models or None
+        The model component(s) used for fitting.
+    model : Model or None
+        The composite model used for fitting.
+    modelresult : ModelResult or None
+        The result of the model fitting.
+    data : NXdata or None
+        The 1D linecut data used for analysis.
+
+    Methods
+    -------
+    __init__(self, data=None)
+        Initialize the LinecutModel.
+    set_data(self, data)
+        Set the data for analysis.
+    set_model_components(self, model_components)
+        Set the model components.
+    set_param_hint(self, *args, **kwargs)
+        Set parameter hints for the model.
+    make_params(self)
+        Create and initialize the parameters for the model.
+    guess(self)
+        Perform initial guesses for each model component.
+    print_initial_params(self)
+        Print out initial guesses for each parameter of the model.
+    plot_initial_guess(self, numpoints=None)
+        Plot the initial guess.
+    fit(self)
+        Fit the model to the data.
+    plot_fit(self, numpoints=None, fit_report=True, **kwargs)
+        Plot the fitted model.
+    print_fit_report(self)
+        Print the fit report.
+    """
     def __init__(self, data=None):
         """
         Initialize the LinecutModel.

@@ -26,6 +26,8 @@ class Padder():
             The input data to be symmetrized. If provided, the `set_data` method is called to set the data.
 
         """
+        self.padded = None
+        self.padding = None
         if data is not None:
             self.set_data(data)
 
@@ -101,6 +103,26 @@ class Padder():
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
     def unpad(self, data):
+        """
+        Removes the padded region from the data.
+
+        Parameters
+        ----------
+        data : NXdata
+            The padded data from which to remove the padding.
+
+        Returns
+        -------
+        NXdata
+            The unpadded data, with the symmetric padding region removed.
+
+        Notes
+        -----
+        This method removes the symmetric padding region that was added using the `pad` method. It returns the data
+        without the padded region.
+
+
+        """
         slice_obj = [slice(None)] * data.ndim
         for i in range(data.ndim):
             slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
@@ -112,9 +134,19 @@ class Symmetrizer2D:
     """
     A class for symmetrizing 2D datasets.
     """
+    symmetrization_mask: NXdata
 
     def __init__(self, **kwargs):
-        if kwargs != {}:
+        self.symmetrized = None
+        self.wedges = None
+        self.rotations = None
+        self.transform = None
+        self.mirror = None
+        self.skew_angle = None
+        self.theta_max = None
+        self.theta_min = None
+        self.wedge = None
+        if kwargs:
             self.set_parameters(**kwargs)
 
     def set_parameters(self, theta_min, theta_max, skew_angle=90, mirror=True):

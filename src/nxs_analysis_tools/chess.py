@@ -6,9 +6,9 @@ plotting linecuts.
 import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from IPython.display import display, Markdown
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
-from IPython.display import display, Markdown
 
 class TempDependence:
     """
@@ -19,6 +19,7 @@ class TempDependence:
         """
         Initialize TempDependence class.
         """
+        self.xlabel = None
         self.datasets = {}
         self.folder = None
         self.temperatures = None
