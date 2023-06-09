@@ -10,7 +10,7 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib import colors
 from matplotlib import patches
 from IPython.display import display, Markdown
-from nexusformat.nexus import NXfield, NXdata, nxload
+from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError
 
 __all__ = ['load_data', 'plot_slice', 'Scissors']
 
