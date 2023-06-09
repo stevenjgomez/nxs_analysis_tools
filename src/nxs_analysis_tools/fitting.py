@@ -10,7 +10,12 @@ import numpy as np
 
 
 class LinecutModel:
-    def __init__(self):
+    def __init__(self, data=None):
+        """
+        Initialize the LinecutModel.
+        """
+        self.y = None
+        self.x = None
         self.y_eval = None
         self.x_eval = None
         self.y_eval_components = None
@@ -21,17 +26,35 @@ class LinecutModel:
         self.params = None
         self.model_components = None
         self.model = None
-        self.model_result = None
+        self.modelresult = None
+        self.data = data if data is not None else None
+        if self.data is not None:
+            self.x = data[data.axes[0]].nxdata
+            self.y = data[data.signal].nxdata
 
     def set_data(self, data):
+        """
+        Set the data for analysis.
+
+        Parameters
+        ----------
+        data : NXdata
+            The 1D linecut data to be used for analysis.
+        """
         self.data = data
         self.x = data[data.axes[0]].nxdata
         self.y = data[data.signal].nxdata
 
     def set_model_components(self, model_components):
         """
-        Create composite model
+        Set the model components
+
+        Parameters
+        ----------
+        model_components : Model or list of Models
+            The model component(s) to be used for fitting, which will be combined into a CompositeModel.
         """
+
         # If the model only has one component, then use it as the model
         if isinstance(model_components, Model):
             self.model = model_components
@@ -41,9 +64,29 @@ class LinecutModel:
             self.model = CompositeModel(*model_components, operator.add)
 
     def set_param_hint(self, *args, **kwargs):
+        """
+        Set parameter hints for the model.
+
+        Parameters
+        ----------
+        *args : positional arguments
+            Positional arguments passed to the `set_param_hint` method of the underlying model.
+
+        **kwargs : keyword arguments
+            Keyword arguments passed to the `set_param_hint` method of the underlying model.
+        """
+
         self.model.set_param_hint(*args, **kwargs)
 
     def make_params(self):
+        """
+        Create and initialize the parameters for the model.
+
+        Returns
+        -------
+        Parameters
+            The initialized parameters for the model.
+        """
         # Intialize empty parameters (in function)
         params = self.model.make_params()
         self.params = params
@@ -71,7 +114,7 @@ class LinecutModel:
             for key, value in hint.items():
                 print(f'\t{key}: {value}')
 
-    def plot_initial_guess(self):
+    def plot_initial_guess(self, numpoints=None):
         """
         Plot initial guess.
         """
@@ -81,34 +124,76 @@ class LinecutModel:
         y = self.y
         y_init_fit = model.eval(params=params, x=x)
         self.y_init_fit = y_init_fit
-        plt.plot(x, y_init_fit, '--', label='guess')
         plt.plot(x, y, 'o', label='data')
+        plt.plot(x, y_init_fit, '--', label='guess')
+
+        # Plot the components of the model
+        if numpoints is None:
+            numpoints = len(self.x)
+        self.x_eval = np.linspace(self.x.min(), self.x.max(), numpoints)
+        y_init_fit_components = model.eval_components(params=params, x=self.x_eval)
+        ax = plt.gca()
+        for model_component, value in y_init_fit_components.items():
+            ax.fill_between(self.x_eval, value, alpha=0.3, label=model_component)
         plt.legend()
         plt.show()
 
     def fit(self):
-        self.model_result = self.model.fit(self.y, self.params, x=self.x)
-        self.y_fit = self.model_result.eval(x=self.x)
-        self.y_fit_components = self.model_result.eval_components(x=self.x)
+        """
+        Fit the model to the data.
 
-    def plot_fit(self, numpoints=None, **kwargs):
+        This method fits the model to the data using the specified parameters and the x-values.
+        It updates the model result, fitted y-values, and the evaluated components.
+
+        """
+        self.modelresult = self.model.fit(self.y, self.params, x=self.x)
+        self.y_fit = self.modelresult.eval(x=self.x)
+        self.y_fit_components = self.modelresult.eval_components(x=self.x)
+
+    def plot_fit(self, numpoints=None, fit_report=True, **kwargs):
+        """
+        Plot the fitted model.
+
+        This method plots the fitted model along with the original data.
+        It evaluates the model and its components at the specified number of points (numpoints)
+        and plots the results.
+
+        Parameters
+        ----------
+        numpoints : int, optional
+            Number of points to evaluate the model and its components. If not provided,
+            it defaults to the length of the x-values.
+
+        fit_report : bool, optional
+            Whether to print the fit report. Default is True.
+
+        **kwargs : dict, optional
+            Additional keyword arguments to be passed to the `plot` method.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            The Axes object containing the plot.
+
+        """
         if numpoints is None:
             numpoints = len(self.x)
         self.x_eval = np.linspace(self.x.min(), self.x.max(), numpoints)
-        self.x_eval = np.linspace(self.x.min(), self.x.max(), numpoints)
-        self.y_eval = self.model_result.eval(x=self.x_eval)
-        self.y_eval_components = self.model_result.eval_components(x=self.x_eval)
-        self.model_result.plot(numpoints=numpoints, **kwargs)
+        self.y_eval = self.modelresult.eval(x=self.x_eval)
+        self.y_eval_components = self.modelresult.eval_components(x=self.x_eval)
+        self.modelresult.plot(numpoints=numpoints, **kwargs)
         ax = plt.gca()
         for model_component, value in self.y_eval_components.items():
             ax.fill_between(self.x_eval, value, alpha=0.3, label=model_component)
             # ax.plot(self.x_eval, value, label=model_component)
         plt.legend()
         plt.show()
+        if fit_report:
+            self.modelresult.fit_report()
         return ax
 
     def print_fit_report(self):
         """
         Show fit report.
         """
-        print(self.model_result.fit_report())
+        print(self.modelresult.fit_report())
