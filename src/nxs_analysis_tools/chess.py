@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
+from IPython.display import display, Markdown
 
 class TempDependence:
     """
@@ -330,7 +331,7 @@ class TempDependence:
             print("Done.")
         print("Fits completed.")
 
-    def plot_fit(self):
+    def plot_fit(self, mdheadings=False, **kwargs):
         """
         Plot the fit results.
 
@@ -340,7 +341,10 @@ class TempDependence:
 
         """
         for T, linecutmodel in self.linecutmodels.items():
-            linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K")
+            linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K",
+                                  **kwargs)
+            if mdheadings:
+                display(Markdown(f"## {T} K Fit Results"))
 
     def print_fit_report(self):
         """
