@@ -341,10 +341,12 @@ class TempDependence:
 
         """
         for T, linecutmodel in self.linecutmodels.items():
+            # Create a markdown heading for the plot
+            if mdheadings:
+                display(Markdown(f"### {T} K Fit Results"))
+            # Plot fit
             linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K",
                                   **kwargs)
-            if mdheadings:
-                display(Markdown(f"## {T} K Fit Results"))
 
     def print_fit_report(self):
         """
