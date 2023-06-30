@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from nexusformat.nexus import nxsave, NXroot, NXentry, NXdata, NXfield
 import numpy as np
-from nxs_analysis_tools import plot_slice
+from nxs_analysis_tools import plot_slice, reciprocal_lattice_params
+
 
 
 class Padder():
@@ -108,12 +109,12 @@ class Padder():
 
         Parameters
         ----------
-        data : NXdata
+        data : ndarray or NXdata
             The padded data from which to remove the padding.
 
         Returns
         -------
-        NXdata
+        ndarray or NXdata
             The unpadded data, with the symmetric padding region removed.
 
         Notes
@@ -354,7 +355,7 @@ class Symmetrizer2D:
         return fig, axesarr
 
 
-class Symmetrizer3D():
+class Symmetrizer3D:
     """
     A class to symmetrize 3D datasets.
     """
@@ -454,10 +455,102 @@ class Symmetrizer3D():
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
 
-# class Puncher():
-#     pass
-#
-#
+def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
+    if coeffs is None:
+        coeffs = [1, 0, 1, 0, 1, 0]
+    a, b, c, al, be, ga = lattice_params
+    a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+    H, K, L = np.meshgrid(H, K, L)
+    gaussian = amp * np.exp(-(coeffs[0] * H ** 2 +
+                              coeffs[1] * (b_ * a_ / (a_ ** 2)) * H * K +
+                              coeffs[2] * (b_ / a_) ** 2 * K ** 2 +
+                              coeffs[3] * (b_ * c_ / (a_ ** 2)) * K * L +
+                              coeffs[4] * (c_ / a_) ** 2 * L ** 2 +
+                              coeffs[5] * (c_ * a_ / (a_ ** 2)) * L * H) / (2 * stddev ** 2))
+    if gaussian.ndim == 3:
+        gaussian = gaussian.transpose(1, 0, 2)
+    elif gaussian.ndim == 2:
+        gaussian = gaussian.transpose()
+    return gaussian.transpose(1,0,2)
+
+
+class Puncher:
+    def __init__(self):
+        self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
+
+    def set_data(self, data):
+        self.data = data
+
+    def set_lattice_params(self, lattice_params):
+        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+        self.lattice_params = lattice_params
+        self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
+
+
+    def set_gaussian_background(self, amp, stddev, coeffs=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1, 0, 1, 0]
+        data = self.data
+        self.background = generate_gaussian(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]],
+                                            amp=amp, stddev=stddev, lattice_params=self.lattice_params,
+                                            coeffs=coeffs)
+
+    def plot_gaussian_background(self):
+        data = self.data
+        fig, axes = plt.subplots(1, 3)
+        # Plot the background and subtracted
+        plot_slice(self.background[:, :, len(data[data.axes[2]]) // 2], data[data.axes[0]], data[data.axes[1]],
+                   ax=axes[0], skew_angle=self.ga_star)
+        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :],data[data.axes[0]], data[data.axes[2]],
+                   ax=axes[1], skew_angle=self.be_star)
+        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :],data[data.axes[1]], data[data.axes[2]],
+                   ax=axes[2], skew_angle=self.al_star)
+        plt.show()
+        return fig, axes
+
+    def plot_background_subtraction(self):
+        data = self.data
+        fig, axes = plt.subplots(1, 3)
+        # Plot the background and subtracted
+        plot_slice(data[data.axes[0]], data[data.axes[1]],
+                   data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
+                   ax=axes[0], skew_angle=self.ga_star)
+        plot_slice(data[data.axes[0]], data[data.axes[2]],
+                   data[data.signal][:, 0.0, :] - self.background[:, len(data[data.axes[1]]) // 2, :],
+                   ax=axes[1], skew_angle=self.be_star)
+        plot_slice(data[data.axes[1]], data[data.axes[2]],
+                   data[data.signal][0.0, :, :] - self.background[len(data[data.axes[0]]) // 2, :, :],
+                   ax=axes[2], skew_angle=self.al_star)
+        plt.show()
+        return fig, axes
+
+    def generate_mask(self, punch_radius, coeffs=None, thresh=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1, 0, 1, 0]
+        data = self.data
+        lattice_params = self.lattice_params
+        a, b, c, al, be, ga = lattice_params
+        a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+
+        H, K, L = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
+
+        mask = (coeffs[0] * (H - np.rint(H)) ** 2 +
+                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - np.rint(H)) * (K - np.rint(K)) +
+                coeffs[2] * (b_ / a_) ** 2 * (K - np.rint(K)) ** 2 +
+                coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - np.rint(K)) * (L - np.rint(L)) +
+                coeffs[4] * (c_ / a_) ** 2 * (L - np.rint(L)) ** 2 +
+                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - np.rint(L)) * (H - np.rint(H))) < punch_radius ** 2
+
+        if thresh:
+            mask = np.logical_and(mask, data[data.signal] > thresh)
+
+        self.mask = mask
+
+        return mask
+
+
+
 # class Reducer():
 #     pass
 #

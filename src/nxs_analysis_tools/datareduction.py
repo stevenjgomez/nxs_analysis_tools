@@ -46,7 +46,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
     """
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata` object
+    data : :class:`nexusformat.nexus.NXdata` object or ndarray
         The NXdata object containing the dataset to plot.
 
     X : NXfield, optional
@@ -112,14 +112,26 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
         :class:`matplotlib.pyplot.pcolormesh`.
 
     """
-
-    if X is None:
-        X = data[data.axes[0]]
-    if Y is None:
-        Y = data[data.axes[1]]
-    if transpose:
-        X, Y = Y, X
+    if type(data) == np.ndarray:
         data = data.transpose()
+        if X is None:
+            X = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='x')
+        if Y is None:
+            Y = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='y')
+        if transpose:
+            X, Y = Y, X
+            data = data.transpose()
+        data = NXdata(NXfield(data, name='value'), (X,Y))
+    elif type(data) == NXdata:
+        if X is None:
+            X = data[data.axes[0]]
+        if Y is None:
+            Y = data[data.axes[1]]
+        if transpose:
+            X, Y = Y, X
+            data = data.transpose()
+    else:
+        raise TypeError
 
     data_arr = data[data.signal].nxdata.transpose()
 
@@ -588,3 +600,27 @@ class Scissors:
         plt.show()
 
         return p1, p2, p3
+
+
+def reciprocal_lattice_params(lattice_params):
+    a_mag, b_mag, c_mag, alpha, beta, gamma = lattice_params
+    # Convert angles to radians
+    alpha = np.deg2rad(alpha)
+    beta = np.deg2rad(beta)
+    gamma = np.deg2rad(gamma)
+
+    # Calculate unit cell volume
+    V = a_mag * b_mag * c_mag * np.sqrt(
+        1 - np.cos(alpha) ** 2 - np.cos(beta) ** 2 - np.cos(gamma) ** 2 + 2 * np.cos(alpha) * np.cos(beta) * np.cos(
+            gamma)
+    )
+
+    # Calculate reciprocal lattice parameters
+    a_star = (b_mag * c_mag * np.sin(alpha)) / V
+    b_star = (a_mag * c_mag * np.sin(beta)) / V
+    c_star = (a_mag * b_mag * np.sin(gamma)) / V
+    alpha_star = np.rad2deg(np.arccos((np.cos(beta) * np.cos(gamma) - np.cos(alpha)) / (np.sin(beta) * np.sin(gamma))))
+    beta_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(gamma) - np.cos(beta)) / (np.sin(alpha) * np.sin(gamma))))
+    gamma_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(beta) - np.cos(gamma)) / (np.sin(alpha) * np.sin(beta))))
+
+    return a_star, b_star, c_star, alpha_star, beta_star, gamma_star
