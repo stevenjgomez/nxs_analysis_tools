@@ -372,6 +372,7 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
 
         """
+        self.symmetrized = None
         self.data = data
         self.q1 = data[data.axes[0]]
         self.q2 = data[data.axes[1]]
@@ -458,6 +459,28 @@ class Symmetrizer3D:
 
 
 def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
+    """
+    Generate a 3D Gaussian distribution.
+
+    Parameters
+    ----------
+    H, K, L : ndarray
+        Arrays specifying the values of H, K, and L coordinates.
+    amp : float
+        Amplitude of the Gaussian distribution.
+    stddev : float
+        Standard deviation of the Gaussian distribution.
+    lattice_params : tuple
+        Tuple of lattice parameters (a, b, c, alpha, beta, gamma).
+    coeffs : list, optional
+        Coefficients for the Gaussian expression, including cross-terms between axes. Default is [1, 0, 1, 0, 1, 0],
+        corresponding to (1*H**2 + 0*H*K + 1*K**2 + 0*K*L + 1*L**2 + 0*L*H)
+
+    Returns
+    -------
+    gaussian : ndarray
+        3D Gaussian distribution.
+    """
     if coeffs is None:
         coeffs = [1, 0, 1, 0, 1, 0]
     a, b, c, al, be, ga = lattice_params
@@ -478,6 +501,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
 
 class Puncher:
     def __init__(self):
+        self.mask = None
         self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
 
     def set_data(self, data):
