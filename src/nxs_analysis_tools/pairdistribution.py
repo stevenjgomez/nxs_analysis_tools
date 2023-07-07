@@ -539,14 +539,14 @@ class Puncher:
         data = self.data
         fig, axes = plt.subplots(1, 3)
         # Plot the background and subtracted
-        plot_slice(data[data.axes[0]], data[data.axes[1]],
-                   data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
+        plot_slice(data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
+                   data[data.axes[0]], data[data.axes[1]],
                    ax=axes[0], skew_angle=self.ga_star)
-        plot_slice(data[data.axes[0]], data[data.axes[2]],
-                   data[data.signal][:, 0.0, :] - self.background[:, len(data[data.axes[1]]) // 2, :],
+        plot_slice(data[data.signal][:, 0.0, :] - self.background[:, len(data[data.axes[1]]) // 2, :],
+                   data[data.axes[0]], data[data.axes[2]],
                    ax=axes[1], skew_angle=self.be_star)
-        plot_slice(data[data.axes[1]], data[data.axes[2]],
-                   data[data.signal][0.0, :, :] - self.background[len(data[data.axes[0]]) // 2, :, :],
+        plot_slice(data[data.signal][0.0, :, :] - self.background[len(data[data.axes[0]]) // 2, :, :],
+                   data[data.axes[1]], data[data.axes[2]],
                    ax=axes[2], skew_angle=self.al_star)
         plt.show()
         return fig, axes
