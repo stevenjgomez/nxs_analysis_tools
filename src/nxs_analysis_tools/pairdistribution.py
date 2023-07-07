@@ -276,7 +276,8 @@ class Symmetrizer2D:
 
         if mirror:
             # The following are attempts to combine images with minimal overlapping pixels
-            reconstructed = np.where(reconstructed == 0, reconstructed + np.flip(reconstructed, axis=0), reconstructed)
+            reconstructed = np.where(reconstructed == 0,
+                                     reconstructed + np.flip(reconstructed, axis=mirror_axis), reconstructed)
             # reconstructed += np.flip(reconstructed, axis=0)
 
         # self.rotated_and_mirrored = NXdata(NXfield(reconstructed, name=data.signal),
