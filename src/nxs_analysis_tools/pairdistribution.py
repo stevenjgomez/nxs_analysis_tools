@@ -308,7 +308,7 @@ class Symmetrizer2D:
 
         return symmetrized
 
-    def test(self, data):
+    def test(self, data, **kwargs):
         """
         Performs a test visualization of the symmetrization process.
 
@@ -316,6 +316,8 @@ class Symmetrizer2D:
         ----------
         data : ndarray
             The input 2D dataset to be used for the test visualization.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the plot_slice function.
 
         Returns
         -------
@@ -346,10 +348,10 @@ class Symmetrizer2D:
         symm_test = s.symmetrize_2d(data)
         fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
         axes = axesarr.reshape(-1)
-        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data')
+        plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data', **kwargs)
         plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
-        plot_slice(s.wedge, ax=axes[2], title='wedge')
-        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized')
+        plot_slice(s.wedge, ax=axes[2], title='wedge', **kwargs)
+        plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized', **kwargs)
         plt.subplots_adjust(wspace=0.4)
         plt.show()
         return fig, axesarr
