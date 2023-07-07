@@ -131,7 +131,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             X, Y = Y, X
             data = data.transpose()
     else:
-        raise TypeError
+        raise TypeError(f"Unexpected data type: {type(data)}. Supported types are np.ndarray and NXdata.")
 
     data_arr = data[data.signal].nxdata.transpose()
 
