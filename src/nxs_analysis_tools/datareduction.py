@@ -122,7 +122,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             X, Y = Y, X
             data = data.transpose()
         data = NXdata(NXfield(data, name='value'), (X,Y))
-    elif type(data) == NXdata:
+    elif type(data) == NXdata or type(data) == NXfield:
         if X is None:
             X = data[data.axes[0]]
         if Y is None:
