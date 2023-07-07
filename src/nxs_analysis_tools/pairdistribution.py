@@ -350,7 +350,7 @@ class Symmetrizer2D:
         axes = axesarr.reshape(-1)
         plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data', **kwargs)
         plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
-        plot_slice(s.wedge, ax=axes[2], title='wedge', **kwargs)
+        plot_slice(s.wedge, skew_angle=s.skew_angle, ax=axes[2], title='wedge', **kwargs)
         plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized', **kwargs)
         plt.subplots_adjust(wspace=0.4)
         plt.show()
