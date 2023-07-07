@@ -150,7 +150,7 @@ class Symmetrizer2D:
         if kwargs:
             self.set_parameters(**kwargs)
 
-    def set_parameters(self, theta_min, theta_max, skew_angle=90, mirror=True):
+    def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True):
         """
         Sets the parameters for the symmetrization operation.
 
@@ -160,18 +160,18 @@ class Symmetrizer2D:
             The minimum angle in degrees for symmetrization.
         theta_max : float
             The maximum angle in degrees for symmetrization.
-        skew_angle : float, optional
-            The angle in degrees to skew the data during symmetrization (default: 90).
+        lattice_angle : float, optional
+            The angle in degrees between the two principal axes of the plane to be symmetrized (default: 90).
         mirror : bool, optional
             If True, perform mirroring during symmetrization (default: True).
         """
         self.theta_min = theta_min
         self.theta_max = theta_max
-        self.skew_angle = skew_angle
+        self.skew_angle = lattice_angle
         self.mirror = mirror
 
         # Define Transformation
-        skew_angle_adj = 90 - skew_angle
+        skew_angle_adj = 90 - lattice_angle
         t = Affine2D()
         # Scale y-axis to preserve norm while shearing
         t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
