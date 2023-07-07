@@ -138,6 +138,7 @@ class Symmetrizer2D:
     symmetrization_mask: NXdata
 
     def __init__(self, **kwargs):
+        self.mirror_axis = None
         self.symmetrized = None
         self.wedges = None
         self.rotations = None
@@ -150,7 +151,7 @@ class Symmetrizer2D:
         if kwargs:
             self.set_parameters(**kwargs)
 
-    def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True):
+    def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True, mirror_axis=0):
         """
         Sets the parameters for the symmetrization operation.
 
@@ -164,11 +165,14 @@ class Symmetrizer2D:
             The angle in degrees between the two principal axes of the plane to be symmetrized (default: 90).
         mirror : bool, optional
             If True, perform mirroring during symmetrization (default: True).
+        mirror_axis : int, optional
+            The axis along which to perform mirroring (default: 0).
         """
         self.theta_min = theta_min
         self.theta_max = theta_max
         self.skew_angle = lattice_angle
         self.mirror = mirror
+        self.mirror_axis = mirror_axis
 
         # Define Transformation
         skew_angle_adj = 90 - lattice_angle
@@ -211,6 +215,7 @@ class Symmetrizer2D:
         theta_min = self.theta_min
         theta_max = self.theta_max
         mirror = self.mirror
+        mirror_axis = self.mirror_axis
         t = self.transform
         rotations = self.rotations
 
@@ -535,19 +540,19 @@ class Puncher:
         plt.show()
         return fig, axes
 
-    def plot_background_subtraction(self):
+    def plot_background_subtraction(self, **kwargs):
         data = self.data
-        fig, axes = plt.subplots(1, 3)
+        fig, axes = plt.subplots(1, 3, figsize=(10,3))
         # Plot the background and subtracted
         plot_slice(data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
                    data[data.axes[0]], data[data.axes[1]],
-                   ax=axes[0], skew_angle=self.ga_star)
+                   ax=axes[0], skew_angle=self.ga_star, **kwargs)
         plot_slice(data[data.signal][:, 0.0, :] - self.background[:, len(data[data.axes[1]]) // 2, :],
                    data[data.axes[0]], data[data.axes[2]],
-                   ax=axes[1], skew_angle=self.be_star)
+                   ax=axes[1], skew_angle=self.be_star, **kwargs)
         plot_slice(data[data.signal][0.0, :, :] - self.background[len(data[data.axes[0]]) // 2, :, :],
                    data[data.axes[1]], data[data.axes[2]],
-                   ax=axes[2], skew_angle=self.al_star)
+                   ax=axes[2], skew_angle=self.al_star, **kwargs)
         plt.show()
         return fig, axes
 
