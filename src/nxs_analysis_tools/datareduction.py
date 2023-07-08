@@ -113,7 +113,6 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
 
     """
     if type(data) == np.ndarray:
-        data = data.transpose()
         if X is None:
             X = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='x')
         if Y is None:
