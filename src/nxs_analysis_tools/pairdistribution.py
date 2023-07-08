@@ -11,7 +11,6 @@ import numpy as np
 from nxs_analysis_tools import plot_slice, reciprocal_lattice_params
 
 
-
 class Padder():
     """
     A class to pad and unpad datasets with a symmetric region of zeros.
@@ -502,13 +501,18 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
         gaussian = gaussian.transpose(1, 0, 2)
     elif gaussian.ndim == 2:
         gaussian = gaussian.transpose()
-    return gaussian.transpose(1,0,2)
+    return gaussian.transpose(1, 0, 2)
 
 
 class Puncher:
     def __init__(self):
+        self.data = None
+        self.reciprocal_lattice_params = None
+        self.lattice_params = None
+        self.background = None
         self.mask = None
         self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
 
     def set_data(self, data):
         self.data = data
@@ -519,6 +523,8 @@ class Puncher:
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
 
+    def set_background(self, background):
+        self.background = background
 
     def set_gaussian_background(self, amp, stddev, coeffs=None):
         if coeffs is None:
@@ -534,16 +540,16 @@ class Puncher:
         # Plot the background and subtracted
         plot_slice(self.background[:, :, len(data[data.axes[2]]) // 2], data[data.axes[0]], data[data.axes[1]],
                    ax=axes[0], skew_angle=self.ga_star)
-        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :],data[data.axes[0]], data[data.axes[2]],
+        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :], data[data.axes[0]], data[data.axes[2]],
                    ax=axes[1], skew_angle=self.be_star)
-        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :],data[data.axes[1]], data[data.axes[2]],
+        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :], data[data.axes[1]], data[data.axes[2]],
                    ax=axes[2], skew_angle=self.al_star)
         plt.show()
         return fig, axes
 
     def plot_background_subtraction(self, **kwargs):
         data = self.data
-        fig, axes = plt.subplots(1, 3, figsize=(10,3))
+        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
         # Plot the background and subtracted
         plot_slice(data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
                    data[data.axes[0]], data[data.axes[1]],
@@ -580,8 +586,6 @@ class Puncher:
         self.mask = mask
 
         return mask
-
-
 
 # class Reducer():
 #     pass
