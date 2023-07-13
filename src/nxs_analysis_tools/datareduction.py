@@ -121,6 +121,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             X, Y = Y, X
             data = data.transpose()
         data = NXdata(NXfield(data, name='value'), (X,Y))
+        data_arr = data
     elif type(data) == NXdata or type(data) == NXfield:
         if X is None:
             X = data[data.axes[0]]
@@ -129,10 +130,11 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
         if transpose:
             X, Y = Y, X
             data = data.transpose()
+        data_arr = data[data.signal].nxdata.transpose()
     else:
         raise TypeError(f"Unexpected data type: {type(data)}. Supported types are np.ndarray and NXdata.")
 
-    data_arr = data[data.signal].nxdata.transpose()
+
 
     # Display Markdown heading
     if mdheading is None:
