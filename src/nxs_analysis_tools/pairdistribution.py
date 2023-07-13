@@ -367,9 +367,37 @@ class Symmetrizer3D:
     A class to symmetrize 3D datasets.
     """
 
-    def __init__(self, data):
+    def __init__(self, data=None):
         """
         Initialize the Symmetrizer3D object.
+
+        Parameters
+        ----------
+        data : NXdata, optional
+            The input 3D dataset to be symmetrized.
+
+        """
+        self.symmetrized = None
+        self.data = data
+        self.plane1symmetrizer = Symmetrizer2D()
+        self.plane2symmetrizer = Symmetrizer2D()
+        self.plane3symmetrizer = Symmetrizer2D()
+
+        if data is not None:
+            self.q1 = data[data.axes[0]]
+            self.q2 = data[data.axes[1]]
+            self.q3 = data[data.axes[2]]
+            self.plane1 = self.q1.nxname + self.q2.nxname
+            self.plane2 = self.q1.nxname + self.q3.nxname
+            self.plane3 = self.q2.nxname + self.q3.nxname
+
+        print("Plane 1: " + self.plane1)
+        print("Plane 2: " + self.plane2)
+        print("Plane 3: " + self.plane3)
+
+    def set_data(self, data):
+        """
+        Sets the data to be symmetrized.
 
         Parameters
         ----------
@@ -377,14 +405,10 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
 
         """
-        self.symmetrized = None
         self.data = data
         self.q1 = data[data.axes[0]]
         self.q2 = data[data.axes[1]]
         self.q3 = data[data.axes[2]]
-        self.plane1symmetrizer = Symmetrizer2D()
-        self.plane2symmetrizer = Symmetrizer2D()
-        self.plane3symmetrizer = Symmetrizer2D()
         self.plane1 = self.q1.nxname + self.q2.nxname
         self.plane2 = self.q1.nxname + self.q3.nxname
         self.plane3 = self.q2.nxname + self.q3.nxname
@@ -392,6 +416,52 @@ class Symmetrizer3D:
         print("Plane 1: " + self.plane1)
         print("Plane 2: " + self.plane2)
         print("Plane 3: " + self.plane3)
+
+    def set_lattice_params(self, lattice_params):
+        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+        self.lattice_params = lattice_params
+        self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
+
+    def set_background(self, background):
+        self.background = background
+
+    def set_gaussian_background(self, amp, stddev, coeffs=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1, 0, 1, 0]
+        data = self.data
+        self.background = generate_gaussian(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]],
+                                            amp=amp, stddev=stddev, lattice_params=self.lattice_params,
+                                            coeffs=coeffs)
+
+    def plot_background(self):
+        data = self.data
+        fig, axes = plt.subplots(1, 3)
+        # Plot the background and subtracted
+        plot_slice(self.background[:, :, len(data[data.axes[2]]) // 2], data[data.axes[0]], data[data.axes[1]],
+                   ax=axes[0], skew_angle=self.ga_star)
+        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :], data[data.axes[0]], data[data.axes[2]],
+                   ax=axes[1], skew_angle=self.be_star)
+        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :], data[data.axes[1]], data[data.axes[2]],
+                   ax=axes[2], skew_angle=self.al_star)
+        plt.show()
+        return fig, axes
+
+    def plot_background_subtraction(self, **kwargs):
+        data = self.data
+        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+        # Plot the background and subtracted
+        plot_slice(data[:, :, 0.0][data.signal] - self.background[:, :, len(data[data.axes[2]]) // 2],
+                   data[data.axes[0]], data[data.axes[1]],
+                   ax=axes[0], skew_angle=self.ga_star, **kwargs)
+        plot_slice(data[:, 0.0, :][data.signal] - self.background[:, len(data[data.axes[1]]) // 2, :],
+                   data[data.axes[0]], data[data.axes[2]],
+                   ax=axes[1], skew_angle=self.be_star, **kwargs)
+        plot_slice(data[0.0, :, :][data.signal] - self.background[len(data[data.axes[0]]) // 2, :, :],
+                   data[data.axes[1]], data[data.axes[2]],
+                   ax=axes[2], skew_angle=self.al_star, **kwargs)
+        plt.show()
+        return fig, axes
 
     def symmetrize(self):
         """
@@ -551,13 +621,13 @@ class Puncher:
         data = self.data
         fig, axes = plt.subplots(1, 3, figsize=(10, 3))
         # Plot the background and subtracted
-        plot_slice(data[data.signal][:, :, 0.0] - self.background[:, :, len(data[data.axes[2]]) // 2],
+        plot_slice(data[:, :, 0.0][data.signal] - self.background[:, :, len(data[data.axes[2]]) // 2],
                    data[data.axes[0]], data[data.axes[1]],
                    ax=axes[0], skew_angle=self.ga_star, **kwargs)
-        plot_slice(data[data.signal][:, 0.0, :] - self.background[:, len(data[data.axes[1]]) // 2, :],
+        plot_slice(data[:, 0.0, :][data.signal] - self.background[:, len(data[data.axes[1]]) // 2, :],
                    data[data.axes[0]], data[data.axes[2]],
                    ax=axes[1], skew_angle=self.be_star, **kwargs)
-        plot_slice(data[data.signal][0.0, :, :] - self.background[len(data[data.axes[0]]) // 2, :, :],
+        plot_slice(data[0.0, :, :][data.signal] - self.background[len(data[data.axes[0]]) // 2, :, :],
                    data[data.axes[1]], data[data.axes[2]],
                    ax=axes[2], skew_angle=self.al_star, **kwargs)
         plt.show()
