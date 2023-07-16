@@ -525,7 +525,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
         coeffs = [1, 0, 1, 0, 1, 0]
     a, b, c, al, be, ga = lattice_params
     a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
-    H, K, L = np.meshgrid(H, K, L)
+    H, K, L = np.meshgrid(H, K, L, indexing='ij')
     gaussian = amp * np.exp(-(coeffs[0] * H ** 2 +
                               coeffs[1] * (b_ * a_ / (a_ ** 2)) * H * K +
                               coeffs[2] * (b_ / a_) ** 2 * K ** 2 +
@@ -554,7 +554,7 @@ class Puncher:
         self.data = data
         if self.mask is None:
             self.mask = np.zeros(data[data.signal].nxdata.shape)
-        self.H, self.K, self.L = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
+        self.H, self.K, self.L = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]], indexing='ij')
 
     def set_lattice_params(self, lattice_params):
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
@@ -563,7 +563,7 @@ class Puncher:
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
 
     def add_mask(self, maskaddition):
-        self.mask = np.logical_and(self.mask, maskaddition)
+        self.mask = np.logical_or(self.mask, maskaddition)
 
     def subtract_mask(self, masksubtraction):
         self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))

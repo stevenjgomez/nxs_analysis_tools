@@ -1,7 +1,5 @@
-import sys
-sys.path.append('../src/nxs_analysis_tools/')
-from datareduction import load_data
-from pairdistribution import *
+from nxs_analysis_tools.datareduction import load_data
+from nxs_analysis_tools.pairdistribution import *
 import matplotlib.pyplot as plt
 
 data = load_data('../docs/source/examples/example_data/pairdistribution_data/test_hkli.nxs')
@@ -21,7 +19,22 @@ data = load_data('../docs/source/examples/example_data/pairdistribution_data/tes
 p = Puncher()
 p.set_data(data)
 p.set_lattice_params((1,1,1,90,90,90))
-p.set_gaussian_background(amp=1, stddev=0.2)
-p.plot_gaussian_background()
-p.plot_background_subtraction()
+bm = p.generate_bragg_mask(punch_radius=0.25)
+p.add_mask(bm)
+p.punch()
+plot_slice(p.punched[:,:,0.0])
+plt.show()
 
+m = p.generate_mask_at_coord(coordinate=(0.33, 0.33, 0.0), punch_radius=0.25)
+p.add_mask(m)
+p.punch()
+plot_slice(p.punched[:,:,0.0])
+plt.show()
+
+m = p.generate_mask_at_coord(coordinate=(-0.1, -0.1, 0.0), punch_radius=0.2)
+p.subtract_mask(m)
+p.punch()
+plot_slice(p.punched[:,:,0.0])
+plt.show()
+
+# SUCCESS
