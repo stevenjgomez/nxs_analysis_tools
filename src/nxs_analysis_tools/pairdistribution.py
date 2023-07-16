@@ -577,15 +577,18 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
 class Puncher:
     def __init__(self):
         self.data = None
+        self.mask = None
         self.reciprocal_lattice_params = None
         self.lattice_params = None
         self.background = None
-        self.mask = None
         self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
 
     def set_data(self, data):
         self.data = data
+        if self.mask is None:
+            self.mask = np.zeros(data[data.signal].nxdata.shape)
+        self.H, self.K, self.L = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
 
     def set_lattice_params(self, lattice_params):
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
@@ -633,15 +636,14 @@ class Puncher:
         plt.show()
         return fig, axes
 
-    def generate_mask(self, punch_radius, coeffs=None, thresh=None):
+    def generate_Bragg_mask(self, punch_radius, coeffs=None, thresh=None):
         if coeffs is None:
             coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
+        H, K, L = self.H, self.K, self.L
         lattice_params = self.lattice_params
         a, b, c, al, be, ga = lattice_params
         a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
-
-        H, K, L = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
 
         mask = (coeffs[0] * (H - np.rint(H)) ** 2 +
                 coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - np.rint(H)) * (K - np.rint(K)) +
@@ -653,7 +655,32 @@ class Puncher:
         if thresh:
             mask = np.logical_and(mask, data[data.signal] > thresh)
 
-        self.mask = mask
+        return mask
+
+    def add_mask(self, maskaddition):
+        self.mask = np.logical_and(self.mask, maskaddition)
+
+    def subtract_mask(self, masksubtraction):
+        self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))
+
+    def generate_mask_at_coord(self, coordinate, punch_radius, coeffs=None, thresh=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1, 0, 1, 0]
+        data = self.data
+        H, K, L = self.H, self.K, self.L
+        lattice_params = self.lattice_params
+        a, b, c, al, be, ga = lattice_params
+        a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+        centerH, centerK, centerL = coordinate
+        mask = (coeffs[0] * (H - centerH) ** 2 +
+                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - centerH) * (K - centerK) +
+                coeffs[2] * (b_ / a_) ** 2 * (K - centerK) ** 2 +
+                coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - centerK) * (L - centerL) +
+                coeffs[4] * (c_ / a_) ** 2 * (L - centerL) ** 2 +
+                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - centerL) * (H - centerH)) < punch_radius ** 2
+
+        if thresh:
+            mask = np.logical_and(mask, data[data.signal] > thresh)
 
         return mask
 
