@@ -377,6 +377,11 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
 
         """
+
+        self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
+        self.lattice_params = None
+        self.reciprocal_lattice_params = None
         self.symmetrized = None
         self.data = data
         self.plane1symmetrizer = Symmetrizer2D()
@@ -422,46 +427,6 @@ class Symmetrizer3D:
         self.lattice_params = lattice_params
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
-
-    def set_background(self, background):
-        self.background = background
-
-    def set_gaussian_background(self, amp, stddev, coeffs=None):
-        if coeffs is None:
-            coeffs = [1, 0, 1, 0, 1, 0]
-        data = self.data
-        self.background = generate_gaussian(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]],
-                                            amp=amp, stddev=stddev, lattice_params=self.lattice_params,
-                                            coeffs=coeffs)
-
-    def plot_background(self):
-        data = self.data
-        fig, axes = plt.subplots(1, 3)
-        # Plot the background and subtracted
-        plot_slice(self.background[:, :, len(data[data.axes[2]]) // 2], data[data.axes[0]], data[data.axes[1]],
-                   ax=axes[0], skew_angle=self.ga_star)
-        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :], data[data.axes[0]], data[data.axes[2]],
-                   ax=axes[1], skew_angle=self.be_star)
-        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :], data[data.axes[1]], data[data.axes[2]],
-                   ax=axes[2], skew_angle=self.al_star)
-        plt.show()
-        return fig, axes
-
-    def plot_background_subtraction(self, **kwargs):
-        data = self.data
-        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
-        # Plot the background and subtracted
-        plot_slice(data[:, :, 0.0][data.signal] - self.background[:, :, len(data[data.axes[2]]) // 2],
-                   data[data.axes[0]], data[data.axes[1]],
-                   ax=axes[0], skew_angle=self.ga_star, **kwargs)
-        plot_slice(data[:, 0.0, :][data.signal] - self.background[:, len(data[data.axes[1]]) // 2, :],
-                   data[data.axes[0]], data[data.axes[2]],
-                   ax=axes[1], skew_angle=self.be_star, **kwargs)
-        plot_slice(data[0.0, :, :][data.signal] - self.background[len(data[data.axes[0]]) // 2, :, :],
-                   data[data.axes[1]], data[data.axes[2]],
-                   ax=axes[2], skew_angle=self.al_star, **kwargs)
-        plt.show()
-        return fig, axes
 
     def symmetrize(self):
         """
@@ -576,11 +541,12 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
 
 class Puncher:
     def __init__(self):
+        self.punched = None
         self.data = None
+        self.H, self.K, self.L = [None] * 3
         self.mask = None
         self.reciprocal_lattice_params = None
         self.lattice_params = None
-        self.background = None
         self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
 
@@ -595,46 +561,6 @@ class Puncher:
         self.lattice_params = lattice_params
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
-
-    def set_background(self, background):
-        self.background = background
-
-    def set_gaussian_background(self, amp, stddev, coeffs=None):
-        if coeffs is None:
-            coeffs = [1, 0, 1, 0, 1, 0]
-        data = self.data
-        self.background = generate_gaussian(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]],
-                                            amp=amp, stddev=stddev, lattice_params=self.lattice_params,
-                                            coeffs=coeffs)
-
-    def plot_gaussian_background(self):
-        data = self.data
-        fig, axes = plt.subplots(1, 3)
-        # Plot the background and subtracted
-        plot_slice(self.background[:, :, len(data[data.axes[2]]) // 2], data[data.axes[0]], data[data.axes[1]],
-                   ax=axes[0], skew_angle=self.ga_star)
-        plot_slice(self.background[:, len(data[data.axes[1]]) // 2, :], data[data.axes[0]], data[data.axes[2]],
-                   ax=axes[1], skew_angle=self.be_star)
-        plot_slice(self.background[len(data[data.axes[0]]) // 2, :, :], data[data.axes[1]], data[data.axes[2]],
-                   ax=axes[2], skew_angle=self.al_star)
-        plt.show()
-        return fig, axes
-
-    def plot_background_subtraction(self, **kwargs):
-        data = self.data
-        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
-        # Plot the background and subtracted
-        plot_slice(data[:, :, 0.0][data.signal] - self.background[:, :, len(data[data.axes[2]]) // 2],
-                   data[data.axes[0]], data[data.axes[1]],
-                   ax=axes[0], skew_angle=self.ga_star, **kwargs)
-        plot_slice(data[:, 0.0, :][data.signal] - self.background[:, len(data[data.axes[1]]) // 2, :],
-                   data[data.axes[0]], data[data.axes[2]],
-                   ax=axes[1], skew_angle=self.be_star, **kwargs)
-        plot_slice(data[0.0, :, :][data.signal] - self.background[len(data[data.axes[0]]) // 2, :, :],
-                   data[data.axes[1]], data[data.axes[2]],
-                   ax=axes[2], skew_angle=self.al_star, **kwargs)
-        plt.show()
-        return fig, axes
 
     def add_mask(self, maskaddition):
         self.mask = np.logical_and(self.mask, maskaddition)
@@ -680,13 +606,28 @@ class Puncher:
 
         return mask
 
+    def punch(self):
+        self.punched = self.data * (1 - self.mask)
+        return self.punched
+
+
 # class Reducer():
 #     pass
 #
 #
-# class Interpolator():
-#     pass
-#
-#
-# class FourierTransformer():
-#     pass
+
+class Interpolator():
+    def __init__(self):
+        self.data = None
+
+    def set_data(self, data):
+        self.data = data
+
+    def set_kernel(self, kernel):
+        self.kernel = kernel
+
+    def generate_gaussian_kernel(self, amp, stddev, coeffs=None):
+        pass
+
+    def interpolate(self):
+        pass
