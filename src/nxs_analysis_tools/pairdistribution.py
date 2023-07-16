@@ -636,14 +636,18 @@ class Puncher:
         plt.show()
         return fig, axes
 
-    def generate_Bragg_mask(self, punch_radius, coeffs=None, thresh=None):
+    def add_mask(self, maskaddition):
+        self.mask = np.logical_and(self.mask, maskaddition)
+
+    def subtract_mask(self, masksubtraction):
+        self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))
+
+    def generate_bragg_mask(self, punch_radius, coeffs=None, thresh=None):
         if coeffs is None:
             coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
         H, K, L = self.H, self.K, self.L
-        lattice_params = self.lattice_params
-        a, b, c, al, be, ga = lattice_params
-        a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
 
         mask = (coeffs[0] * (H - np.rint(H)) ** 2 +
                 coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - np.rint(H)) * (K - np.rint(K)) +
@@ -657,20 +661,12 @@ class Puncher:
 
         return mask
 
-    def add_mask(self, maskaddition):
-        self.mask = np.logical_and(self.mask, maskaddition)
-
-    def subtract_mask(self, masksubtraction):
-        self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))
-
     def generate_mask_at_coord(self, coordinate, punch_radius, coeffs=None, thresh=None):
         if coeffs is None:
             coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
         H, K, L = self.H, self.K, self.L
-        lattice_params = self.lattice_params
-        a, b, c, al, be, ga = lattice_params
-        a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
         centerH, centerK, centerL = coordinate
         mask = (coeffs[0] * (H - centerH) ** 2 +
                 coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - centerH) * (K - centerK) +
