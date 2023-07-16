@@ -12,7 +12,8 @@ from matplotlib import patches
 from IPython.display import display, Markdown
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError
 
-__all__ = ['load_data', 'plot_slice', 'Scissors']
+# Specify items on which users are allowed to perform standalone imports
+__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params']
 
 
 def load_data(path):
