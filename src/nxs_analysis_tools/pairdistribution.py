@@ -184,7 +184,7 @@ class Symmetrizer2D:
         t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
         self.transform = t
 
-        # Calculate number of rotations needed to reconstructed the dataset
+        # Calculate number of rotations needed to reconstruct the dataset
         if mirror:
             rotations = abs(int(360 / (theta_max - theta_min) / 2))
         else:
