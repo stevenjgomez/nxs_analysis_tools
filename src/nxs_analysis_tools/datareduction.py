@@ -672,7 +672,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
 
         counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
 
-        counts_unscaled2 = ndimage.affine_transform(counts_scaled2,
+        counts_unscaled2 = ndimage.affine_transform(counts_rotated,
                                                      Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
                                                      offset=[-(1 - scale2) * counts.shape[
                                                          0] / 2 / scale2, 0],
