@@ -14,7 +14,7 @@ from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError
 from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params']
+__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data']
 
 
 def load_data(path):
