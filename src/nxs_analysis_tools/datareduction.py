@@ -12,6 +12,7 @@ from matplotlib import patches
 from IPython.display import display, Markdown
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError
 from scipy import ndimage
+from .pairdistribution import Padder
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data']
@@ -172,15 +173,15 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
 
     ## Transform data to new coordinate system if necessary
     # Correct skew angle
-    skew_angle = 90 - skew_angle
+    skew_angle_adj = 90 - skew_angle
     # Create blank 2D affine transformation
     t = Affine2D()
     # Scale y-axis to preserve norm while shearing
-    t += Affine2D().scale(1, np.cos(skew_angle * np.pi / 180))
+    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
     # Shear along x-axis
-    t += Affine2D().skew_deg(skew_angle, 0)
+    t += Affine2D().skew_deg(skew_angle_adj, 0)
     # Return to original y-axis scaling
-    t += Affine2D().scale(1, np.cos(skew_angle * np.pi / 180)).inverted()
+    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
     ## Correct for x-displacement after shearing
     # If ylims provided, use those
     if ylim is not None:
@@ -191,17 +192,20 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
     else:
         ymin, ymax = ax.get_ylim()
     # Use ylims to calculate translation (necessary to display axes in correct position)
-    p.set_transform(t + Affine2D().translate(-ymin * np.sin(skew_angle * np.pi / 180), 0) + ax.transData)
+    p.set_transform(t + Affine2D().translate(-ymin * np.sin(skew_angle_adj * np.pi / 180), 0) + ax.transData)
 
     # Set x limits
     if xlim is not None:
         xmin, xmax = xlim
     else:
         xmin, xmax = ax.get_xlim()
-    ax.set(xlim=(xmin, xmax + (ymax - ymin) / np.tan((90 - skew_angle) * np.pi / 180)))
+    if skew_angle<=90:
+        ax.set(xlim=(xmin, xmax + (ymax - ymin) / np.tan((90 - skew_angle_adj) * np.pi / 180)))
+    else:
+        ax.set(xlim=(xmin - (ymax - ymin) / np.tan((skew_angle_adj-90) * np.pi / 180), xmax))
 
     # Correct aspect ratio for the x/y axes after transformation
-    ax.set(aspect=np.cos(skew_angle * np.pi / 180))
+    ax.set(aspect=np.cos(skew_angle_adj * np.pi / 180))
 
     # Add tick marks all around
     ax.tick_params(direction='in', top=True, right=True, which='both')
@@ -229,7 +233,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
         line = ax.xaxis.get_majorticklines()[i]
         if i % 2:
             # Top ticks (translation here makes their direction="in")
-            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle, 0))
+            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle_adj, 0))
             # This first method shifts the top ticks horizontally to match the skew angle.
             # This does not look good in all cases.
             # line.set_transform(Affine2D().translate((ymax-ymin)*np.sin(skew_angle*np.pi/180),0) +
@@ -239,7 +243,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             line.set_transform(line.get_transform())  # This does nothing
         else:
             # Bottom ticks
-            m._transform.set(Affine2D().skew_deg(skew_angle, 0))
+            m._transform.set(Affine2D().skew_deg(skew_angle_adj, 0))
 
         line.set_marker(m)
 
@@ -247,9 +251,9 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
         m = MarkerStyle(2)
         line = ax.xaxis.get_minorticklines()[i]
         if i % 2:
-            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle, 0))
+            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle_adj, 0))
         else:
-            m._transform.set(Affine2D().skew_deg(skew_angle, 0))
+            m._transform.set(Affine2D().skew_deg(skew_angle_adj, 0))
 
         line.set_marker(m)
 
@@ -644,13 +648,17 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
     for i in range(len(data[data.axes[rotation_axis]])):
         # Identify current slice
         if rotation_axis == 0:
-            counts = data[i, :, :][data.signal]
+            sliced_data = data[i, :, :]
         elif rotation_axis == 1:
-            counts = data[:, i, :][data.signal]
+            sliced_data = data[:, i, :]
         elif rotation_axis == 2:
-            counts = data[:, :, i][data.signal]
+            sliced_data = data[:, :, i]
         else:
-            counts=None
+            sliced_data=None
+
+        p = Padder(sliced_data)
+        padding = tuple([len(sliced_data[axis]) for axis in sliced_data.axes])
+        counts = p.pad(padding)
 
         counts_skewed = ndimage.affine_transform(counts,
                                                  t.inverted().get_matrix()[:2, :2],
@@ -694,13 +702,15 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
                                                      order=0,
                                                      )
 
+        counts_unpadded = p.unpad(counts_unskewed)
+
         # Write current slice
         if rotation_axis == 0:
-            output_array[i, :, :] = counts_unskewed
+            output_array[i, :, :] = counts_unpadded
         elif rotation_axis == 1:
-            output_array[:, i, :] = counts_unskewed
+            output_array[:, i, :] = counts_unpadded
         elif rotation_axis == 2:
-            output_array[:, :, i] = counts_unskewed
+            output_array[:, :, i] = counts_unpadded
 
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
