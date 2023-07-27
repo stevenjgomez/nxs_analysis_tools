@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from nexusformat.nexus import nxsave, NXroot, NXentry, NXdata, NXfield
 import numpy as np
-from nxs_analysis_tools import plot_slice, reciprocal_lattice_params
+from .datareduction import plot_slice, reciprocal_lattice_params
 
 
 class Padder():
