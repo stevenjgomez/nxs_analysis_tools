@@ -607,7 +607,9 @@ class Puncher:
         return mask
 
     def punch(self):
-        self.punched = self.data * (1 - self.mask)
+        data= self.data
+        self.punched = NXdata(NXfield(np.where(self.mask, np.nan, data[data.signal].nxdata), name=data.signal),
+                              (data[data.axes[0]],data[data.axes[1]],data[data.axes[2]]))
         return self.punched
 
 
