@@ -4,12 +4,11 @@
 .ipynb_checkpoints/
 .idea/
 docs/build/
+pylint_out.rst
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-
-src/nxs_analysis_tools/pairdistribution.py
 
 # Distribution / packaging
 bin/
