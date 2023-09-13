@@ -42,9 +42,27 @@ def load_data(path):
     return g.entry.data
 
 
-def array_to_nxdata(array, data_template, signal_name=None):
-    if not signal_name:
-        signal = 'counts'
+def array_to_nxdata(array, data_template, signal_name='counts'):
+    """
+    Create an NXdata object from an input array and an NXdata template, with an optional signal name.
+
+    Parameters
+    ----------
+    array : array-like
+        The data array to be included in the NXdata object.
+
+    data_template : NXdata
+        An NXdata object serving as a template, which provides information about axes and other metadata.
+
+    signal_name : str, optional
+        The name of the signal within the NXdata object. If not provided,
+        the default signal name 'counts' is used.
+
+    Returns
+    -------
+    NXdata
+        An NXdata object containing the input data array and associated axes based on the template.
+    """
     d = data_template
     return NXdata(NXfield(array, name=signal_name), tuple([d[d.axes[i]] for i in range(len(d.axes))]))
 
