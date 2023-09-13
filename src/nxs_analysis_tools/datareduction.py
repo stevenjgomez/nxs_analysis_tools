@@ -42,6 +42,13 @@ def load_data(path):
     return g.entry.data
 
 
+def array_to_nxdata(array, data_template, signal_name=None):
+    if not signal_name:
+        signal = 'counts'
+    d = data_template
+    return NXdata(NXfield(array, name=signal_name), tuple([d[d.axes[i]] for i in range(len(d.axes))]))
+
+
 def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew_angle=90,
                ax=None, xlim=None, ylim=None, xticks=None, yticks=None, cbar=True, logscale=False,
                symlogscale=False, cmap='viridis', linthresh=1, title=None, mdheading=None, cbartitle=None,
@@ -199,10 +206,10 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
         xmin, xmax = xlim
     else:
         xmin, xmax = ax.get_xlim()
-    if skew_angle<=90:
+    if skew_angle <= 90:
         ax.set(xlim=(xmin, xmax + (ymax - ymin) / np.tan((90 - skew_angle_adj) * np.pi / 180)))
     else:
-        ax.set(xlim=(xmin - (ymax - ymin) / np.tan((skew_angle_adj-90) * np.pi / 180), xmax))
+        ax.set(xlim=(xmin - (ymax - ymin) / np.tan((skew_angle_adj - 90) * np.pi / 180), xmax))
 
     # Correct aspect ratio for the x/y axes after transformation
     ax.set(aspect=np.cos(skew_angle_adj * np.pi / 180))
@@ -654,7 +661,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
         elif rotation_axis == 2:
             sliced_data = data[:, :, i]
         else:
-            sliced_data=None
+            sliced_data = None
 
         p = Padder(sliced_data)
         padding = tuple([len(sliced_data[axis]) for axis in sliced_data.axes])
@@ -667,40 +674,41 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
                                                  )
         scale1 = np.cos(skew_angle_adj * np.pi / 180)
         counts_scaled1 = ndimage.affine_transform(counts_skewed,
-                                                 Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
-                                                 offset=[(1 - scale1) * counts.shape[0] / 2, 0],
-                                                 order=0,
-                                                )
+                                                  Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
+                                                  offset=[(1 - scale1) * counts.shape[0] / 2, 0],
+                                                  order=0,
+                                                  )
         scale2 = counts.shape[0] / counts.shape[1]
         counts_scaled2 = ndimage.affine_transform(counts_scaled1,
-                                                 Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
-                                                 offset=[(1 - scale2) * counts.shape[0] / 2, 0],
-                                                 order=0,
-                                                 )
+                                                  Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
+                                                  offset=[(1 - scale2) * counts.shape[0] / 2, 0],
+                                                  order=0,
+                                                  )
 
         counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
 
         counts_unscaled2 = ndimage.affine_transform(counts_rotated,
-                                                     Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
-                                                     offset=[-(1 - scale2) * counts.shape[
-                                                         0] / 2 / scale2, 0],
-                                                     order=0,
-                                                     )
+                                                    Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                    offset=[-(1 - scale2) * counts.shape[
+                                                        0] / 2 / scale2, 0],
+                                                    order=0,
+                                                    )
 
         counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                     Affine2D().scale(scale1,
-                                                                      1).inverted().get_matrix()[:2, :2],
-                                                     offset=[-(1 - scale1) * counts.shape[
-                                                         0] / 2 / scale1, 0],
-                                                     order=0,
-                                                     )
+                                                    Affine2D().scale(scale1,
+                                                                     1).inverted().get_matrix()[:2, :2],
+                                                    offset=[-(1 - scale1) * counts.shape[
+                                                        0] / 2 / scale1, 0],
+                                                    order=0,
+                                                    )
 
         counts_unskewed = ndimage.affine_transform(counts_unscaled1,
-                                                     t.get_matrix()[:2, :2],
-                                                     offset=[(-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
-                                                             0],
-                                                     order=0,
-                                                     )
+                                                   t.get_matrix()[:2, :2],
+                                                   offset=[
+                                                       (-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
+                                                       0],
+                                                   order=0,
+                                                   )
 
         counts_unpadded = p.unpad(counts_unskewed)
 
