@@ -662,9 +662,9 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
     Parameters
     ----------
     data : :class:`nexusformat.nexus.NXdata`
-        Input data with signal and axes information.
+        Input data.
     lattice_angle : float
-        Angle of the lattice in degrees.
+        Angle between the two in-plane lattice axes in degrees.
     rotation_angle : float
         Angle of rotation in degrees.
     rotation_axis : int
