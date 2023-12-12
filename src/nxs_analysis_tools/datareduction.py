@@ -1,7 +1,7 @@
 """
 Reduces scattering data into 2D and 1D datasets.
 """
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
@@ -10,7 +10,7 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib import colors
 from matplotlib import patches
 from IPython.display import display, Markdown
-from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError
+from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy import ndimage
 from .pairdistribution import Padder
 
@@ -740,3 +740,122 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
 
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
+
+
+class Padder():
+    """
+    A class to pad and unpad datasets with a symmetric region of zeros.
+    """
+
+    def __init__(self, data=None):
+        """
+        Initialize the Symmetrizer3D object.
+
+        Parameters
+        ----------
+        data : NXdata, optional
+            The input data to be symmetrized. If provided, the `set_data` method is called to set the data.
+
+        """
+        self.padded = None
+        self.padding = None
+        if data is not None:
+            self.set_data(data)
+
+    def set_data(self, data):
+        """
+        Set the input data for symmetrization.
+
+        Parameters
+        ----------
+        data : NXdata
+            The input data to be symmetrized.
+
+        """
+        self.data = data
+
+        self.steps = tuple([(data[axis].nxdata[1] - data[axis].nxdata[0]) for axis in data.axes])
+
+        # Absolute value of the maximum value; assumes the domain of the input is symmetric (eg, -H_min = H_max)
+        self.maxes = tuple([data[axis].nxdata.max() for axis in data.axes])
+
+    def pad(self, padding):
+        """
+        Symmetrically pads the data with zero values.
+
+        Parameters
+        ----------
+        padding : tuple
+            The number of zero-value pixels to add along each edge of the array.
+        """
+        data = self.data
+        self.padding = padding
+
+        padded_shape = tuple([data[data.signal].nxdata.shape[i] + self.padding[i] * 2 for i in range(data.ndim)])
+
+        # Create padded dataset
+        padded = np.zeros(padded_shape)
+
+        slice_obj = [slice(None)] * data.ndim
+        for i, _ in enumerate(slice_obj):
+            slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
+        slice_obj = tuple(slice_obj)
+        padded[slice_obj] = data[data.signal].nxdata
+
+        padmaxes = tuple([self.maxes[i] + self.padding[i] * self.steps[i] for i in range(data.ndim)])
+
+        padded = NXdata(NXfield(padded, name=data.signal),
+                        tuple([NXfield(np.linspace(-padmaxes[i], padmaxes[i], padded_shape[i]),
+                                       name=data.axes[i])
+                               for i in range(data.ndim)]))
+
+        self.padded = padded
+        return padded
+
+    def save(self, fout_name=None):
+        """
+        Saves the padded dataset to a .nxs file.
+
+        Parameters
+        ----------
+        fout_name : str, optional
+            The output file name. Default is padded_(Hpadding)_(Kpadding)_(Lpadding).nxs
+        """
+        padH, padK, padL = self.padding
+
+        # Save padded dataset
+        print("Saving padded dataset...")
+        f = NXroot()
+        f['entry'] = NXentry()
+        f['entry']['data'] = self.padded
+        if fout_name is None:
+            fout_name = 'padded_' + str(padH) + '_' + str(padK) + '_' + str(padL) + '.nxs'
+        nxsave(fout_name, f)
+        print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
+
+    def unpad(self, data):
+        """
+        Removes the padded region from the data.
+
+        Parameters
+        ----------
+        data : ndarray or NXdata
+            The padded data from which to remove the padding.
+
+        Returns
+        -------
+        ndarray or NXdata
+            The unpadded data, with the symmetric padding region removed.
+
+        Notes
+        -----
+        This method removes the symmetric padding region that was added using the `pad` method. It returns the data
+        without the padded region.
+
+
+        """
+        slice_obj = [slice(None)] * data.ndim
+        for i in range(data.ndim):
+            slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
+        slice_obj = tuple(slice_obj)
+        return data[slice_obj]
