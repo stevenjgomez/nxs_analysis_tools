@@ -12,10 +12,9 @@ from matplotlib import patches
 from IPython.display import display, Markdown
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy import ndimage
-from .pairdistribution import Padder
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data', 'array_to_nxdata']
+__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data', 'array_to_nxdata', 'Padder']
 
 
 def load_data(path):
