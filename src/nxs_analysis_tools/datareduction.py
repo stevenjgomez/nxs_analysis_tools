@@ -656,6 +656,25 @@ def reciprocal_lattice_params(lattice_params):
 
 
 def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
+    """
+    Rotates 3D data around a specified axis.
+
+    Parameters
+    ----------
+    data : :class:`nexusformat.nexus.NXdata`
+        Input data with signal and axes information.
+    lattice_angle : float
+        Angle of the lattice in degrees.
+    rotation_angle : float
+        Angle of rotation in degrees.
+    rotation_axis : int
+        Axis of rotation (0, 1, or 2).
+
+    Returns
+    -------
+    rotated_data : :class:`nexusformat.nexus.NXdata`
+        Rotated data as an NXdata object.
+    """
     # Define output array
     output_array = np.zeros(data[data.signal].shape)
 
