@@ -15,7 +15,7 @@ from scipy import ndimage
 from .pairdistribution import Padder
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data']
+__all__ = ['load_data', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data', 'array_to_nxdata']
 
 
 def load_data(path):
