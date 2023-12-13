@@ -1,6 +1,6 @@
-import sys
-sys.path.append('../src/nxs_analysis_tools/')
-from datareduction import load_data, Scissors, rotate_data, plot_slice
+# import sys
+# sys.path.append('../src/nxs_analysis_tools/')
+from nxs_analysis_tools.datareduction import load_data, Scissors, rotate_data, plot_slice
 
 data = load_data('../docs/source/examples/example_data/sample_name/15/example_hkli.nxs')
 # scissors = Scissors(data, center=(0,0,0), window=(0.1,2,0.3))
