@@ -763,7 +763,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
             output_array[:, i, :] = counts_unpadded
         elif rotation_axis == 2:
             output_array[:, :, i] = counts_unpadded
-    print('Done.')
+    print('\nDone.')
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
 
