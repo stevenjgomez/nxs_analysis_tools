@@ -695,7 +695,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
 
     for i in range(len(data[data.axes[rotation_axis]])):
         if printout:
-            print(f'Rotating {data.axes[rotation_axis]}={data[data.axes[rotation_axis]][i]}...')
+            print(f'\rRotating {data.axes[rotation_axis]}={data[data.axes[rotation_axis]][i]}...                      ',
+                  end='', flush=True)
         # Identify current slice
         if rotation_axis == 0:
             sliced_data = data[i, :, :]
