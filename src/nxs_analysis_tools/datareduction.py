@@ -655,7 +655,7 @@ def reciprocal_lattice_params(lattice_params):
     return a_star, b_star, c_star, alpha_star, beta_star, gamma_star
 
 
-def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
+def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=False):
     """
     Rotates 3D data around a specified axis.
 
@@ -669,6 +669,11 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
         Angle of rotation in degrees.
     rotation_axis : int
         Axis of rotation (0, 1, or 2).
+    printout : bool, optional
+        Enables printout of rotation progress. If set to True, information about each rotation slice will be printed
+        to the console, indicating the axis being rotated and the corresponding
+        coordinate value. Defaults to False.
+
 
     Returns
     -------
@@ -689,6 +694,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
     t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
 
     for i in range(len(data[data.axes[rotation_axis]])):
+        if printout:
+            print(f'Rotating {data.axes[rotation_axis]}={data[data.axes[rotation_axis]][i]}...')
         # Identify current slice
         if rotation_axis == 0:
             sliced_data = data[i, :, :]
@@ -755,7 +762,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis):
             output_array[:, i, :] = counts_unpadded
         elif rotation_axis == 2:
             output_array[:, :, i] = counts_unpadded
-
+    print('Done.')
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
 
