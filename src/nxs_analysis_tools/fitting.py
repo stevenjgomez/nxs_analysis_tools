@@ -120,7 +120,11 @@ class LinecutModel:
         # Else, combine the components into a composite model and use that as the
         else:
             self.model_components = model_components
-            self.model = CompositeModel(*model_components, operator.add)
+            self.model = model_components[0]
+
+            # Combine remaining components into the composite model
+            for component in model_components[1:]:
+                self.model = CompositeModel(self.model, component, operator.add)
 
     def set_param_hint(self, *args, **kwargs):
         """
