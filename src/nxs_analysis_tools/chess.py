@@ -175,7 +175,7 @@ class TempDependence:
         cmap = mpl.colormaps.get_cmap('viridis')
 
         for i, linecut in enumerate(self.linecuts.values()):
-            x_data = linecut[linecut.axes[0]].nxdata
+            x_data = linecut[linecut.axes].nxdata
             y_data = linecut[linecut.signal].nxdata + i * vertical_offset
             ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
                     **kwargs)
