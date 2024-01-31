@@ -101,7 +101,7 @@ class LinecutModel:
             The 1D linecut data to be used for analysis.
         """
         self.data = data
-        self.x = data[data.axes[0]].nxdata
+        self.x = data[data.axes].nxdata
         self.y = data[data.signal].nxdata
 
     def set_model_components(self, model_components):
