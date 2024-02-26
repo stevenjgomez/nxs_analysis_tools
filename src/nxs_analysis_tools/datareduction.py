@@ -359,8 +359,8 @@ class Scissors:
         """
 
         self.data = data
-        self.center = tuple([float(i) for i in center])
-        self.window = tuple([float(i) for i in window])
+        self.center = tuple([float(i) for i in center]) if center is not None else None
+        self.window = tuple([float(i) for i in window]) if window is not None else None
         self.axis = axis
 
         self.integration_volume = None
@@ -399,7 +399,7 @@ class Scissors:
         center : tuple
             Central coordinate around which to perform the linecut.
         """
-        self.center = tuple([float(i) for i in center])
+        self.center = tuple([float(i) for i in center]) if center is not None else None
 
     def set_window(self, window):
         """
@@ -410,7 +410,7 @@ class Scissors:
         window : tuple
             Extents of the window for integration along each axis.
         """
-        self.window = tuple([float(i) for i in window])
+        self.window = tuple([float(i) for i in window]) if window is not None else None
 
         # Determine the axis for integration
         self.axis = window.index(max(window))
