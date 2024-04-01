@@ -154,6 +154,7 @@ class LinecutModel:
         params = self.model.make_params()
         self.params = params
         fwhm_params = {key: value for key, value in params.items() if 'fwhm' in key}
+
         for key, value in fwhm_params.items():
             pi_str = str(np.pi)
             params.add(key.replace('fwhm', 'corrlength'), expr='(2 * ' + pi_str + ') / ' + key)
