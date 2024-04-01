@@ -32,6 +32,7 @@ def load_data(path):
         The loaded data stored in a nxdata object.
 
     """
+
     g = nxload(path)
     try:
         print(g.entry.data.tree)
@@ -39,6 +40,23 @@ def load_data(path):
         pass
 
     return g.entry.data
+
+
+def load_transform(path):
+    """
+    Load nxrefine-transformed data from a specified path.
+
+    Parameters
+    ----------
+    path : str The path to the data file.
+
+    Returns
+    -------
+    data : nxdata object The loaded data stored in a nxdata object.
+    """
+    g = nxload(path)
+    return NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
+                  (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))
 
 
 def array_to_nxdata(array, data_template, signal_name='counts'):
@@ -766,6 +784,89 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
     print('\nDone.')
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
+
+def rotate_data2D(data, lattice_angle, rotation_angle):
+    """
+    Rotates 3D data around a specified axis.
+
+    Parameters
+    ----------
+    data : :class:`nexusformat.nexus.NXdata`
+        Input data.
+    lattice_angle : float
+        Angle between the two in-plane lattice axes in degrees.
+    rotation_angle : float
+        Angle of rotation in degrees..
+
+
+    Returns
+    -------
+    rotated_data : :class:`nexusformat.nexus.NXdata`
+        Rotated data as an NXdata object.
+    """
+
+    # Define transformation
+    skew_angle_adj = 90 - lattice_angle
+    t = Affine2D()
+    # Scale y-axis to preserve norm while shearing
+    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
+    # Shear along x-axis
+    t += Affine2D().skew_deg(skew_angle_adj, 0)
+    # Return to original y-axis scaling
+    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
+
+    p = Padder(data)
+    padding = tuple([len(data[axis]) for axis in data.axes])
+    counts = p.pad(padding).counts
+
+    counts_skewed = ndimage.affine_transform(counts,
+                                             t.inverted().get_matrix()[:2, :2],
+                                             offset=[counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180), 0],
+                                             order=0,
+                                             )
+    scale1 = np.cos(skew_angle_adj * np.pi / 180)
+    counts_scaled1 = ndimage.affine_transform(counts_skewed,
+                                              Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
+                                              offset=[(1 - scale1) * counts.shape[0] / 2, 0],
+                                              order=0,
+                                              )
+    scale2 = counts.shape[0] / counts.shape[1]
+    counts_scaled2 = ndimage.affine_transform(counts_scaled1,
+                                              Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
+                                              offset=[(1 - scale2) * counts.shape[0] / 2, 0],
+                                              order=0,
+                                              )
+
+    counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
+
+    counts_unscaled2 = ndimage.affine_transform(counts_rotated,
+                                                Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                offset=[-(1 - scale2) * counts.shape[
+                                                    0] / 2 / scale2, 0],
+                                                order=0,
+                                                )
+
+    counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
+                                                Affine2D().scale(scale1,
+                                                                 1).inverted().get_matrix()[:2, :2],
+                                                offset=[-(1 - scale1) * counts.shape[
+                                                    0] / 2 / scale1, 0],
+                                                order=0,
+                                                )
+
+    counts_unskewed = ndimage.affine_transform(counts_unscaled1,
+                                               t.get_matrix()[:2, :2],
+                                               offset=[
+                                                   (-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
+                                                   0],
+                                               order=0,
+                                               )
+
+    counts_unpadded = p.unpad(counts_unskewed)
+
+    print('\nDone.')
+    return NXdata(NXfield(counts_unpadded, name='counts'),
+                  (data[data.axes[0]], data[data.axes[1]]))
 
 
 class Padder():
