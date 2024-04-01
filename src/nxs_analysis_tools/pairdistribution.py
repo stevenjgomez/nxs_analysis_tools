@@ -492,6 +492,76 @@ class Puncher:
                               (data[data.axes[0]],data[data.axes[1]],data[data.axes[2]]))
         return self.punched
 
+class PuncherHK:
+    def __init__(self):
+        self.punched = None
+        self.data = None
+        self.q1, self.q2 = [None] * 2
+        self.mask = None
+        self.reciprocal_lattice_params = None
+        self.lattice_params = None
+        self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
+
+    def set_data(self, data):
+        self.data = data
+        if self.mask is None:
+            self.mask = np.zeros(data[data.signal].nxdata.shape)
+        self.q1, self.q2, = np.meshgrid(data[data.axes[0]], data[data.axes[1]], indexing='ij')
+
+    def set_lattice_params(self, lattice_params):
+        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+        self.lattice_params = lattice_params
+        self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
+
+    def add_mask(self, maskaddition):
+        self.mask = np.logical_or(self.mask, maskaddition)
+
+    def subtract_mask(self, masksubtraction):
+        self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))
+
+    def generate_bragg_mask(self, punch_radius, coeffs=None, thresh=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1]
+        data = self.data
+        q1, q2 = self.q1, self.q2
+        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
+
+        mask = (coeffs[0] * (q1 - np.rint(q1)) ** 2 +
+                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (q1 - np.rint(q1)) * (q2 - np.rint(q2)) +
+                coeffs[2] * (b_ / a_) ** 2 * (q2 - np.rint(q2)) ** 2) < punch_radius ** 2
+
+        if thresh:
+            mask = np.logical_and(mask, data[data.signal] > thresh)
+
+        return mask
+
+    def generate_mask_at_coord(self, coordinate, punch_radius, coeffs=None, thresh=None):
+        if coeffs is None:
+            coeffs = [1, 0, 1]
+        data = self.data
+        q1, q2 = self.q1, self.q2
+        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
+        centerH, centerK, centerL = coordinate
+        mask = (coeffs[0] * (H - centerH) ** 2 +
+                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - centerH) * (K - centerK) +
+                coeffs[2] * (b_ / a_) ** 2 * (K - centerK) ** 2 +
+                coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - centerK) * (L - centerL) +
+                coeffs[4] * (c_ / a_) ** 2 * (L - centerL) ** 2 +
+                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - centerL) * (H - centerH)) < punch_radius ** 2
+
+        if thresh:
+            mask = np.logical_and(mask, data[data.signal] > thresh)
+
+        return mask
+
+    def punch(self):
+        data= self.data
+        self.punched = NXdata(NXfield(np.where(self.mask, np.nan, data[data.signal].nxdata), name=data.signal),
+                              (data[data.axes[0]],data[data.axes[1]]))
+        return self.punched
+
 
 # class Reducer():
 #     pass
