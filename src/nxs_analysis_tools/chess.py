@@ -6,9 +6,13 @@ plotting linecuts.
 import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import numpy as np
 from IPython.display import display, Markdown
+from nexusformat.nexus import nxload
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
+from nxs_analysis_tools.datareduction import load_transform
+
 
 class TempDependence:
     """
@@ -19,32 +23,45 @@ class TempDependence:
         """
         Initialize TempDependence class.
         """
-        self.xlabel = None
+        self.nxs_files_list = []
+        self.sample_directory = ''
+        self.xlabel = ''
         self.datasets = {}
-        self.folder = None
-        self.temperatures = None
+        self.temperatures = []
         self.scissors = {}
         self.linecuts = {}
         self.linecutmodels = {}
 
-    def get_folder(self):
-        """
-        Get the folder path where the datasets are located.
+    def set_temperatures(self, temperatures):
+        self.temperatures = temperatures
 
-        Returns
-        -------
-            str:
-                The folder path.
-        """
-        return self.folder
+    def set_sample_directory(self, path):
+        self.sample_directory = os.path.normpath(path)
 
-    def clear_datasets(self):
-        """
-        Clear the datasets stored in the TempDependence instance.
-        """
-        self.datasets = {}
+    def initialize(self):
+        for temperature in self.temperatures:
+            self.scissors[temperature] = Scissors()
+            self.scissors[temperature] = LinecutModel()
 
-    def load_datasets(self, folder, file_ending='hkli.nxs', temperatures_list=None):
+    def set_data(self, temperature, data):
+        self.datasets[temperature] = data
+
+    def load_transforms(self):
+        for item in os.listdir(self.sample_directory):
+            if item.endswith('.nxs'):
+                path = os.path.join(self.sample_directory, item)
+                g = nxload(path)
+                temperature = str(int(np.round(g.entry.sample.temperature.nxdata)))
+                self.temperatures.append(temperature)
+                self.datasets[temperature] = load_transform(path)
+                # Initialize scissors object at each temperature
+                self.scissors[temperature] = Scissors()
+                self.scissors[temperature].set_data(self.datasets[temperature])
+
+                # Initialize linecutmodel object at each temperature
+                self.linecutmodels[temperature] = LinecutModel()
+
+    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
         """
         Load scattering datasets from the specified folder.
 
@@ -58,9 +75,8 @@ class TempDependence:
             The list of specific temperatures to load. If None, all available temperatures are
             loaded. The default is None.
         """
-        self.folder = os.path.normpath(folder)
         temperature_folders = []  # Empty list to store temperature folder names
-        for item in os.listdir(self.folder):
+        for item in os.listdir(self.sample_directory):
             try:
                 temperature_folders.append(int(item))  # If folder name can be int, add it
             except ValueError:
@@ -78,9 +94,9 @@ class TempDependence:
 
         # Load .nxs files
         for T in self.temperatures:
-            for file in os.listdir(os.path.join(self.folder, T)):
+            for file in os.listdir(os.path.join(self.sample_directory, T)):
                 if file.endswith(file_ending):
-                    filepath = os.path.join(self.folder, T, file)
+                    filepath = os.path.join(self.sample_directory, T, file)
                     print('-----------------------------------------------')
                     print('Loading ' + T + ' K indexed .nxs files...')
                     print('Found ' + filepath)
@@ -94,6 +110,23 @@ class TempDependence:
 
                     # Initialize linecutmodel object at each temperature
                     self.linecutmodels[T] = LinecutModel()
+
+    def get_sample_directory(self):
+        """
+        Get the folder path where the datasets are located.
+
+        Returns
+        -------
+            str:
+                The folder path.
+        """
+        return self.sample_directory
+
+    def clear_datasets(self):
+        """
+        Clear the datasets stored in the TempDependence instance.
+        """
+        self.datasets = {}
 
     def set_window(self, window):
         """
@@ -151,7 +184,7 @@ class TempDependence:
             self.linecuts[T] = self.scissors[T].linecut
             self.linecutmodels[T].set_data(self.linecuts[T])
 
-        xlabel_components = [self.linecuts[self.temperatures[0]].axes[0]
+        xlabel_components = [self.linecuts[self.temperatures[0]].axes
                              if i == self.scissors[self.temperatures[0]].axis
                              else str(c) for i, c in enumerate(self.scissors[self.temperatures[0]].center)]
         self.xlabel = ' '.join(xlabel_components)
