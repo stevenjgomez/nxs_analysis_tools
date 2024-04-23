@@ -11,7 +11,7 @@ from IPython.display import display, Markdown
 from nexusformat.nexus import nxload
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
-from nxs_analysis_tools.datareduction import load_transform
+from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
 
 
 class TempDependence:
@@ -128,6 +128,9 @@ class TempDependence:
         """
         self.datasets = {}
 
+    def set_Lattice_params(self, lattice_params):
+        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = reciprocal_lattice_params(lattice_params)
     def set_window(self, window):
         """
         Set the extents of the integration window.
