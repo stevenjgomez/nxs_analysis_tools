@@ -46,20 +46,34 @@ class TempDependence:
     def set_data(self, temperature, data):
         self.datasets[temperature] = data
 
-    def load_transforms(self):
+    def load_transforms(self, temperatures_list=None):
+        # Convert all temperatures to strings
+        if temperatures_list:
+            temperatures_list = [str(t) for t in temperatures_list]
+
+        # Search all files in the sample directory
         for item in os.listdir(self.sample_directory):
+
+            # Find the nxs files
             if item.endswith('.nxs'):
+
+                # Load the nxs files
                 path = os.path.join(self.sample_directory, item)
                 g = nxload(path)
-                temperature = str(int(np.round(g.entry.sample.temperature.nxdata)))
-                self.temperatures.append(temperature)
-                self.datasets[temperature] = load_transform(path)
-                # Initialize scissors object at each temperature
-                self.scissors[temperature] = Scissors()
-                self.scissors[temperature].set_data(self.datasets[temperature])
 
-                # Initialize linecutmodel object at each temperature
-                self.linecutmodels[temperature] = LinecutModel()
+                # Extract the sample temperature
+                temperature = str(int(np.round(g.entry.sample.temperature.nxdata)))
+
+                # Load all samples (or a subset if temperatures_list is provided)
+                if (temperatures_list is None) or (temperature in temperatures_list):
+                    self.temperatures.append(temperature)
+                    self.datasets[temperature] = load_transform(path)
+                    # Initialize scissors object at each temperature
+                    self.scissors[temperature] = Scissors()
+                    self.scissors[temperature].set_data(self.datasets[temperature])
+
+                    # Initialize linecutmodel object at each temperature
+                    self.linecutmodels[temperature] = LinecutModel()
 
     def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
         """
