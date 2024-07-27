@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from IPython.display import display, Markdown
-from nexusformat.nexus import nxload
+from nexusformat.nexus import nxload, NXdata
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
 from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
@@ -31,6 +31,8 @@ class TempDependence:
         self.scissors = {}
         self.linecuts = {}
         self.linecutmodels = {}
+        self.a, self.b, self.c, self.al, self.be, self.ga = [None]*6
+        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None]*6
 
     def set_temperatures(self, temperatures):
         self.temperatures = temperatures
@@ -41,18 +43,31 @@ class TempDependence:
     def initialize(self):
         for temperature in self.temperatures:
             self.scissors[temperature] = Scissors()
-            self.scissors[temperature] = LinecutModel()
+            self.linecutmodels[temperature] = LinecutModel()
 
     def set_data(self, temperature, data):
         self.datasets[temperature] = data
+
+    def convert_to_inverse_angstroms(self):
+        invA = TempDependence()
+        invA.set_temperatures(self.temperatures)
+        invA.initialize()
+        for i,T in enumerate(self.temperatures):
+            invA.datasets[T] = NXdata(self.datasets[T].counts, (self.datasets[T].H*self.a_star,self.datasets[T].K*self.b_star, self.datasets[T].L*self.c_star))
+            print(invA.datasets[T].tree)
+            invA.scissors[T].set_data(invA.datasets[T])
+        return invA
+
 
     def load_transforms(self):
         for item in os.listdir(self.sample_directory):
             if item.endswith('.nxs'):
                 path = os.path.join(self.sample_directory, item)
                 g = nxload(path)
-                temperature = str(int(np.round(g.entry.sample.temperature.nxdata)))
+                temperature = int(np.round(g.entry.sample.temperature.nxdata))
                 self.temperatures.append(temperature)
+                self.temperatures.sort()
+                self.temperatures = [str(temperature) for temperature in self.temperatures]
                 self.datasets[temperature] = load_transform(path)
                 # Initialize scissors object at each temperature
                 self.scissors[temperature] = Scissors()
@@ -128,9 +143,10 @@ class TempDependence:
         """
         self.datasets = {}
 
-    def set_Lattice_params(self, lattice_params):
+    def set_lattice_params(self, lattice_params):
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = reciprocal_lattice_params(lattice_params)
+
     def set_window(self, window):
         """
         Set the extents of the integration window.
