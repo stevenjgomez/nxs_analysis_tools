@@ -159,7 +159,7 @@ class TempDependence:
     def set_Lattice_params(self, lattice_params):
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = reciprocal_lattice_params(lattice_params)
-    def set_window(self, window):
+    def set_window(self, window, verbose=False):
         """
         Set the extents of the integration window.
 
@@ -167,11 +167,14 @@ class TempDependence:
         ----------
         window : tuple
             Extents of the window for integration along each axis.
+        verbose : bool
+            Enables printout of linecut axis and integrated axes. Default False.
         """
         for T in self.temperatures:
-            print("----------------------------------")
-            print("T = " + T + " K")
-            self.scissors[T].set_window(window)
+            if verbose:
+                print("----------------------------------")
+                print("T = " + T + " K")
+            self.scissors[T].set_window(window, verbose)
 
     def set_center(self, center):
         """
@@ -185,7 +188,7 @@ class TempDependence:
         for T in self.temperatures:
             self.scissors[T].set_center(center)
 
-    def cut_data(self, center=None, window=None, axis=None):
+    def cut_data(self, center=None, window=None, axis=None, verbose=False):
         """
         Perform data cutting for each temperature dataset.
 
@@ -198,6 +201,8 @@ class TempDependence:
         axis : int or None, optional
             The axis along which to perform the cutting. If None, cutting is performed along the
             longest axis in `window`. The default is None.
+        verbose: bool, optional
+            Enables printout of linecut progress.
 
         Returns
         -------
@@ -209,9 +214,10 @@ class TempDependence:
         window = window if window is not None else self.scissors[self.temperatures[0]].window
 
         for T in self.temperatures:
-            print("-------------------------------")
-            print("Cutting T = " + T + " K data...")
-            self.scissors[T].cut_data(center, window, axis)
+            if verbose:
+                print("-------------------------------")
+                print("Cutting T = " + T + " K data...")
+            self.scissors[T].cut_data(center, window, axis, verbose)
             self.linecuts[T] = self.scissors[T].linecut
             self.linecutmodels[T].set_data(self.linecuts[T])
 
@@ -382,18 +388,25 @@ class TempDependence:
             ax.set(title=T + ' K')
             linecutmodel.plot_initial_guess()
 
-    def fit(self):
+    def fit(self, verbose=False):
         """
         Fit the line cut models.
 
         This method fits the line cut models for each temperature in the analysis.
         It iterates over each line cut model, performs the fit, and prints the fitting progress.
 
+        Parameters
+        ----------
+       verbose : bool, optional
+            Enables printout of fitting progress. Default False.
+
         """
         for T, linecutmodel in self.linecutmodels.items():
-            print(f"Fitting {T} K  data...")
+            if verbose:
+                print(f"Fitting {T} K  data...")
             linecutmodel.fit()
-            print("Done.")
+            if verbose:
+                print("Done.")
         print("Fits completed.")
 
     def plot_fit(self, mdheadings=False, **kwargs):

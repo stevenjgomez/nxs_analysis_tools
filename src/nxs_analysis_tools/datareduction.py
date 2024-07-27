@@ -429,7 +429,7 @@ class Scissors:
         window : tuple
             Extents of the window for integration along each axis.
         verbose : bool
-            Enables printout of linecut axis and integrated axes
+            Enables printout of linecut axis and integrated axes. Default False.
 
         """
         self.window = tuple([float(i) for i in window]) if window is not None else None
@@ -455,7 +455,7 @@ class Scissors:
         """
         return self.window
 
-    def cut_data(self, center=None, window=None, axis=None):
+    def cut_data(self, center=None, window=None, axis=None, verbose=False):
         """
         Reduces data to a 1D linecut with integration extents specified by the window about a central
         coordinate.
@@ -471,6 +471,8 @@ class Scissors:
         axis : int or None, optional
             The axis along which to perform the linecut. If not specified, the value from the
             object's attribute will be used.
+        verbose : bool
+            Enables printout of linecut axis and integrated axes. Default False.
 
         Returns
         --------
@@ -483,7 +485,7 @@ class Scissors:
         center = center if center is not None else self.center
         self.set_center(center)
         window = window if window is not None else self.window
-        self.set_window(window)
+        self.set_window(window, verbose)
         axis = axis if axis is not None else self.axis
 
         # Convert the center to a tuple of floats
