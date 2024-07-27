@@ -75,6 +75,11 @@ class TempDependence:
                     # Initialize linecutmodel object at each temperature
                     self.linecutmodels[temperature] = LinecutModel()
 
+        # Convert to int temporarily to sort temperatures list
+        self.temperatures = [int(t) for t in self.temperatures]
+        self.temperatures.sort()
+        self.temperatures = [str(t) for t in self.temperatures]
+
     def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
         """
         Load scattering datasets from the specified folder.
