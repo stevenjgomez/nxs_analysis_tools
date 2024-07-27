@@ -4,6 +4,8 @@ This module provides classes and functions for analyzing scattering datasets col
 plotting linecuts.
 """
 import os
+import re
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -51,34 +53,41 @@ class TempDependence:
         if temperatures_list:
             temperatures_list = [str(t) for t in temperatures_list]
 
-        # Search all files in the sample directory
+        # Identify files to load
+        items_to_load = []
+        # Search for nxrefine .nxs files
         for item in os.listdir(self.sample_directory):
-
-            # Find the nxs files
-            if item.endswith('.nxs'):
-
-                # Load the nxs files
-                path = os.path.join(self.sample_directory, item)
-                g = nxload(path)
-
-                # Extract the sample temperature
-                temperature = str(int(np.round(g.entry.sample.temperature.nxdata)))
-
-                # Load all samples (or a subset if temperatures_list is provided)
+            pattern = r'_(\d+)\.nxs'
+            match = re.search(pattern, item)
+            if match:
+                print(f'Found {item}')
+                # Identify temperature
+                temperature = match.group(1)
+                # print(f'Temperature = {temperature}')
                 if (temperatures_list is None) or (temperature in temperatures_list):
+                    # Prepare file to be loaded
                     self.temperatures.append(temperature)
-                    self.datasets[temperature] = load_transform(path)
-                    # Initialize scissors object at each temperature
-                    self.scissors[temperature] = Scissors()
-                    self.scissors[temperature].set_data(self.datasets[temperature])
+                    items_to_load.append(item)
+                    # print(f'Preparing to load {temperature} K data: {item}')
 
-                    # Initialize linecutmodel object at each temperature
-                    self.linecutmodels[temperature] = LinecutModel()
-
-        # Convert to int temporarily to sort temperatures list
+        # Convert all temperatures to int temporarily to sort temperatures list before loading
         self.temperatures = [int(t) for t in self.temperatures]
         self.temperatures.sort()
         self.temperatures = [str(t) for t in self.temperatures]
+
+        for i,item in enumerate(items_to_load):
+            path = os.path.join(self.sample_directory, item)
+            g = nxload(path)
+
+            # Save dataset
+            self.datasets[self.temperatures[i]] = load_transform(path)
+
+            # Initialize scissors object
+            self.scissors[self.temperatures[i]] = Scissors()
+            self.scissors[self.temperatures[i]].set_data(self.datasets[self.temperatures[i]])
+
+            # Initialize linecutmodel object
+            self.linecutmodels[self.temperatures[i]] = LinecutModel()
 
     def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
         """
