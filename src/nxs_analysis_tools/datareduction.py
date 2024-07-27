@@ -420,7 +420,7 @@ class Scissors:
         """
         self.center = tuple([float(i) for i in center]) if center is not None else None
 
-    def set_window(self, window):
+    def set_window(self, window, verbose=False):
         """
         Set the extents of the integration window.
 
@@ -428,16 +428,21 @@ class Scissors:
         ----------
         window : tuple
             Extents of the window for integration along each axis.
+        verbose : bool
+            Enables printout of linecut axis and integrated axes
+
         """
         self.window = tuple([float(i) for i in window]) if window is not None else None
 
         # Determine the axis for integration
         self.axis = window.index(max(window))
-        print("Linecut axis: " + str(self.data.axes[self.axis]))
 
         # Determine the integrated axes (axes other than the integration axis)
         self.integrated_axes = tuple(i for i in range(self.data.ndim) if i != self.axis)
-        print("Integrated axes: " + str([self.data.axes[axis] for axis in self.integrated_axes]))
+
+        if verbose:
+            print("Linecut axis: " + str(self.data.axes[self.axis]))
+            print("Integrated axes: " + str([self.data.axes[axis] for axis in self.integrated_axes]))
 
     def get_window(self):
         """
