@@ -95,8 +95,6 @@ class TempDependence:
 
         Parameters
         ----------
-        folder : str
-            The path to the folder where the datasets are located.
         file_ending : str, optional
             The file extension of the datasets to be loaded. The default is 'hkli.nxs'.
         temperatures_list : list of int or None, optional
