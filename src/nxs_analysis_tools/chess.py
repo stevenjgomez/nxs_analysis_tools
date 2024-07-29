@@ -266,6 +266,49 @@ class TempDependence:
 
         return fig, ax
 
+    def plot_linecuts_heatmap(self, ax=None, **kwargs):
+        """
+        Plot the linecuts obtained from data cutting.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            The axes on which to plot the heatmap. If None, a new figure and axes
+            are created. The default is None.
+        **kwargs
+            Additional keyword arguments to be passed to the `pcolormesh` function.
+
+        Returns
+        -------
+        QuadMesh
+            The plotted heatmap object.
+        """
+
+        # Retrieve linecut data for the first temperature and extract x-axis data
+        cut = self.linecuts[self.temperatures[0]]
+        x = cut[cut.axes].nxdata
+
+        # Convert the list of temperatures to a NumPy array for the y-axis
+        y = np.array([int(t) for t in self.temperatures])
+
+        # Collect counts from each temperature and ensure they are numpy arrays
+        v = [self.linecuts[T].counts.nxdata for T in self.temperatures]
+
+        # Convert list of arrays to a 2D array for the heatmap
+        v_2d = np.array(v)
+
+        # Create the grid for the heatmap
+        X, Y = np.meshgrid(x, y)
+
+        # Plot using pcolormesh
+        if ax is None:
+            fig, ax = plt.subplots()
+        p = ax.pcolormesh(X, Y, v_2d, **kwargs)
+        plt.colorbar(p, label='counts')
+        ax.set(xlabel=cut.axes, ylabel=r'$T$ (K)')
+
+        return p
+
     def highlight_integration_window(self, temperature=None, **kwargs):
         """
         Displays the integration window plot for a specific temperature, or for the first temperature if
