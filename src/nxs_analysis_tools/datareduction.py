@@ -420,7 +420,7 @@ class Scissors:
         """
         self.center = tuple([float(i) for i in center]) if center is not None else None
 
-    def set_window(self, window, verbose=False):
+    def set_window(self, window, axis=None, verbose=False):
         """
         Set the extents of the integration window.
 
@@ -428,14 +428,17 @@ class Scissors:
         ----------
         window : tuple
             Extents of the window for integration along each axis.
-        verbose : bool
+        axis : int or None, optional
+            The axis along which to perform the linecut. If not specified, the value from the
+            object's attribute will be used.
+        verbose : bool, optional
             Enables printout of linecut axis and integrated axes. Default False.
 
         """
         self.window = tuple([float(i) for i in window]) if window is not None else None
 
         # Determine the axis for integration
-        self.axis = window.index(max(window))
+        self.axis = window.index(max(window)) if axis is None else axis
 
         # Determine the integrated axes (axes other than the integration axis)
         self.integrated_axes = tuple(i for i in range(self.data.ndim) if i != self.axis)
@@ -485,8 +488,7 @@ class Scissors:
         center = center if center is not None else self.center
         self.set_center(center)
         window = window if window is not None else self.window
-        self.set_window(window, verbose)
-        axis = axis if axis is not None else self.axis
+        self.set_window(window, axis, verbose)
 
         # Convert the center to a tuple of floats
         center = tuple(float(c) for c in center)
@@ -507,7 +509,7 @@ class Scissors:
 
         # Create an NXdata object for the linecut data
         self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.signal),
-                              self.integration_volume[self.integration_volume.axes[axis]])
+                              self.integration_volume[self.integration_volume.axes[self.axis]])
         self.linecut.nxname = self.integration_volume.nxname
 
         return self.linecut

@@ -212,6 +212,7 @@ class TempDependence:
 
         center = center if center is not None else self.scissors[self.temperatures[0]].center
         window = window if window is not None else self.scissors[self.temperatures[0]].window
+        axis = axis if axis is not None else self.scissors[self.temperatures[0]].axis
 
         for T in self.temperatures:
             if verbose:
