@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from IPython.display import display, Markdown
-from nexusformat.nexus import nxload
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
 from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
@@ -19,13 +18,34 @@ from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_
 class TempDependence:
     """
     Class for analyzing scattering datasets collected at CHESS (ID4B) with temperature dependence.
+
+    Attributes
+    ----------
+    sample_directory : str
+        Path to the directory containing the datasets.
+    xlabel : str
+        Label for the x-axis of plots.
+    datasets : dict
+        Dictionary storing datasets keyed by temperature.
+    temperatures : list
+        List of temperatures for which data is available.
+    scissors : dict
+        Dictionary of Scissors objects, one for each temperature.
+    linecuts : dict
+        Dictionary of linecut data, one for each temperature.
+    linecutmodels : dict
+        Dictionary of LinecutModel objects, one for each temperature.
+    a, b, c, al, be, ga : float
+        Lattice parameters.
+    a_star, b_star, c_star, al_star, be_star, ga_star : float
+        Reciprocal lattice parameters.
     """
 
     def __init__(self):
         """
-        Initialize TempDependence class.
+        Initialize the TempDependence class with default values.
         """
-        self.nxs_files_list = []
+
         self.sample_directory = ''
         self.xlabel = ''
         self.datasets = {}
@@ -33,22 +53,62 @@ class TempDependence:
         self.scissors = {}
         self.linecuts = {}
         self.linecutmodels = {}
+        self.a, self.b, self.c, self.al, self.be, self.ga, \
+            self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star \
+            = [None] * 12
 
     def set_temperatures(self, temperatures):
+        """
+        Set the list of temperatures for the datasets.
+
+        Parameters
+        ----------
+        temperatures : list
+            List of temperatures to set.
+        """
         self.temperatures = temperatures
 
     def set_sample_directory(self, path):
+        """
+        Set the directory path where the datasets are located.
+
+        Parameters
+        ----------
+        path : str
+            Path to the sample directory.
+        """
         self.sample_directory = os.path.normpath(path)
 
     def initialize(self):
+        """
+        Initialize Scissors and LinecutModel objects for each temperature.
+        """
         for temperature in self.temperatures:
             self.scissors[temperature] = Scissors()
             self.scissors[temperature] = LinecutModel()
 
     def set_data(self, temperature, data):
+        """
+        Set the dataset for a specific temperature.
+
+        Parameters
+        ----------
+        temperature : str
+            Temperature for which to set the data.
+        data : object
+            The dataset to be set.
+        """
         self.datasets[temperature] = data
 
     def load_transforms(self, temperatures_list=None):
+        """
+        Load transform datasets (from nxrefine) based on temperature.
+
+        Parameters
+        ----------
+        temperatures_list : list of int or None, optional
+            List of temperatures to load. If None, all available temperatures are loaded.
+        """
         # Convert all temperatures to strings
         if temperatures_list:
             temperatures_list = [str(t) for t in temperatures_list]
@@ -75,9 +135,8 @@ class TempDependence:
         self.temperatures.sort()
         self.temperatures = [str(t) for t in self.temperatures]
 
-        for i,item in enumerate(items_to_load):
+        for i, item in enumerate(items_to_load):
             path = os.path.join(self.sample_directory, item)
-            g = nxload(path)
 
             # Save dataset
             self.datasets[self.temperatures[i]] = load_transform(path)
@@ -91,7 +150,7 @@ class TempDependence:
 
     def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
         """
-        Load scattering datasets from the specified folder.
+        Load datasets (CHESS format) from the specified folder.
 
         Parameters
         ----------
@@ -143,8 +202,8 @@ class TempDependence:
 
         Returns
         -------
-            str:
-                The folder path.
+        str
+            The folder path.
         """
         return self.sample_directory
 
@@ -155,18 +214,28 @@ class TempDependence:
         self.datasets = {}
 
     def set_Lattice_params(self, lattice_params):
+        """
+        Set lattice parameters and calculate reciprocal lattice parameters.
+
+        Parameters
+        ----------
+        lattice_params : tuple
+            Tuple containing lattice parameters (a, b, c, al, be, ga).
+        """
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
-        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = reciprocal_lattice_params(lattice_params)
+        self.a_star, self.b_star, self.c_star, \
+            self.al_star, self.be_star, self.ga_star = reciprocal_lattice_params(lattice_params)
+
     def set_window(self, window, verbose=False):
         """
-        Set the extents of the integration window.
+        Set the extents of the integration window for each temperature.
 
         Parameters
         ----------
         window : tuple
             Extents of the window for integration along each axis.
-        verbose : bool
-            Enables printout of linecut axis and integrated axes. Default False.
+        verbose : bool, optional
+            Enables printout of linecut axis and integrated axes. Default is False.
         """
         for T in self.temperatures:
             if verbose:
@@ -176,7 +245,7 @@ class TempDependence:
 
     def set_center(self, center):
         """
-        Set the central coordinate for the linecut.
+        Set the central coordinate for the linecut for each temperature.
 
         Parameters
         ----------
@@ -192,20 +261,22 @@ class TempDependence:
 
         Parameters
         ----------
-        center : tuple
+        center : tuple, optional
             The center point for cutting the data.
-        window : tuple
+            Defaults to the first temperature's center if None.
+        window : tuple, optional
             The window size for cutting the data.
+            Defaults to the first temperature's window if None.
         axis : int or None, optional
-            The axis along which to perform the cutting. If None, cutting is performed along the
-            longest axis in `window`. The default is None.
-        verbose: bool, optional
-            Enables printout of linecut progress.
+            The axis along which to perform the cutting.
+            Defaults to the longest axis in `window` if None.
+        verbose : bool, optional
+            Enables printout of linecut progress. Default is False.
 
         Returns
         -------
-        list
-            A list of linecuts obtained from the cutting operation.
+        dict
+            A dictionary of linecuts obtained from the cutting operation.
         """
 
         center = center if center is not None else self.scissors[self.temperatures[0]].center
@@ -222,7 +293,8 @@ class TempDependence:
 
         xlabel_components = [self.linecuts[self.temperatures[0]].axes
                              if i == self.scissors[self.temperatures[0]].axis
-                             else str(c) for i, c in enumerate(self.scissors[self.temperatures[0]].center)]
+                             else str(c) for i, c in
+                             enumerate(self.scissors[self.temperatures[0]].center)]
         self.xlabel = ' '.join(xlabel_components)
 
         return self.linecuts
@@ -300,7 +372,7 @@ class TempDependence:
 
         # Plot using pcolormesh
         if ax is None:
-            fig, ax = plt.subplots()
+            _, ax = plt.subplots()
         p = ax.pcolormesh(X, Y, v_2d, **kwargs)
         plt.colorbar(p, label='counts')
         ax.set(xlabel=cut.axes, ylabel=r'$T$ (K)')
@@ -309,8 +381,8 @@ class TempDependence:
 
     def highlight_integration_window(self, temperature=None, **kwargs):
         """
-        Displays the integration window plot for a specific temperature, or for the first temperature if
-        none is provided.
+        Displays the integration window plot for a specific temperature,
+        or for the first temperature if none is provided.
 
         Parameters
         ----------
@@ -323,8 +395,10 @@ class TempDependence:
         """
 
         if temperature is not None:
-            p = self.scissors[self.temperatures[0]].highlight_integration_window(data=self.datasets[temperature],
-                                                                                 **kwargs)
+            p = self.scissors[
+                self.temperatures[0]].highlight_integration_window(
+                data=self.datasets[temperature], **kwargs
+            )
         else:
             p = self.scissors[self.temperatures[0]].highlight_integration_window(
                 data=self.datasets[self.temperatures[0]], **kwargs
@@ -334,15 +408,18 @@ class TempDependence:
 
     def plot_integration_window(self, temperature=None, **kwargs):
         """
-        Plots the three principal cross-sections of the integration volume on a single figure for a specific
-        temperature, or for the first temperature if none is provided.
+        Plots the three principal cross-sections of the integration volume on
+        a single figure for a specific temperature, or for the first temperature
+        if none is provided.
 
         Parameters
         ----------
         temperature : str, optional
-            The temperature at which to plot the integration volume. If provided, the plot
-            will be generated using the dataset corresponding to the specified temperature. If not
-            provided, the integration window plots will be generated for the first temperature.
+            The temperature at which to plot the integration volume. If provided,
+            the plot will be generated using the dataset corresponding to the
+            specified temperature. If not provided, the integration window plots
+            will be generated for the first temperature.
+
         **kwargs : keyword arguments, optional
             Additional keyword arguments to customize the plot.
         """
@@ -358,9 +435,9 @@ class TempDependence:
         """
         Set the model components for all line cut models.
 
-        This method sets the same model components for all line cut models in the analysis.
-        It iterates over each line cut model and calls their respective `set_model_components` method
-        with the provided `model_components`.
+        This method sets the same model components for all line cut models in the
+        analysis. It iterates over each line cut model and calls their respective
+        `set_model_components` method with the provided `model_components`.
 
         Parameters
         ----------
@@ -368,7 +445,8 @@ class TempDependence:
             The model components to set for all line cut models.
 
         """
-        [linecutmodel.set_model_components(model_components) for linecutmodel in self.linecutmodels.values()]
+        [linecutmodel.set_model_components(model_components) for
+         linecutmodel in self.linecutmodels.values()]
 
     def set_param_hint(self, *args, **kwargs):
         """
@@ -386,7 +464,8 @@ class TempDependence:
             Arbitrary keyword arguments.
 
         """
-        [linecutmodel.set_param_hint(*args, **kwargs) for linecutmodel in self.linecutmodels.values()]
+        [linecutmodel.set_param_hint(*args, **kwargs)
+         for linecutmodel in self.linecutmodels.values()]
 
     def make_params(self):
         """
@@ -411,8 +490,9 @@ class TempDependence:
         """
         Print the initial parameter values for all line cut models.
 
-        This method prints the initial parameter values for all line cut models in the analysis.
-        It iterates over each line cut model and calls their respective `print_initial_params` method.
+        This method prints the initial parameter values for all line cut models
+        in the analysis. It iterates over each line cut model and calls their
+        respective `print_initial_params` method.
 
         """
         [linecutmodel.print_initial_params() for linecutmodel in self.linecutmodels.values()]
@@ -426,7 +506,7 @@ class TempDependence:
 
         """
         for T, linecutmodel in self.linecutmodels.items():
-            fig, ax = plt.subplots()
+            _, ax = plt.subplots()
             ax.set(title=T + ' K')
             linecutmodel.plot_initial_guess()
 
@@ -465,7 +545,9 @@ class TempDependence:
             if mdheadings:
                 display(Markdown(f"### {T} K Fit Results"))
             # Plot fit
-            linecutmodel.plot_fit(xlabel=self.xlabel, ylabel=self.datasets[self.temperatures[0]].signal, title=f"{T} K",
+            linecutmodel.plot_fit(xlabel=self.xlabel,
+                                  ylabel=self.datasets[self.temperatures[0]].signal,
+                                  title=f"{T} K",
                                   **kwargs)
 
     def print_fit_report(self):
