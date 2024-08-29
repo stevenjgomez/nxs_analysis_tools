@@ -20,12 +20,13 @@ __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors', 'reciprocal_
 
 def load_data(path):
     """
-    Load data from a specified path.
+    Load data from a NeXus file at a specified path. It is assumed that the data follows the CHESS
+    file structure (i.e., root/entry/data/counts, etc.).
 
     Parameters
     ----------
     path : str
-        The path to the data file.
+        The path to the NeXus data file.
 
     Returns
     -------
@@ -45,11 +46,11 @@ def load_data(path):
 
 def load_transform(path):
     """
-    Load nxrefine-transformed data from a specified path.
+    Load data obtained from nxrefine output from a specified path.
 
     Parameters
     ----------
-    path : str The path to the data file.
+    path : str The path to the transform data file.
 
     Returns
     -------
@@ -332,32 +333,32 @@ class Scissors:
         Extents of the window for integration along each axis.
     axis : int or None
         Axis along which to perform the integration.
-    data_cut : ndarray or None
+    integration_volume : :class:`nexusformat.nexus.NXdata` or None
         Data array after applying the integration window.
     integrated_axes : tuple or None
         Indices of axes that were integrated.
     linecut : :class:`nexusformat.nexus.NXdata` or None
         1D linecut data after integration.
-    window_plane_slice_obj : list or None
+    integration_window : tuple or None
         Slice object representing the integration window in the data array.
 
     Methods
     -------
     set_data(data)
-        Set the input :class:`nexusformat.nexus.NXdata`
+        Set the input :class:`nexusformat.nexus.NXdata`.
     get_data()
         Get the input :class:`nexusformat.nexus.NXdata`.
     set_center(center)
         Set the central coordinate for the linecut.
-    set_window(window)
+    set_window(window, axis=None, verbose=False)
         Set the extents of the integration window.
     get_window()
         Get the extents of the integration window.
-    cut_data(axis=None)
+    cut_data(center=None, window=None, axis=None, verbose=False)
         Reduce data to a 1D linecut using the integration window.
-    show_integration_window(label=None)
+    highlight_integration_window(data=None, label=None, highlight_color='red', **kwargs)
         Plot the integration window highlighted on a 2D heatmap of the full dataset.
-    plot_window()
+    plot_integration_window(**kwargs)
         Plot a 2D heatmap of the integration window data.
     """
 
@@ -660,6 +661,23 @@ class Scissors:
 
 
 def reciprocal_lattice_params(lattice_params):
+    """
+    Calculate the reciprocal lattice parameters from the given direct lattice parameters.
+
+    Parameters
+    ----------
+    lattice_params : tuple
+        A tuple containing the direct lattice parameters (a, b, c, alpha, beta, gamma), where
+        a, b, and c are the magnitudes of the lattice vectors, and alpha, beta, and gamma are the
+        angles between them in degrees.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the reciprocal lattice parameters (a*, b*, c*, alpha*, beta*, gamma*),
+        where a*, b*, and c* are the magnitudes of the reciprocal lattice vectors, and alpha*,
+        beta*, and gamma* are the angles between them in degrees.
+    """
     a_mag, b_mag, c_mag, alpha, beta, gamma = lattice_params
     # Convert angles to radians
     alpha = np.deg2rad(alpha)
@@ -798,7 +816,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
 
 def rotate_data2D(data, lattice_angle, rotation_angle):
     """
-    Rotates 3D data around a specified axis.
+    Rotates 2D data.
 
     Parameters
     ----------
@@ -807,7 +825,7 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
     lattice_angle : float
         Angle between the two in-plane lattice axes in degrees.
     rotation_angle : float
-        Angle of rotation in degrees..
+        Angle of rotation in degrees.
 
 
     Returns
@@ -882,18 +900,41 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
 
 class Padder():
     """
-    A class to pad and unpad datasets with a symmetric region of zeros.
+    A class to symmetrically pad and unpad datasets with a region of zeros.
+
+    Attributes
+    ----------
+    data : NXdata or None
+        The input data to be padded.
+    padded : NXdata or None
+        The padded data with symmetric zero padding.
+    padding : tuple or None
+        The number of zero-value pixels added along each edge of the array.
+    steps : tuple or None
+        The step sizes along each axis of the dataset.
+    maxes : tuple or None
+        The maximum values along each axis of the dataset.
+
+    Methods
+    -------
+    set_data(data)
+        Set the input data for padding.
+    pad(padding)
+        Symmetrically pads the data with zero values.
+    save(fout_name=None)
+        Saves the padded dataset to a .nxs file.
+    unpad(data)
+        Removes the padded region from the data.
     """
 
     def __init__(self, data=None):
         """
-        Initialize the Symmetrizer3D object.
+        Initialize the Padder object.
 
         Parameters
         ----------
         data : NXdata, optional
-            The input data to be symmetrized. If provided, the `set_data` method is called to set the data.
-
+            The input data to be padded. If provided, the `set_data` method is called to set the data.
         """
         self.padded = None
         self.padding = None
@@ -902,13 +943,12 @@ class Padder():
 
     def set_data(self, data):
         """
-        Set the input data for symmetrization.
+        Set the input data for padding.
 
         Parameters
         ----------
         data : NXdata
-            The input data to be symmetrized.
-
+            The input data to be padded.
         """
         self.data = data
 
@@ -925,6 +965,11 @@ class Padder():
         ----------
         padding : tuple
             The number of zero-value pixels to add along each edge of the array.
+
+        Returns
+        -------
+        NXdata
+            The padded data with symmetric zero padding.
         """
         data = self.data
         self.padding = padding
@@ -984,13 +1029,6 @@ class Padder():
         -------
         ndarray or NXdata
             The unpadded data, with the symmetric padding region removed.
-
-        Notes
-        -----
-        This method removes the symmetric padding region that was added using the `pad` method. It returns the data
-        without the padded region.
-
-
         """
         slice_obj = [slice(None)] * data.ndim
         for i in range(data.ndim):
@@ -1000,6 +1038,20 @@ class Padder():
 
 
 def load_discus_nxs(path):
+    """
+    Load .nxs format data from the DISCUS program (by T. Proffen and R. Neder) and convert it to the CHESS format.
+
+    Parameters
+    ----------
+    path : str
+        The file path to the .nxs file generated by DISCUS.
+
+    Returns
+    -------
+    NXdata
+        The data converted to the CHESS format, with axes labeled 'H', 'K', and 'L', and the signal labeled 'counts'.
+
+    """
     filename = path
     root = nxload(filename)
     hlim, klim, llim = root.lower_limits
