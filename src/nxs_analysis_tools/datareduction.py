@@ -998,14 +998,15 @@ class Padder():
         slice_obj = tuple(slice_obj)
         return data[slice_obj]
 
+
 def load_discus_nxs(path):
     filename = path
     root = nxload(filename)
-    hlim,klim,llim = root.lower_limits
-    hstep,kstep,lstep = root.step_sizes
-    h = NXfield(np.linspace(hlim,-hlim,int(np.abs(hlim*2)/hstep)+1), name='H')
-    k = NXfield(np.linspace(klim,-klim,int(np.abs(klim*2)/kstep)+1), name='K')
-    l = NXfield(np.linspace(llim,-llim,int(np.abs(llim*2)/lstep)+1), name='L')
-    data = NXdata(NXfield(root.data[:,:,:], name='counts'),(h,k,l))
+    hlim, klim, llim = root.lower_limits
+    hstep, kstep, lstep = root.step_sizes
+    h = NXfield(np.linspace(hlim, -hlim, int(np.abs(hlim * 2) / hstep) + 1), name='H')
+    k = NXfield(np.linspace(klim, -klim, int(np.abs(klim * 2) / kstep) + 1), name='K')
+    l = NXfield(np.linspace(llim, -llim, int(np.abs(llim * 2) / lstep) + 1), name='L')
+    data = NXdata(NXfield(root.data[:, :, :], name='counts'), (h, k, l))
 
     return data
