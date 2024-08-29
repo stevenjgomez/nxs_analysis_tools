@@ -3,7 +3,9 @@ Tools for generating single crystal pair distribution functions.
 """
 import time
 import os
+import gc
 from scipy import ndimage
+import scipy
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from nexusformat.nexus import nxsave, NXroot, NXentry, NXdata, NXfield
@@ -550,8 +552,12 @@ class Gaussian3DKernel(Kernel):
 
 class Interpolator():
     def __init__(self):
+        self.interp_time = None
+        self.window = None
         self.interpolated = None
         self.data = None
+        self.kernel = None
+        self.tapered = None
 
     def set_data(self, data):
         self.data = data
@@ -562,10 +568,8 @@ class Interpolator():
     def interpolate(self):
         start = time.time()
 
-        try:
-            print("Last interpolation took {:.2f} minutes.".format(interp_time / 60))
-        except:
-            pass
+        if self.interp_time:
+            print("Last interpolation took {:.2f} minutes.".format(self.interp_time / 60))
 
         print("Running interpolation...")
         result = np.real(
@@ -579,3 +583,185 @@ class Interpolator():
 
         result[result < 0] = 0
         self.interpolated = array_to_nxdata(result, self.data)
+
+    def set_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0)):
+        data = self.data
+        tukey_H = np.tile(scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+                          (1, len(data[data.axes[1]]), len(data[data.axes[2]])))
+        tukey_K = np.tile(scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+                          (len(data[data.axes[0]]), 1, len(data[data.axes[2]])))
+        window = tukey_H * tukey_K
+
+        del tukey_H, tukey_K
+        gc.collect()
+
+        tukey_L = np.tile(scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
+                          (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
+        window = window * tukey_L
+
+        self.window = window
+
+    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0)):
+        data = self.data
+        H_ = data[data.axes[0]]
+        K_ = data[data.axes[1]]
+        L_ = data[data.axes[2]]
+
+        tukey_H = np.tile(scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+                          (1, len(data[data.axes[1]]), len(data[data.axes[2]])))
+        tukey_K = np.tile(scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+                          (len(data[data.axes[0]]), 1, len(data[data.axes[2]])))
+        window = tukey_H * tukey_K
+
+        del tukey_H, tukey_K
+        gc.collect()
+
+        truncation = int((len(H_) - int(len(H_) * np.sqrt(2) / 2)) / 2)
+
+        tukey_HK = scipy.ndimage.rotate(
+            np.tile(
+                np.concatenate(
+                    (np.zeros(truncation)[:, None, None],
+                     scipy.signal.tukey(len(H_) - 2 * truncation,
+                                        alpha=tukey_alphas[2])[:, None, None],
+                     np.zeros(truncation)[:, None, None])),
+                (1, len(K_), len(L_))
+            ),
+            angle=45, reshape=False, mode='nearest',
+        )[0:len(H_), 0:len(K_), :]
+        tukey_HK = np.nan_to_num(tukey_HK)
+        window = window * tukey_HK
+
+        del tukey_HK
+        gc.collect()
+
+        tukey_L = np.tile(scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
+                          (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
+        window = window * tukey_L
+
+        del tukey_L
+        gc.collect()
+
+        self.window = window
+
+    def set_window(self, window):
+        self.window = window
+
+    def apply_window(self):
+        self.tapered = self.interpolated * self.window
+
+
+def fourier_transform_nxdata(data):
+    start = time.time()
+    print("Starting FFT.")
+
+    padded = data[data.signal].nxdata
+
+    fft_array = np.zeros(padded.shape)
+    print("FFT on axes 1,2")
+    for k in range(0, padded.shape[2]):
+        fft_array[:, :, k] = np.real(np.fft.fftshift(
+            pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(padded[:, :, k]), planner_effort='FFTW_MEASURE')))
+        print(f'k={k}                  ', end='\r')
+
+    print("FFT on axis 3")
+    for i in range(0, padded.shape[0]):
+        for j in range(0, padded.shape[1]):
+            f_slice = fft_array[i, j, :]
+            print(f'i={i}                  ', end='\r')
+            fft_array[i, j, :] = np.real(np.fft.fftshift(
+                pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice), planner_effort='FFTW_MEASURE')))
+
+    end = time.time()
+    print("FFT complete.")
+    print('FFT took ' + str(end - start) + ' seconds.')
+
+    H_step = data[data.axes[0]].nxdata[1] - data[data.axes[0]].nxdata[0]
+    K_step = data[data.axes[1]].nxdata[1] - data[data.axes[1]].nxdata[0]
+    L_step = data[data.axes[2]].nxdata[1] - data[data.axes[2]].nxdata[0]
+
+    fft = NXdata(NXfield(fft_array, name='dPDF'),
+                 (NXfield(np.linspace(-0.5 / H_step, 0.5 / H_step, padded.shape[0]), name='x'),
+                  NXfield(np.linspace(-0.5 / K_step, 0.5 / K_step, padded.shape[1]), name='y'),
+                  NXfield(np.linspace(-0.5 / L_step, 0.5 / L_step, padded.shape[1]), name='z'),
+                  )
+                 )
+    return fft
+
+
+class DeltaPDF:
+
+    def __init__(self):
+        self.fft = None
+        self.data = None
+        self.lattice_params = None
+        self.puncher = Puncher()
+        self.interpolator = Interpolator()
+        self.padder = Padder()
+        self.mask = None
+        self.kernel = None
+        self.window = None
+        self.padded = None
+        self.tapered = None
+        self.interpolated = None
+        self.punched = None
+
+    def set_data(self, data):
+        self.data = data
+        self.puncher.set_data(data)
+        self.interpolator.set_data(data)
+
+    def set_lattice_params(self, lattice_params):
+        self.lattice_params = lattice_params
+        self.puncher.set_lattice_params(lattice_params)
+
+    def add_mask(self, maskaddition):
+        self.puncher.add_mask(maskaddition)
+        self.mask = self.puncher.mask
+
+    def subtract_mask(self, masksubtraction):
+        self.puncher.subtract_mask(masksubtraction)
+        self.mask = self.puncher.mask
+
+    def generate_bragg_mask(self, punch_radius, coeffs=None, thresh=None):
+        return self.puncher.generate_bragg_mask(punch_radius, coeffs, thresh)
+
+    def generate_intensity_mask(self, thresh, radius, verbose=True):
+        return self.puncher.generate_intensity_mask(thresh, radius, verbose)
+
+    def generate_mask_at_coord(self, coordinate, punch_radius, coeffs=None, thresh=None):
+        return self.puncher.generate_mask_at_coord(coordinate, punch_radius, coeffs, thresh)
+
+    def punch(self):
+        self.puncher.punch()
+        self.punched = self.puncher.punched
+        self.interpolator.set_data(self.punched)
+
+    def set_kernel(self, kernel):
+        self.interpolator.set_kernel(kernel)
+        self.kernel = kernel
+
+    def interpolate(self):
+        self.interpolator.interpolate()
+        self.interpolated = self.interpolator.interpolated
+
+    def set_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0)):
+        self.interpolator.set_tukey_window(tukey_alphas)
+        self.window = self.interpolator.window
+
+    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0)):
+        self.interpolator.set_hexagonal_tukey_window(tukey_alphas)
+
+    def set_window(self, window):
+        self.interpolator.set_window(window)
+
+    def apply_window(self):
+        self.interpolator.apply_window()
+        self.tapered = self.interpolator.tapered
+        self.padder.set_data(self.tapered)
+
+    def pad(self, padding):
+        self.padded = self.padder.pad(padding)
+
+    def fft(self):
+        self.fft = fourier_transform_nxdata(self.padded)
