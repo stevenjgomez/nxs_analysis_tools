@@ -795,6 +795,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
     return NXdata(NXfield(output_array, name='counts'),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
 
+
 def rotate_data2D(data, lattice_angle, rotation_angle):
     """
     Rotates 3D data around a specified axis.
@@ -996,3 +997,15 @@ class Padder():
             slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
         slice_obj = tuple(slice_obj)
         return data[slice_obj]
+
+def load_discus_nxs(path):
+    filename = path
+    root = nxload(filename)
+    hlim,klim,llim = root.lower_limits
+    hstep,kstep,lstep = root.step_sizes
+    h = NXfield(np.linspace(hlim,-hlim,int(np.abs(hlim*2)/hstep)+1), name='H')
+    k = NXfield(np.linspace(klim,-klim,int(np.abs(klim*2)/kstep)+1), name='K')
+    l = NXfield(np.linspace(llim,-llim,int(np.abs(llim*2)/lstep)+1), name='L')
+    data = NXdata(NXfield(root.data[:,:,:], name='counts'),(h,k,l))
+
+    return data
