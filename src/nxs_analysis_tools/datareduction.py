@@ -898,7 +898,7 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
                   (data[data.axes[0]], data[data.axes[1]]))
 
 
-class Padder():
+class Padder:
     """
     A class to symmetrically pad and unpad datasets with a region of zeros.
 
