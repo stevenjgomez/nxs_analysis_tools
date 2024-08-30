@@ -271,7 +271,7 @@ class TempDependence:
         """
         self.datasets = {}
 
-    def set_Lattice_params(self, lattice_params):
+    def set_lattice_params(self, lattice_params):
         """
         Set lattice parameters and calculate reciprocal lattice parameters.
 

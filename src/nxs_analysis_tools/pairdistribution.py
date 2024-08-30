@@ -854,7 +854,7 @@ class Gaussian3DKernel(Kernel):
 
     This constructor creates a 3D Gaussian kernel with the specified
     standard deviation and size. The Gaussian kernel is generated based on
-     the provided coefficients and is then normalized.
+    the provided coefficients and is then normalized.
 
     Parameters
     ----------

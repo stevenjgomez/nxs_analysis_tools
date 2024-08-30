@@ -492,7 +492,7 @@ class Scissors:
         window about a central coordinate.
 
         Parameters
-        -----------
+        ----------
         center : float or None, optional
             Central coordinate for the linecut. If not specified, the value from the object's
             attribute will be used.
@@ -506,9 +506,10 @@ class Scissors:
             Enables printout of linecut axis and integrated axes. Default False.
 
         Returns
-        --------
+        -------
         integrated_data : :class:`nexusformat.nexus.NXdata`
             1D linecut data after integration.
+
         """
 
         # Extract necessary attributes from the object
