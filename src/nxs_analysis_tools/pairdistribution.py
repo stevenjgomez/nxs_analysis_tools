@@ -1028,11 +1028,11 @@ class Interpolator:
         """
         data = self.data
         tukey_H = np.tile(
-            scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+            scipy.signal.windows.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
             (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
         )
         tukey_K = np.tile(
-            scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+            scipy.signal.windows.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
             (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
         )
         window = tukey_H * tukey_K
@@ -1041,7 +1041,7 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
+            scipy.signal.windows.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
             (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
         window = window * tukey_L
 
@@ -1070,11 +1070,11 @@ class Interpolator:
         L_ = data[data.axes[2]]
 
         tukey_H = np.tile(
-            scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+            scipy.signal.windows.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
             (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
         )
         tukey_K = np.tile(
-            scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+            scipy.signal.windows.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
             (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
         )
         window = tukey_H * tukey_K
@@ -1088,7 +1088,7 @@ class Interpolator:
             np.tile(
                 np.concatenate(
                     (np.zeros(truncation)[:, None, None],
-                     scipy.signal.tukey(len(H_) - 2 * truncation,
+                     scipy.signal.windows.tukey(len(H_) - 2 * truncation,
                                         alpha=tukey_alphas[2])[:, None, None],
                      np.zeros(truncation)[:, None, None])),
                 (1, len(K_), len(L_))
@@ -1102,7 +1102,7 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
+            scipy.signal.windows.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
             (len(data[data.axes[0]]), len(data[data.axes[1]]), 1)
         )
         window = window * tukey_L
