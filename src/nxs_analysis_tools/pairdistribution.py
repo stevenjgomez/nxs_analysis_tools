@@ -16,6 +16,11 @@ import pyfftw
 from .datareduction import plot_slice, reciprocal_lattice_params, Padder, \
     array_to_nxdata
 
+__all__ = ['Symmetrizer2D', 'Symmetrizer3D', 'Puncher', 'Interpolator',
+           'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
+           'generate_gaussian'
+           ]
+
 
 class Symmetrizer2D:
     """
@@ -995,7 +1000,6 @@ class Interpolator:
 
         if self.interp_time:
             print(f"Last interpolation took {self.interp_time / 60:.2f} minutes.")
-
 
         print("Running interpolation...")
         result = np.real(
