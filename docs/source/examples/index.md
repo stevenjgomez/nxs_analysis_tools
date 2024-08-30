@@ -7,4 +7,5 @@ fitting_linecuts
 working_with_chess_data
 fitting_chess_data
 using_symmetrizer
+extracting_delta_pdf
 ```
