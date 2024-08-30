@@ -907,7 +907,7 @@ class Gaussian3DKernel(Kernel):
         self._truncation = np.abs(1. - self._array.sum())
 
 
-class Interpolator():
+class Interpolator:
     """
     A class to perform data interpolation using convolution with a specified
      kernel.
