@@ -687,9 +687,8 @@ class Puncher:
             Radius for the Bragg peak mask.
         coeffs : list, optional
             Coefficients for the expression of the sphere to be removed around
-             each Bragg position,
-             corresponding to coefficients for H, HK, K, KL, L, and LH terms.
-              Default is [1, 0, 1, 0, 1, 0].
+            each Bragg position, corresponding to coefficients for H, HK, K, KL, L, and LH terms.
+            Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -771,7 +770,7 @@ class Puncher:
             Coefficients for the expression of the sphere to be removed around
             each Bragg position,
             corresponding to coefficients for H, HK, K, KL, L, and LH terms.
-             Default is [1, 0, 1, 0, 1, 0].
+            Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -861,7 +860,7 @@ class Gaussian3DKernel(Kernel):
     ----------
     stddev : float
         The standard deviation of the Gaussian distribution, which controls
-         the width of the kernel.
+        the width of the kernel.
 
     size : tuple of int
         The dimensions of the kernel, given as (x_dim, y_dim, z_dim).
@@ -939,13 +938,15 @@ class Interpolator():
         Initialize an Interpolator object.
 
         Sets up an instance of the Interpolator class with the
-         following attributes initialized to None:
+        following attributes initialized to None:
+
         - interp_time
         - window
         - interpolated
         - data
         - kernel
         - tapered
+
         """
         self.interp_time = None
         self.window = None
@@ -1053,13 +1054,14 @@ class Interpolator():
         ----------
         tukey_alphas : tuple of floats, optional
             The alpha parameters for the Tukey window in each dimension and
-             for the hexagonal truncation (H, HK, K, L).
+            for the hexagonal truncation (H, HK, K, L).
             Default is (1.0, 1.0, 1.0, 1.0).
 
         Notes
         -----
         The hexagonal Tukey window is applied to the dataset in a manner that
-         preserves hexagonal symmetry.
+        preserves hexagonal symmetry.
+
         """
         data = self.data
         H_ = data[data.axes[0]]
@@ -1139,33 +1141,35 @@ def fourier_transform_nxdata(data):
     Perform a 3D Fourier Transform on the given NXdata object.
 
     This function applies an inverse Fourier Transform to the input data
-     using the `pyfftw` library to optimize performance. The result is a
-      transformed array with spatial frequency components calculated along
-      each axis.
+    using the `pyfftw` library to optimize performance. The result is a
+    transformed array with spatial frequency components calculated along
+    each axis.
 
     Parameters
     ----------
     data : NXdata
         An NXdata object containing the data to be transformed. It should
-         include the `signal` field for the data and `axes` fields
-         specifying the coordinate axes.
+        include the `signal` field for the data and `axes` fields
+        specifying the coordinate axes.
 
     Returns
     -------
     NXdata
         A new NXdata object containing the Fourier Transformed data. The
-         result includes:
+        result includes:
+
         - `dPDF`: The transformed data array.
         - `x`, `y`, `z`: Arrays representing the frequency components along each axis.
 
     Notes
     -----
     - The FFT is performed in two stages: first along the last dimension of
-     the input array and then along the first two dimensions.
+    the input array and then along the first two dimensions.
     - The function uses `pyfftw` for efficient computation of the Fourier
-     Transform.
+    Transform.
     - The output frequency components are computed based on the step sizes
-     of the original data axes.
+    of the original data axes.
+
     """
     start = time.time()
     print("Starting FFT.")
@@ -1213,9 +1217,9 @@ def fourier_transform_nxdata(data):
 
 class DeltaPDF:
     """
-        A class for processing and analyzing 3D diffraction data using various
-         operations, including masking, interpolation, padding, and Fourier
-          transformation.
+        A class for processing and analyzing 3D diffraction data using various\
+        operations, including masking, interpolation, padding, and Fourier
+        transformation.
 
         Attributes
         ----------
@@ -1229,10 +1233,10 @@ class DeltaPDF:
             Reciprocal lattice parameters (a*, b*, c*, al*, be*, ga*).
         puncher : Puncher
             An instance of the Puncher class for generating masks and punching
-             the data.
+            the data.
         interpolator : Interpolator
             An instance of the Interpolator class for interpolating and applying
-             windows to the data.
+            windows to the data.
         padder : Padder
             An instance of the Padder class for padding the data.
         mask : ndarray or None
@@ -1249,6 +1253,7 @@ class DeltaPDF:
             The interpolated data.
         punched : NXdata or None
             The punched data.
+
         """
 
     def __init__(self):
@@ -1510,9 +1515,9 @@ class DeltaPDF:
         Perform a 3D Fourier Transform on the padded data.
 
         This function applies an inverse Fourier Transform to the padded data
-         using the `pyfftw` library to optimize performance. The result is a
-          transformed array with spatial frequency components calculated along
-           each axis.
+        using the `pyfftw` library to optimize performance. The result is a
+        transformed array with spatial frequency components calculated along
+        each axis.
 
         Parameters
         ----------
@@ -1525,10 +1530,12 @@ class DeltaPDF:
         Notes
         -----
         - The FFT is performed in two stages: first along the last dimension of
-         the input array and then along the first two dimensions.
+        the input array and then along the first two dimensions.
         - The function uses `pyfftw` for efficient computation of the Fourier
-         Transform.
+        Transform.
         - The output frequency components are computed based on the step sizes
-         of the original data axes.
+        of the original data axes.
+
+
         """
         self.fft = fourier_transform_nxdata(self.padded)

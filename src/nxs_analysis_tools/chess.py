@@ -17,28 +17,86 @@ from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_
 
 class TempDependence:
     """
-    Class for analyzing scattering datasets collected at CHESS (ID4B) with temperature dependence.
+    A class for analyzing temperature-dependent scattering datasets collected at CHESS (ID4B).
+
+    The `TempDependence` class facilitates the loading, processing, and analysis of scattering
+    data across different temperatures. It includes methods for handling datasets, setting
+    lattice parameters, performing linecuts, modeling the data, and visualizing the results.
 
     Attributes
     ----------
     sample_directory : str
         Path to the directory containing the datasets.
     xlabel : str
-        Label for the x-axis of plots.
+        Label for the x-axis of plots, determined by the axis of the linecuts.
     datasets : dict
         Dictionary storing datasets keyed by temperature.
-    temperatures : list
+    temperatures : list of str
         List of temperatures for which data is available.
     scissors : dict
-        Dictionary of Scissors objects, one for each temperature.
+        Dictionary of Scissors objects, one for each temperature, used for data manipulation and
+        linecut operations.
     linecuts : dict
-        Dictionary of linecut data, one for each temperature.
+        Dictionary storing the linecut data for each temperature.
     linecutmodels : dict
-        Dictionary of LinecutModel objects, one for each temperature.
-    a, b, c, al, be, ga : float
-        Lattice parameters.
-    a_star, b_star, c_star, al_star, be_star, ga_star : float
-        Reciprocal lattice parameters.
+        Dictionary of LinecutModel objects, one for each temperature, used for fitting the linecuts.
+    a, b, c, al, be, ga : float or None
+        Lattice parameters (a, b, c, alpha, beta, gamma) of the crystal.
+    a_star, b_star, c_star, al_star, be_star, ga_star : float or None
+        Reciprocal lattice parameters (a*, b*, c*, alpha*, beta*, gamma*).
+
+    Methods
+    -------
+    set_temperatures(temperatures):
+        Set the list of temperatures for the datasets.
+    set_sample_directory(path):
+        Set the directory path where the datasets are located.
+    initialize():
+        Initialize Scissors and LinecutModel objects for each temperature.
+    set_data(temperature, data):
+        Set the dataset for a specific temperature.
+    load_transforms(temperatures_list=None):
+        Load transform datasets (from nxrefine) based on temperature.
+    load_datasets(file_ending='hkli.nxs', temperatures_list=None):
+        Load datasets (CHESS format) from the specified folder.
+    get_sample_directory():
+        Get the folder path where the datasets are located.
+    clear_datasets():
+        Clear the datasets stored in the TempDependence instance.
+    set_Lattice_params(lattice_params):
+        Set lattice parameters and calculate reciprocal lattice parameters.
+    set_window(window, verbose=False):
+        Set the extents of the integration window for each temperature.
+    set_center(center):
+        Set the central coordinate for the linecut for each temperature.
+    cut_data(center=None, window=None, axis=None, verbose=False):
+        Perform data cutting for each temperature dataset.
+    plot_linecuts(vertical_offset=0, **kwargs):
+        Plot the linecuts obtained from data cutting.
+    plot_linecuts_heatmap(ax=None, **kwargs):
+        Plot a heatmap of the linecuts obtained from data cutting.
+    highlight_integration_window(temperature=None, **kwargs):
+        Display the integration window plot for a specific temperature.
+    plot_integration_window(temperature=None, **kwargs):
+        Plot the integration window cross-sections for a specific temperature.
+    set_model_components(model_components):
+        Set the model components for all line cut models.
+    set_param_hint(*args, **kwargs):
+        Set parameter hints for all line cut models.
+    make_params():
+        Create parameters for all line cut models.
+    guess():
+        Make initial parameter guesses for all line cut models.
+    print_initial_params():
+        Print the initial parameter values for all line cut models.
+    plot_initial_guess():
+        Plot the initial guess for all line cut models.
+    fit(verbose=False):
+        Fit the line cut models for each temperature.
+    plot_fit(mdheadings=False, **kwargs):
+        Plot the fit results for each temperature.
+    print_fit_report():
+        Print the fit report for each temperature.
     """
 
     def __init__(self):
