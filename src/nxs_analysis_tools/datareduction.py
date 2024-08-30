@@ -14,7 +14,8 @@ from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXent
 from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors', 'reciprocal_lattice_params', 'rotate_data',
+__all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
+           'reciprocal_lattice_params', 'rotate_data',
            'array_to_nxdata', 'Padder']
 
 
@@ -63,7 +64,8 @@ def load_transform(path):
 
 def array_to_nxdata(array, data_template, signal_name='counts'):
     """
-    Create an NXdata object from an input array and an NXdata template, with an optional signal name.
+    Create an NXdata object from an input array and an NXdata template,
+    with an optional signal name.
 
     Parameters
     ----------
@@ -71,7 +73,8 @@ def array_to_nxdata(array, data_template, signal_name='counts'):
         The data array to be included in the NXdata object.
 
     data_template : NXdata
-        An NXdata object serving as a template, which provides information about axes and other metadata.
+        An NXdata object serving as a template, which provides information
+        about axes and other metadata.
 
     signal_name : str, optional
         The name of the signal within the NXdata object. If not provided,
@@ -80,86 +83,107 @@ def array_to_nxdata(array, data_template, signal_name='counts'):
     Returns
     -------
     NXdata
-        An NXdata object containing the input data array and associated axes based on the template.
+        An NXdata object containing the input data array and associated axes
+        based on the template.
     """
     d = data_template
-    return NXdata(NXfield(array, name=signal_name), tuple([d[d.axes[i]] for i in range(len(d.axes))]))
+    return NXdata(NXfield(array, name=signal_name),
+                  tuple(d[d.axes[i]] for i in range(len(d.axes))))
 
 
-def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew_angle=90,
-               ax=None, xlim=None, ylim=None, xticks=None, yticks=None, cbar=True, logscale=False,
-               symlogscale=False, cmap='viridis', linthresh=1, title=None, mdheading=None, cbartitle=None,
+def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
+               skew_angle=90, ax=None, xlim=None, ylim=None,
+               xticks=None, yticks=None, cbar=True, logscale=False,
+               symlogscale=False, cmap='viridis', linthresh=1,
+               title=None, mdheading=None, cbartitle=None,
                **kwargs):
     """
+    Plot a 2D slice of the provided dataset, with optional transformations
+    and customizations.
+
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata` object or ndarray
-        The NXdata object containing the dataset to plot.
+    data : :class:`nexusformat.nexus.NXdata` or ndarray
+        The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
     X : NXfield, optional
-        The X axis values. Default is first axis of `data`.
+        The X axis values. If None, a default range from 0 to the number of
+         columns in `data` is used.
 
     Y : NXfield, optional
-        The y axis values. Default is second axis of `data`.
+        The Y axis values. If None, a default range from 0 to the number of
+         rows in `data` is used.
 
     transpose : bool, optional
-        If True, tranpose the dataset and its axes before plotting. Default is False.
+        If True, transpose the dataset and its axes before plotting.
+        Default is False.
 
     vmin : float, optional
-        The minimum value to plot in the dataset.
-        If not provided, the minimum of the dataset will be used.
+        The minimum value for the color scale. If not provided, the minimum
+         value of the dataset is used.
 
     vmax : float, optional
-        The maximum value to plot in the dataset.
-        If not provided, the maximum of the dataset will be used.
+        The maximum value for the color scale. If not provided, the maximum
+         value of the dataset is used.
 
     skew_angle : float, optional
-        The angle to shear the plot in degrees. Defaults to 90 degrees (no skewing).
+        The angle in degrees to shear the plot. Default is 90 degrees (no skew).
 
     ax : matplotlib.axes.Axes, optional
-        An optional axis object to plot the heatmap onto.
+        The `matplotlib` axis to plot on. If None, a new figure and axis will
+         be created.
 
     xlim : tuple, optional
-        The limits of the x-axis. If not provided, the limits will be automatically set.
+        The limits for the x-axis. If None, the limits are set automatically
+         based on the data.
 
     ylim : tuple, optional
-        The limits of the y-axis. If not provided, the limits will be automatically set.
+        The limits for the y-axis. If None, the limits are set automatically
+         based on the data.
 
-    xticks : float, optional
-        The major tick interval for the x-axis.
-        If not provided, the function will use a default minor tick interval of 1.
+    xticks : float or list of float, optional
+        The major tick interval or specific tick locations for the x-axis.
+         Default is to use a minor tick interval of 1.
 
-    yticks : float, optional
-        The major tick interval for the y-axis.
-        If not provided, the function will use a default minor tick interval of 1.
+    yticks : float or list of float, optional
+        The major tick interval or specific tick locations for the y-axis.
+        Default is to use a minor tick interval of 1.
 
     cbar : bool, optional
-        Whether to include a colorbar in the plot. Defaults to True.
+        Whether to include a colorbar. Default is True.
 
     logscale : bool, optional
-        Whether to use a logarithmic color scale. Defaults to False.
+        Whether to use a logarithmic color scale. Default is False.
 
     symlogscale : bool, optional
-        Whether to use a symmetrical logarithmic color scale. Defaults to False.
+        Whether to use a symmetrical logarithmic color scale. Default is False.
 
     cmap : str or Colormap, optional
-        The color map to use. Defaults to 'viridis'.
+        The colormap to use for the plot. Default is 'viridis'.
 
     linthresh : float, optional
-        The linear threshold for the symmetrical logarithmic color scale. Defaults to 1.
+        The linear threshold for symmetrical logarithmic scaling. Default is 1.
+
+    title : str, optional
+        The title for the plot. If None, no title is set.
 
     mdheading : str, optional
-        A string containing the Markdown heading for the plot. Default `None`.
+        A Markdown heading to display above the plot. If 'None' or not provided,
+         no heading is displayed.
+
+    cbartitle : str, optional
+        The title for the colorbar. If None, the colorbar label will be set to
+         the name of the signal.
+
+    **kwargs
+        Additional keyword arguments passed to `pcolormesh`.
 
     Returns
     -------
     p : :class:`matplotlib.collections.QuadMesh`
-
-        A :class:`matplotlib.collections.QuadMesh` object, to mimick behavior of
-        :class:`matplotlib.pyplot.pcolormesh`.
-
+        The `matplotlib` QuadMesh object representing the plotted data.
     """
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         if X is None:
             X = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='x')
         if Y is None:
@@ -169,7 +193,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             data = data.transpose()
         data = NXdata(NXfield(data, name='value'), (X, Y))
         data_arr = data
-    elif type(data) == NXdata or type(data) == NXfield:
+    elif isinstance(data, (NXdata, NXfield)):
         if X is None:
             X = data[data.axes[0]]
         if Y is None:
@@ -179,7 +203,8 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
             data = data.transpose()
         data_arr = data[data.signal].nxdata.transpose()
     else:
-        raise TypeError(f"Unexpected data type: {type(data)}. Supported types are np.ndarray and NXdata.")
+        raise TypeError(f"Unexpected data type: {type(data)}. "
+                        f"Supported types are np.ndarray and NXdata.")
 
     # Display Markdown heading
     if mdheading is None:
@@ -191,7 +216,6 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
 
     # Inherit axes if user provides some
     if ax is not None:
-        ax = ax
         fig = ax.get_figure()
     # Otherwise set up some default axes
     else:
@@ -236,7 +260,9 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None, skew
     else:
         ymin, ymax = ax.get_ylim()
     # Use ylims to calculate translation (necessary to display axes in correct position)
-    p.set_transform(t + Affine2D().translate(-ymin * np.sin(skew_angle_adj * np.pi / 180), 0) + ax.transData)
+    p.set_transform(t
+                    + Affine2D().translate(-ymin * np.sin(skew_angle_adj * np.pi / 180), 0)
+                    + ax.transData)
 
     # Set x limits
     if xlim is not None:
@@ -379,8 +405,8 @@ class Scissors:
         """
 
         self.data = data
-        self.center = tuple([float(i) for i in center]) if center is not None else None
-        self.window = tuple([float(i) for i in window]) if window is not None else None
+        self.center = tuple(float(i) for i in center) if center is not None else None
+        self.window = tuple(float(i) for i in window) if window is not None else None
         self.axis = axis
 
         self.integration_volume = None
@@ -419,7 +445,7 @@ class Scissors:
         center : tuple
             Central coordinate around which to perform the linecut.
         """
-        self.center = tuple([float(i) for i in center]) if center is not None else None
+        self.center = tuple(float(i) for i in center) if center is not None else None
 
     def set_window(self, window, axis=None, verbose=False):
         """
@@ -436,7 +462,7 @@ class Scissors:
             Enables printout of linecut axis and integrated axes. Default False.
 
         """
-        self.window = tuple([float(i) for i in window]) if window is not None else None
+        self.window = tuple(float(i) for i in window) if window is not None else None
 
         # Determine the axis for integration
         self.axis = window.index(max(window)) if axis is None else axis
@@ -446,7 +472,8 @@ class Scissors:
 
         if verbose:
             print("Linecut axis: " + str(self.data.axes[self.axis]))
-            print("Integrated axes: " + str([self.data.axes[axis] for axis in self.integrated_axes]))
+            print("Integrated axes: " + str([self.data.axes[axis]
+                                             for axis in self.integrated_axes]))
 
     def get_window(self):
         """
@@ -461,8 +488,8 @@ class Scissors:
 
     def cut_data(self, center=None, window=None, axis=None, verbose=False):
         """
-        Reduces data to a 1D linecut with integration extents specified by the window about a central
-        coordinate.
+        Reduces data to a 1D linecut with integration extents specified by the
+        window about a central coordinate.
 
         Parameters
         -----------
@@ -536,7 +563,6 @@ class Scissors:
         data = self.data if data is None else data
         center = self.center
         window = self.window
-        integrated_axes = self.integrated_axes
 
         # Create a figure and subplots
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
@@ -555,7 +581,8 @@ class Scissors:
             (center[0] - window[0],
              center[1] - window[1]),
             2 * window[0], 2 * window[1],
-            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p1.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color,
+            facecolor='none', transform=p1.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -573,7 +600,8 @@ class Scissors:
             (center[0] - window[0],
              center[2] - window[2]),
             2 * window[0], 2 * window[2],
-            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p2.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color,
+            facecolor='none', transform=p2.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -591,7 +619,8 @@ class Scissors:
             (center[1] - window[1],
              center[2] - window[2]),
             2 * window[1], 2 * window[2],
-            linewidth=1, edgecolor=highlight_color, facecolor='none', transform=p3.get_transform(), label=label,
+            linewidth=1, edgecolor=highlight_color,
+            facecolor='none', transform=p3.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
 
@@ -615,10 +644,7 @@ class Scissors:
             Additional keyword arguments to customize the plot.
         """
         data = self.integration_volume
-        axis = self.axis
         center = self.center
-        window = self.window
-        integrated_axes = self.integrated_axes
 
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
@@ -686,17 +712,20 @@ def reciprocal_lattice_params(lattice_params):
 
     # Calculate unit cell volume
     V = a_mag * b_mag * c_mag * np.sqrt(
-        1 - np.cos(alpha) ** 2 - np.cos(beta) ** 2 - np.cos(gamma) ** 2 + 2 * np.cos(alpha) * np.cos(beta) * np.cos(
-            gamma)
+        1 - np.cos(alpha) ** 2 - np.cos(beta) ** 2 - np.cos(gamma) ** 2
+        + 2 * np.cos(alpha) * np.cos(beta) * np.cos(gamma)
     )
 
     # Calculate reciprocal lattice parameters
     a_star = (b_mag * c_mag * np.sin(alpha)) / V
     b_star = (a_mag * c_mag * np.sin(beta)) / V
     c_star = (a_mag * b_mag * np.sin(gamma)) / V
-    alpha_star = np.rad2deg(np.arccos((np.cos(beta) * np.cos(gamma) - np.cos(alpha)) / (np.sin(beta) * np.sin(gamma))))
-    beta_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(gamma) - np.cos(beta)) / (np.sin(alpha) * np.sin(gamma))))
-    gamma_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(beta) - np.cos(gamma)) / (np.sin(alpha) * np.sin(beta))))
+    alpha_star = np.rad2deg(np.arccos((np.cos(beta) * np.cos(gamma) - np.cos(alpha))
+                                      / (np.sin(beta) * np.sin(gamma))))
+    beta_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(gamma) - np.cos(beta))
+                                     / (np.sin(alpha) * np.sin(gamma))))
+    gamma_star = np.rad2deg(np.arccos((np.cos(alpha) * np.cos(beta) - np.cos(gamma))
+                                      / (np.sin(alpha) * np.sin(beta))))
 
     return a_star, b_star, c_star, alpha_star, beta_star, gamma_star
 
@@ -716,9 +745,10 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
     rotation_axis : int
         Axis of rotation (0, 1, or 2).
     printout : bool, optional
-        Enables printout of rotation progress. If set to True, information about each rotation slice will be printed
-        to the console, indicating the axis being rotated and the corresponding
-        coordinate value. Defaults to False.
+        Enables printout of rotation progress. If set to True, information
+        about each rotation slice will be printed to the console, indicating
+        the axis being rotated and the corresponding coordinate value.
+        Defaults to False.
 
 
     Returns
@@ -741,7 +771,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
 
     for i in range(len(data[data.axes[rotation_axis]])):
         if printout:
-            print(f'\rRotating {data.axes[rotation_axis]}={data[data.axes[rotation_axis]][i]}...                      ',
+            print(f'\rRotating {data.axes[rotation_axis]}'
+                  f'={data[data.axes[rotation_axis]][i]}...                      ',
                   end='', flush=True)
         # Identify current slice
         if rotation_axis == 0:
@@ -754,12 +785,14 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
             sliced_data = None
 
         p = Padder(sliced_data)
-        padding = tuple([len(sliced_data[axis]) for axis in sliced_data.axes])
+        padding = tuple(len(sliced_data[axis]) for axis in sliced_data.axes)
         counts = p.pad(padding).counts
 
         counts_skewed = ndimage.affine_transform(counts,
                                                  t.inverted().get_matrix()[:2, :2],
-                                                 offset=[counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180), 0],
+                                                 offset=[counts.shape[0] / 2
+                                                         * np.sin(skew_angle_adj * np.pi / 180),
+                                                         0],
                                                  order=0,
                                                  )
         scale1 = np.cos(skew_angle_adj * np.pi / 180)
@@ -778,15 +811,18 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
 
         counts_unscaled2 = ndimage.affine_transform(counts_rotated,
-                                                    Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                    Affine2D().scale(
+                                                        scale2, 1
+                                                    ).inverted().get_matrix()[:2, :2],
                                                     offset=[-(1 - scale2) * counts.shape[
                                                         0] / 2 / scale2, 0],
                                                     order=0,
                                                     )
 
         counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                    Affine2D().scale(scale1,
-                                                                     1).inverted().get_matrix()[:2, :2],
+                                                    Affine2D().scale(
+                                                        scale1, 1
+                                                    ).inverted().get_matrix()[:2, :2],
                                                     offset=[-(1 - scale1) * counts.shape[
                                                         0] / 2 / scale1, 0],
                                                     order=0,
@@ -795,7 +831,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         counts_unskewed = ndimage.affine_transform(counts_unscaled1,
                                                    t.get_matrix()[:2, :2],
                                                    offset=[
-                                                       (-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
+                                                       (-counts.shape[0] / 2
+                                                        * np.sin(skew_angle_adj * np.pi / 180)),
                                                        0],
                                                    order=0,
                                                    )
@@ -845,12 +882,13 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
     t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
 
     p = Padder(data)
-    padding = tuple([len(data[axis]) for axis in data.axes])
+    padding = tuple(len(data[axis]) for axis in data.axes)
     counts = p.pad(padding).counts
 
     counts_skewed = ndimage.affine_transform(counts,
                                              t.inverted().get_matrix()[:2, :2],
-                                             offset=[counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180), 0],
+                                             offset=[counts.shape[0] / 2
+                                                     * np.sin(skew_angle_adj * np.pi / 180), 0],
                                              order=0,
                                              )
     scale1 = np.cos(skew_angle_adj * np.pi / 180)
@@ -869,15 +907,18 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
     counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
 
     counts_unscaled2 = ndimage.affine_transform(counts_rotated,
-                                                Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                Affine2D().scale(
+                                                    scale2, 1
+                                                ).inverted().get_matrix()[:2, :2],
                                                 offset=[-(1 - scale2) * counts.shape[
                                                     0] / 2 / scale2, 0],
                                                 order=0,
                                                 )
 
     counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                Affine2D().scale(scale1,
-                                                                 1).inverted().get_matrix()[:2, :2],
+                                                Affine2D().scale(
+                                                    scale1, 1
+                                                ).inverted().get_matrix()[:2, :2],
                                                 offset=[-(1 - scale1) * counts.shape[
                                                     0] / 2 / scale1, 0],
                                                 order=0,
@@ -886,7 +927,8 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
     counts_unskewed = ndimage.affine_transform(counts_unscaled1,
                                                t.get_matrix()[:2, :2],
                                                offset=[
-                                                   (-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
+                                                   (-counts.shape[0] / 2
+                                                    * np.sin(skew_angle_adj * np.pi / 180)),
                                                    0],
                                                order=0,
                                                )
@@ -934,7 +976,8 @@ class Padder:
         Parameters
         ----------
         data : NXdata, optional
-            The input data to be padded. If provided, the `set_data` method is called to set the data.
+            The input data to be padded. If provided, the `set_data` method
+            is called to set the data.
         """
         self.padded = None
         self.padding = None
@@ -952,10 +995,12 @@ class Padder:
         """
         self.data = data
 
-        self.steps = tuple([(data[axis].nxdata[1] - data[axis].nxdata[0]) for axis in data.axes])
+        self.steps = tuple((data[axis].nxdata[1] - data[axis].nxdata[0])
+                            for axis in data.axes)
 
-        # Absolute value of the maximum value; assumes the domain of the input is symmetric (eg, -H_min = H_max)
-        self.maxes = tuple([data[axis].nxdata.max() for axis in data.axes])
+        # Absolute value of the maximum value; assumes the domain of the input
+        # is symmetric (eg, -H_min = H_max)
+        self.maxes = tuple(data[axis].nxdata.max() for axis in data.axes)
 
     def pad(self, padding):
         """
@@ -974,7 +1019,8 @@ class Padder:
         data = self.data
         self.padding = padding
 
-        padded_shape = tuple([data[data.signal].nxdata.shape[i] + self.padding[i] * 2 for i in range(data.ndim)])
+        padded_shape = tuple(data[data.signal].nxdata.shape[i]
+                             + self.padding[i] * 2 for i in range(data.ndim))
 
         # Create padded dataset
         padded = np.zeros(padded_shape)
@@ -985,12 +1031,13 @@ class Padder:
         slice_obj = tuple(slice_obj)
         padded[slice_obj] = data[data.signal].nxdata
 
-        padmaxes = tuple([self.maxes[i] + self.padding[i] * self.steps[i] for i in range(data.ndim)])
+        padmaxes = tuple(self.maxes[i] + self.padding[i] * self.steps[i]
+                         for i in range(data.ndim))
 
         padded = NXdata(NXfield(padded, name=data.signal),
-                        tuple([NXfield(np.linspace(-padmaxes[i], padmaxes[i], padded_shape[i]),
-                                       name=data.axes[i])
-                               for i in range(data.ndim)]))
+                        tuple(NXfield(np.linspace(-padmaxes[i], padmaxes[i], padded_shape[i]),
+                                      name=data.axes[i])
+                              for i in range(data.ndim)))
 
         self.padded = padded
         return padded
@@ -1039,7 +1086,8 @@ class Padder:
 
 def load_discus_nxs(path):
     """
-    Load .nxs format data from the DISCUS program (by T. Proffen and R. Neder) and convert it to the CHESS format.
+    Load .nxs format data from the DISCUS program (by T. Proffen and R. Neder)
+    and convert it to the CHESS format.
 
     Parameters
     ----------
@@ -1049,7 +1097,8 @@ def load_discus_nxs(path):
     Returns
     -------
     NXdata
-        The data converted to the CHESS format, with axes labeled 'H', 'K', and 'L', and the signal labeled 'counts'.
+        The data converted to the CHESS format, with axes labeled 'H', 'K', and 'L',
+        and the signal labeled 'counts'.
 
     """
     filename = path

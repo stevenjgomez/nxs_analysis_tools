@@ -4,61 +4,75 @@ Tools for generating single crystal pair distribution functions.
 import time
 import os
 import gc
+import math
 from scipy import ndimage
 import scipy
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from nexusformat.nexus import nxsave, NXroot, NXentry, NXdata, NXfield
 import numpy as np
-from .datareduction import plot_slice, reciprocal_lattice_params, Padder, array_to_nxdata
-from astropy.convolution import convolve, Kernel, convolve_fft
-import math
+from astropy.convolution import Kernel, convolve_fft
 import pyfftw
+from .datareduction import plot_slice, reciprocal_lattice_params, Padder, \
+    array_to_nxdata
 
 
 class Symmetrizer2D:
     """
     A class for symmetrizing 2D datasets.
 
-    The `Symmetrizer2D` class provides functionality to apply symmetry operations such as rotation and mirroring to
-    2D datasets. This is useful for analyzing diffraction patterns, scattering data, or any other data that benefits
-    from enhanced symmetry.
+    The `Symmetrizer2D` class provides functionality to apply symmetry
+    operations such as rotation and mirroring to 2D datasets.
 
     Attributes
     ----------
     mirror_axis : int or None
-        The axis along which mirroring is performed. Default is None, meaning no mirroring is applied.
+        The axis along which mirroring is performed. Default is None, meaning
+        no mirroring is applied.
     symmetrized : NXdata or None
-        The symmetrized dataset after applying the symmetrization operations. Default is None until symmetrization is performed.
+        The symmetrized dataset after applying the symmetrization operations.
+        Default is None until symmetrization is performed.
     wedges : NXdata or None
-        The wedges extracted from the dataset based on the angular limits. Default is None until symmetrization is performed.
+        The wedges extracted from the dataset based on the angular limits.
+        Default is None until symmetrization is performed.
     rotations : int or None
-        The number of rotations needed to reconstruct the full dataset from a single wedge. Default is None until parameters are set.
+        The number of rotations needed to reconstruct the full dataset from
+        a single wedge. Default is None until parameters are set.
     transform : Affine2D or None
-        The transformation matrix used for skewing and scaling the dataset. Default is None until parameters are set.
+        The transformation matrix used for skewing and scaling the dataset.
+        Default is None until parameters are set.
     mirror : bool or None
-        Indicates whether mirroring is performed during symmetrization. Default is None until parameters are set.
+        Indicates whether mirroring is performed during symmetrization.
+        Default is None until parameters are set.
     skew_angle : float or None
-        The skew angle (in degrees) between the principal axes of the plane to be symmetrized. Default is None until parameters are set.
+        The skew angle (in degrees) between the principal axes of the plane
+         to be symmetrized. Default is None until parameters are set.
     theta_max : float or None
-        The maximum angle (in degrees) for symmetrization. Default is None until parameters are set.
+        The maximum angle (in degrees) for symmetrization. Default is None
+         until parameters are set.
     theta_min : float or None
-        The minimum angle (in degrees) for symmetrization. Default is None until parameters are set.
+        The minimum angle (in degrees) for symmetrization. Default is None
+         until parameters are set.
     wedge : NXdata or None
-        The dataset wedge used in the symmetrization process. Default is None until symmetrization is performed.
+        The dataset wedge used in the symmetrization process. Default is
+         None until symmetrization is performed.
     symmetrization_mask : NXdata or None
-        The mask used for selecting the region of the dataset to be symmetrized. Default is None until symmetrization is performed.
+        The mask used for selecting the region of the dataset to be symmetrized.
+         Default is None until symmetrization is performed.
 
     Methods
     -------
     __init__(**kwargs):
-        Initializes the Symmetrizer2D object and optionally sets the parameters using `set_parameters`.
+        Initializes the Symmetrizer2D object and optionally sets the parameters
+         using `set_parameters`.
     set_parameters(theta_min, theta_max, lattice_angle=90, mirror=True, mirror_axis=0):
-        Sets the parameters for the symmetrization operation, including angle limits, lattice angle, and mirroring options.
+        Sets the parameters for the symmetrization operation, including angle limits,
+         lattice angle, and mirroring options.
     symmetrize_2d(data):
         Symmetrizes a 2D dataset based on the set parameters.
     test(data, **kwargs):
-        Performs a test visualization of the symmetrization process, displaying the original data, mask, wedge, and symmetrized result.
+        Performs a test visualization of the symmetrization process, displaying the
+         original data, mask, wedge, and symmetrized result.
     """
     symmetrization_mask: NXdata
 
@@ -69,8 +83,8 @@ class Symmetrizer2D:
         Parameters
         ----------
         **kwargs : dict, optional
-            Keyword arguments that can be passed to the `set_parameters` method to set the symmetrization parameters
-            during initialization.
+            Keyword arguments that can be passed to the `set_parameters` method to
+             set the symmetrization parameters during initialization.
         """
         self.mirror_axis = None
         self.symmetrized = None
@@ -87,8 +101,8 @@ class Symmetrizer2D:
 
     def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True, mirror_axis=0):
         """
-        Sets the parameters for the symmetrization operation, and calculates the required transformations and
-        rotations.
+        Sets the parameters for the symmetrization operation, and calculates the
+         required transformations and rotations.
 
         Parameters
         ----------
@@ -97,7 +111,8 @@ class Symmetrizer2D:
         theta_max : float
             The maximum angle in degrees for symmetrization.
         lattice_angle : float, optional
-            The angle in degrees between the two principal axes of the plane to be symmetrized (default: 90).
+            The angle in degrees between the two principal axes of the plane to be
+             symmetrized (default: 90).
         mirror : bool, optional
             If True, perform mirroring during symmetrization (default: True).
         mirror_axis : int, optional
@@ -135,8 +150,8 @@ class Symmetrizer2D:
 
     def symmetrize_2d(self, data):
         """
-        Symmetrizes a 2D dataset based on the set parameters, applying padding to prevent rotation cutoff and handling
-        overlapping pixels.
+        Symmetrizes a 2D dataset based on the set parameters, applying padding
+         to prevent rotation cutoff and handling overlapping pixels.
 
         Parameters
         ----------
@@ -155,9 +170,10 @@ class Symmetrizer2D:
         t = self.transform
         rotations = self.rotations
 
-        # Pad the dataset so that rotations don't get cutoff if they extend past the extent of the dataset
+        # Pad the dataset so that rotations don't get cutoff if they extend
+        # past the extent of the dataset
         p = Padder(data)
-        padding = tuple([len(data[axis]) for axis in data.axes])
+        padding = tuple(len(data[axis]) for axis in data.axes)
         data_padded = p.pad(padding)
 
         # Define axes that span the plane to be transformed
@@ -170,18 +186,24 @@ class Symmetrizer2D:
         # Calculate the angle for each data point
         theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
         # Create a boolean array for the range of angles
-        symmetrization_mask = np.logical_and(theta >= theta_min * np.pi / 180, theta <= theta_max * np.pi / 180)
-        self.symmetrization_mask = NXdata(NXfield(p.unpad(symmetrization_mask), name='mask'),
-                                          (data[data.axes[0]], data[data.axes[1]]))
+        symmetrization_mask = np.logical_and(theta >= theta_min * np.pi / 180,
+                                             theta <= theta_max * np.pi / 180)
+        self.symmetrization_mask = NXdata(NXfield(p.unpad(symmetrization_mask),
+                                                  name='mask'),
+                                          (data[data.axes[0]], data[data.axes[1]])
+                                          )
 
-        self.wedge = NXdata(NXfield(p.unpad(counts * symmetrization_mask), name=data.signal),
-                            (data[data.axes[0]], data[data.axes[1]]))
+        self.wedge = NXdata(NXfield(p.unpad(counts * symmetrization_mask),
+                                    name=data.signal),
+                            (data[data.axes[0]], data[data.axes[1]])
+                            )
 
         # Scale and skew counts
         skew_angle_adj = 90 - self.skew_angle
         counts_skew = ndimage.affine_transform(counts,
                                                t.inverted().get_matrix()[:2, :2],
-                                               offset=[counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180), 0],
+                                               offset=[counts.shape[0] / 2
+                                                       * np.sin(skew_angle_adj * np.pi / 180), 0],
                                                order=0,
                                                )
         scale1 = np.cos(skew_angle_adj * np.pi / 180)
@@ -200,7 +222,7 @@ class Symmetrizer2D:
 
         # Reconstruct full dataset from wedge
         reconstructed = np.zeros(counts.shape)
-        for n in range(0, rotations):
+        for _ in range(0, rotations):
             # The following are attempts to combine images with minimal overlapping pixels
             reconstructed += wedge
             # reconstructed = np.where(reconstructed == 0, reconstructed + wedge, reconstructed)
@@ -213,28 +235,33 @@ class Symmetrizer2D:
         if mirror:
             # The following are attempts to combine images with minimal overlapping pixels
             reconstructed = np.where(reconstructed == 0,
-                                     reconstructed + np.flip(reconstructed, axis=mirror_axis), reconstructed)
+                                     reconstructed + np.flip(reconstructed, axis=mirror_axis),
+                                     reconstructed)
             # reconstructed += np.flip(reconstructed, axis=0)
 
         # self.rotated_and_mirrored = NXdata(NXfield(reconstructed, name=data.signal),
         #                                    (q1, q2))
 
         reconstructed = ndimage.affine_transform(reconstructed,
-                                                 Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                 Affine2D().scale(
+                                                     scale2, 1
+                                                 ).inverted().get_matrix()[:2, :2],
                                                  offset=[-(1 - scale2) * counts.shape[
                                                      0] / 2 / scale2, 0],
                                                  order=0,
                                                  )
         reconstructed = ndimage.affine_transform(reconstructed,
-                                                 Affine2D().scale(scale1,
-                                                                  1).inverted().get_matrix()[:2, :2],
+                                                 Affine2D().scale(
+                                                     scale1, 1
+                                                 ).inverted().get_matrix()[:2, :2],
                                                  offset=[-(1 - scale1) * counts.shape[
                                                      0] / 2 / scale1, 0],
                                                  order=0,
                                                  )
         reconstructed = ndimage.affine_transform(reconstructed,
                                                  t.get_matrix()[:2, :2],
-                                                 offset=[(-counts.shape[0] / 2 * np.sin(skew_angle_adj * np.pi / 180)),
+                                                 offset=[(-counts.shape[0] / 2
+                                                          * np.sin(skew_angle_adj * np.pi / 180)),
                                                          0],
                                                  order=0,
                                                  )
@@ -242,7 +269,8 @@ class Symmetrizer2D:
         reconstructed_unpadded = p.unpad(reconstructed)
 
         # Fix any overlapping pixels by truncating counts to max
-        reconstructed_unpadded[reconstructed_unpadded > data[data.signal].nxdata.max()] = data[data.signal].nxdata.max()
+        reconstructed_unpadded[reconstructed_unpadded > data[data.signal].nxdata.max()] \
+            = data[data.signal].nxdata.max()
 
         symmetrized = NXdata(NXfield(reconstructed_unpadded, name=data.signal),
                              (data[data.axes[0]],
@@ -252,7 +280,8 @@ class Symmetrizer2D:
 
     def test(self, data, **kwargs):
         """
-        Performs a test visualization of the symmetrization process to help assess the effect of the parameters.
+        Performs a test visualization of the symmetrization process to help assess
+         the effect of the parameters.
 
         Parameters
         ----------
@@ -266,12 +295,13 @@ class Symmetrizer2D:
         fig : Figure
             The matplotlib Figure object that contains the test visualization plot.
         axesarr : ndarray
-            The numpy array of Axes objects representing the subplots in the test visualization.
+            The numpy array of Axes objects representing the subplots in the test
+             visualization.
 
         Notes
         -----
-        This method uses the `symmetrize_2d` method to perform the symmetrization on the input data and visualize
-        the process.
+        This method uses the `symmetrize_2d` method to perform the symmetrization on
+         the input data and visualize the process.
 
         The test visualization plot includes the following subplots:
         - Subplot 1: The original dataset.
@@ -301,7 +331,8 @@ class Symmetrizer2D:
 
 class Symmetrizer3D:
     """
-    A class to symmetrize 3D datasets by performing sequential 2D symmetrization on different planes.
+    A class to symmetrize 3D datasets by performing sequential 2D symmetrization on
+     different planes.
 
     This class applies 2D symmetrization on the three principal planes of a 3D dataset,
     effectively enhancing the symmetry of the data across all axes.
@@ -311,7 +342,8 @@ class Symmetrizer3D:
         """
         Initialize the Symmetrizer3D object with an optional 3D dataset.
 
-        If data is provided, the corresponding q-vectors and planes are automatically set up for symmetrization.
+        If data is provided, the corresponding q-vectors and planes are automatically
+         set up for symmetrization.
 
         Parameters
         ----------
@@ -374,14 +406,17 @@ class Symmetrizer3D:
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
         self.lattice_params = lattice_params
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
-        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
+        self.a_star, self.b_star, self.c_star, \
+            self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
 
     def symmetrize(self):
         """
-        Perform the symmetrization of the 3D dataset by sequentially applying 2D symmetrization on the three principal planes.
+        Perform the symmetrization of the 3D dataset by sequentially applying
+         2D symmetrization on the three principal planes.
 
-        This method symmetrizes the dataset on the three principal planes (q1-q2, q1-q3, q2-q3) and handles any negative values
-        that might result from the symmetrization process.
+        This method symmetrizes the dataset on the three principal planes
+         (q1-q2, q1-q3, q2-q3) and handles any negative values that might result
+          from the symmetrization process.
 
         Returns
         -------
@@ -394,36 +429,37 @@ class Symmetrizer3D:
         out_array = np.zeros(data[data.signal].shape)
 
         print('Symmetrizing ' + self.plane1 + ' planes...')
-        for k in range(0, len(q3)):
-            print('Symmetrizing ' + q3.nxname + '=' + "{:.02f}".format(q3[k]) + "...", end='\r')
+        for k, value in enumerate(q3):
+            print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
             data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
             out_array[:, :, k] = data_symmetrized[data.signal].nxdata
         print('\nSymmetrized ' + self.plane1 + ' planes.')
 
         print('Symmetrizing ' + self.plane2 + ' planes...')
-        for j in range(0, len(q2)):
-            print('Symmetrizing ' + q2.nxname + '=' + "{:.02f}".format(q2[j]) + "...", end='\r')
+        for j, value in enumerate(q2):
+            print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
             data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
-                NXdata(NXfield(out_array[:, j, :], name=data.signal),
-                       (q1, q3)))
+                NXdata(NXfield(out_array[:, j, :], name=data.signal), (q1, q3))
+            )
             out_array[:, j, :] = data_symmetrized[data.signal].nxdata
         print('\nSymmetrized ' + self.plane2 + ' planes.')
 
         print('Symmetrizing ' + self.plane3 + ' planes...')
-        for i in range(0, len(q1)):
-            print('Symmetrizing ' + q1.nxname + '=' + "{:.02f}".format(q1[i]) + "...", end='\r')
+        for i, value in enumerate(q1):
+            print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
             data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
-                NXdata(NXfield(out_array[i, :, :], name=data.signal),
-                       (q2, q3)))
+                NXdata(NXfield(out_array[i, :, :], name=data.signal), (q2, q3))
+            )
             out_array[i, :, :] = data_symmetrized[data.signal].nxdata
         print('\nSymmetrized ' + self.plane3 + ' planes.')
 
         out_array[out_array < 0] = 0
 
         stoptime = time.time()
-        print("\nSymmetriztaion finished in " + "{:.02f}".format((stoptime - starttime) / 60) + " minutes.")
+        print(f"\nSymmetrization finished in {((stoptime - starttime) / 60):.02f} minutes.")
 
-        self.symmetrized = NXdata(NXfield(out_array, name=data.signal), tuple([data[axis] for axis in data.axes]))
+        self.symmetrized = NXdata(NXfield(out_array, name=data.signal),
+                                  tuple(data[axis] for axis in data.axes))
 
         return self.symmetrized
 
@@ -434,7 +470,8 @@ class Symmetrizer3D:
         Parameters
         ----------
         fout_name : str, optional
-            The name of the output file. If not provided, the default name 'symmetrized.nxs' will be used.
+            The name of the output file. If not provided,
+            the default name 'symmetrized.nxs' will be used.
         """
         print("Saving file...")
 
@@ -451,7 +488,8 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
     """
     Generate a 3D Gaussian distribution.
 
-    This function creates a 3D Gaussian distribution in reciprocal space based on the specified parameters.
+    This function creates a 3D Gaussian distribution in reciprocal space based
+     on the specified parameters.
 
     Parameters
     ----------
@@ -462,10 +500,12 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
     stddev : float
         Standard deviation of the Gaussian distribution.
     lattice_params : tuple
-        Tuple of lattice parameters (a, b, c, alpha, beta, gamma) for the reciprocal lattice.
+        Tuple of lattice parameters (a, b, c, alpha, beta, gamma) for the
+         reciprocal lattice.
     coeffs : list, optional
-        Coefficients for the Gaussian expression, including cross-terms between axes. Default is [1, 0, 1, 0, 1, 0],
-        corresponding to (1*H**2 + 0*H*K + 1*K**2 + 0*K*L + 1*L**2 + 0*L*H).
+        Coefficients for the Gaussian expression, including cross-terms between axes.
+         Default is [1, 0, 1, 0, 1, 0],
+         corresponding to (1*H**2 + 0*H*K + 1*K**2 + 0*K*L + 1*L**2 + 0*L*H).
 
     Returns
     -------
@@ -475,7 +515,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
     if coeffs is None:
         coeffs = [1, 0, 1, 0, 1, 0]
     a, b, c, al, be, ga = lattice_params
-    a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params((a, b, c, al, be, ga))
+    a_, b_, c_, _, _, _ = reciprocal_lattice_params((a, b, c, al, be, ga))
     H, K, L = np.meshgrid(H, K, L, indexing='ij')
     gaussian = amp * np.exp(-(coeffs[0] * H ** 2 +
                               coeffs[1] * (b_ * a_ / (a_ ** 2)) * H * K +
@@ -494,8 +534,9 @@ class Puncher:
     """
     A class for applying masks to 3D datasets, typically for data processing in reciprocal space.
 
-    This class provides methods for setting data, applying masks, and generating masks based on various criteria.
-    It can be used to "punch" or modify datasets by setting specific regions to NaN according to the mask.
+    This class provides methods for setting data, applying masks, and generating
+     masks based on various criteria. It can be used to "punch" or modify datasets
+      by setting specific regions to NaN according to the mask.
 
     Attributes
     ----------
@@ -527,19 +568,25 @@ class Puncher:
     subtract_mask(masksubtraction)
         Removes regions from the current mask using a logical AND NOT operation.
     generate_bragg_mask(punch_radius, coeffs=None, thresh=None)
-        Generates a mask for Bragg peaks based on a Gaussian distribution in reciprocal space.
+        Generates a mask for Bragg peaks based on a Gaussian distribution in
+         reciprocal space.
     generate_intensity_mask(thresh, radius, verbose=True)
-        Generates a mask based on intensity thresholds, including a spherical region around high-intensity points.
+        Generates a mask based on intensity thresholds, including a spherical
+         region around high-intensity points.
     generate_mask_at_coord(coordinate, punch_radius, coeffs=None, thresh=None)
-        Generates a mask centered at a specific coordinate in reciprocal space with a specified radius.
+        Generates a mask centered at a specific coordinate in reciprocal space
+         with a specified radius.
     punch()
         Applies the mask to the dataset, setting masked regions to NaN.
     """
+
     def __init__(self):
         """
         Initialize the Puncher object.
 
-        This method sets up the initial state of the Puncher instance, including attributes for storing the dataset, lattice parameters, and masks. It prepares the object for further data processing and masking operations.
+        This method sets up the initial state of the Puncher instance, including
+         attributes for storing the dataset, lattice parameters, and masks.
+          It prepares the object for further data processing and masking operations.
 
         Attributes
         ----------
@@ -548,13 +595,16 @@ class Puncher:
         data : NXdata, optional
             The input dataset to be processed, initialized as None.
         HH, KK, LL : ndarray, optional
-            Arrays representing the H, K, and L coordinates in reciprocal space, initialized as None.
+            Arrays representing the H, K, and L coordinates in reciprocal space,
+             initialized as None.
         mask : ndarray, optional
-            The mask for identifying and modifying specific regions in the dataset, initialized as None.
+            The mask for identifying and modifying specific regions in the dataset,
+             initialized as None.
         reciprocal_lattice_params : tuple, optional
             The reciprocal lattice parameters, initialized as None.
         lattice_params : tuple, optional
-            The lattice parameters (a, b, c, alpha, beta, gamma), initialized as None.
+            The lattice parameters (a, b, c, alpha, beta, gamma),
+             initialized as None.
         a, b, c, al, be, ga : float
             Individual lattice parameters, initialized as None.
         a_star, b_star, c_star, al_star, be_star, ga_star : float
@@ -585,7 +635,9 @@ class Puncher:
         self.data = data
         if self.mask is None:
             self.mask = np.zeros(data[data.signal].nxdata.shape)
-        self.HH, self.KK, self.LL = np.meshgrid(data[data.axes[0]], data[data.axes[1]], data[data.axes[2]],
+        self.HH, self.KK, self.LL = np.meshgrid(data[data.axes[0]],
+                                                data[data.axes[1]],
+                                                data[data.axes[2]],
                                                 indexing='ij')
 
     def set_lattice_params(self, lattice_params):
@@ -600,7 +652,8 @@ class Puncher:
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
         self.lattice_params = lattice_params
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
-        self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
+        self.a_star, self.b_star, self.c_star, \
+            self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
 
     def add_mask(self, maskaddition):
         """
@@ -633,8 +686,10 @@ class Puncher:
         punch_radius : float
             Radius for the Bragg peak mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around each Bragg position,
-            corresponding to coefficients for H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the sphere to be removed around
+             each Bragg position,
+             corresponding to coefficients for H, HK, K, KL, L, and LH terms.
+              Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -646,15 +701,16 @@ class Puncher:
         if coeffs is None:
             coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
-        H, K, L = self.H, self.K, self.L
-        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
+        H, K, L = self.HH, self.KK, self.LL
+        a_, b_, c_, _, _, _ = self.reciprocal_lattice_params
 
         mask = (coeffs[0] * (H - np.rint(H)) ** 2 +
                 coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - np.rint(H)) * (K - np.rint(K)) +
                 coeffs[2] * (b_ / a_) ** 2 * (K - np.rint(K)) ** 2 +
                 coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - np.rint(K)) * (L - np.rint(L)) +
                 coeffs[4] * (c_ / a_) ** 2 * (L - np.rint(L)) ** 2 +
-                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - np.rint(L)) * (H - np.rint(H))) < punch_radius ** 2
+                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - np.rint(L)) * (H - np.rint(H))) \
+               < punch_radius ** 2
 
         if thresh:
             mask = np.logical_and(mask, data[data.signal] > thresh)
@@ -689,11 +745,15 @@ class Puncher:
                 for k in range(counts.shape[2]):
                     if counts[i, j, k] > thresh:
                         # Set the pixels within the sphere to NaN
-                        for x in range(max(i - radius, 0), min(i + radius + 1, counts.shape[0])):
-                            for y in range(max(j - radius, 0), min(j + radius + 1, counts.shape[1])):
-                                for z in range(max(k - radius, 0), min(k + radius + 1, counts.shape[2])):
+                        for x in range(max(i - radius, 0),
+                                       min(i + radius + 1, counts.shape[0])):
+                            for y in range(max(j - radius, 0),
+                                           min(j + radius + 1, counts.shape[1])):
+                                for z in range(max(k - radius, 0),
+                                               min(k + radius + 1, counts.shape[2])):
                                     mask[x, y, z] = 1
-                        print(f"Found high intensity at ({i}, {j}, {k}).\t\t", end='\r') if verbose else None
+                        print(f"Found high intensity at ({i}, {j}, {k}).\t\t", end='\r') \
+                            if verbose else None
         print("\nDone.")
         return mask
 
@@ -708,8 +768,10 @@ class Puncher:
         punch_radius : float
             Radius for the mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around each Bragg position,
-            corresponding to coefficients for H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the sphere to be removed around
+            each Bragg position,
+            corresponding to coefficients for H, HK, K, KL, L, and LH terms.
+             Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -722,14 +784,15 @@ class Puncher:
             coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
         H, K, L = self.HH, self.KK, self.LL
-        a_, b_, c_, al_, be_, ga_ = self.reciprocal_lattice_params
+        a_, b_, c_, _, _, _ = self.reciprocal_lattice_params
         centerH, centerK, centerL = coordinate
         mask = (coeffs[0] * (H - centerH) ** 2 +
                 coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - centerH) * (K - centerK) +
                 coeffs[2] * (b_ / a_) ** 2 * (K - centerK) ** 2 +
                 coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - centerK) * (L - centerL) +
                 coeffs[4] * (c_ / a_) ** 2 * (L - centerL) ** 2 +
-                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - centerL) * (H - centerH)) < punch_radius ** 2
+                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - centerL) * (H - centerH)) \
+               < punch_radius ** 2
 
         if thresh:
             mask = np.logical_and(mask, data[data.signal] > thresh)
@@ -740,18 +803,23 @@ class Puncher:
         """
         Apply the mask to the dataset, setting masked regions to NaN.
 
-        This method creates a new dataset where the masked regions are set to NaN, effectively "punching" those regions.
+        This method creates a new dataset where the masked regions are set to
+         NaN, effectively "punching" those regions.
         """
         data = self.data
-        self.punched = NXdata(NXfield(np.where(self.mask, np.nan, data[data.signal].nxdata), name=data.signal),
-                              (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
+        self.punched = NXdata(NXfield(
+            np.where(self.mask, np.nan, data[data.signal].nxdata),
+            name=data.signal),
+            (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
+        )
 
 
 def _round_up_to_odd_integer(value):
     """
     Round up a given number to the nearest odd integer.
 
-    This function takes a floating-point value and rounds it up to the smallest odd integer that is greater than or equal to the given value.
+    This function takes a floating-point value and rounds it up to the smallest
+     odd integer that is greater than or equal to the given value.
 
     Parameters
     ----------
@@ -777,26 +845,30 @@ def _round_up_to_odd_integer(value):
     i = int(math.ceil(value))
     if i % 2 == 0:
         return i + 1
-    else:
-        return i
+
+    return i
 
 
 class Gaussian3DKernel(Kernel):
     """
     Initialize a 3D Gaussian kernel.
 
-    This constructor creates a 3D Gaussian kernel with the specified standard deviation and size. The Gaussian kernel is generated based on the provided coefficients and is then normalized.
+    This constructor creates a 3D Gaussian kernel with the specified
+    standard deviation and size. The Gaussian kernel is generated based on
+     the provided coefficients and is then normalized.
 
     Parameters
     ----------
     stddev : float
-        The standard deviation of the Gaussian distribution, which controls the width of the kernel.
+        The standard deviation of the Gaussian distribution, which controls
+         the width of the kernel.
 
     size : tuple of int
         The dimensions of the kernel, given as (x_dim, y_dim, z_dim).
 
     coeffs : list of float, optional
-        Coefficients for the Gaussian expression. The default is [1, 0, 1, 0, 1, 0], corresponding to the Gaussian form:
+        Coefficients for the Gaussian expression.
+        The default is [1, 0, 1, 0, 1, 0], corresponding to the Gaussian form:
         (1 * X^2 + 0 * X * Y + 1 * Y^2 + 0 * Y * Z + 1 * Z^2 + 0 * Z * X).
 
     **kwargs : keyword arguments
@@ -809,12 +881,13 @@ class Gaussian3DKernel(Kernel):
 
     Notes
     -----
-    The kernel is generated over a grid that spans twice the size of each dimension, and the resulting array is normalized.
+    The kernel is generated over a grid that spans twice the size of
+    each dimension, and the resulting array is normalized.
     """
     _separable = True
     _is_bool = False
 
-    def __init__(self, stddev, size, coeffs=None, **kwargs):
+    def __init__(self, stddev, size, coeffs=None):
         if not coeffs:
             coeffs = [1, 0, 1, 0, 1, 0]
         x_dim, y_dim, z_dim = size
@@ -830,14 +903,15 @@ class Gaussian3DKernel(Kernel):
                          coeffs[5] * Z * X) / (2 * stddev ** 2)
                        )
         self._default_size = _round_up_to_odd_integer(stddev)
-        super(Gaussian3DKernel, self).__init__(array)
+        super().__init__(array)
         self.normalize()
         self._truncation = np.abs(1. - self._array.sum())
 
 
 class Interpolator():
     """
-    A class to perform data interpolation using convolution with a specified kernel.
+    A class to perform data interpolation using convolution with a specified
+     kernel.
 
     Attributes
     ----------
@@ -859,11 +933,13 @@ class Interpolator():
     tapered : ndarray or None
         The interpolated data after applying the window function. Defaults to None.
     """
+
     def __init__(self):
         """
         Initialize an Interpolator object.
 
-        Sets up an instance of the Interpolator class with the following attributes initialized to None:
+        Sets up an instance of the Interpolator class with the
+         following attributes initialized to None:
         - interp_time
         - window
         - interpolated
@@ -904,8 +980,9 @@ class Interpolator():
         """
         Perform interpolation on the dataset using the specified kernel.
 
-        The interpolation is done by convolving the data with the kernel using the `convolve_fft` function.
-        Updates the `interpolated` attribute with the result.
+        The interpolation is done by convolving the data with the kernel
+         using the `convolve_fft` function. Updates the `interpolated`
+          attribute with the result.
 
         Prints the time taken for the interpolation process.
 
@@ -916,17 +993,19 @@ class Interpolator():
         start = time.time()
 
         if self.interp_time:
-            print("Last interpolation took {:.2f} minutes.".format(self.interp_time / 60))
+            print(f"Last interpolation took {self.interp_time / 60:.2f} minutes.")
+
 
         print("Running interpolation...")
         result = np.real(
-            convolve_fft(self.data[self.data.signal].nxdata, self.kernel, allow_huge=True, return_fft=False))
+            convolve_fft(self.data[self.data.signal].nxdata,
+                         self.kernel, allow_huge=True, return_fft=False))
         print("Interpolation finished.")
 
         end = time.time()
         interp_time = end - start
 
-        print('Interpolation took {:.2f} minutes.'.format(interp_time / 60))
+        print(f'Interpolation took {interp_time / 60:.2f} minutes.')
 
         result[result < 0] = 0
         self.interpolated = array_to_nxdata(result, self.data)
@@ -938,24 +1017,30 @@ class Interpolator():
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension (H, K, L). Default is (1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window in each
+             dimension (H, K, L). Default is (1.0, 1.0, 1.0).
 
         Notes
         -----
         The window function is generated based on the size of the dataset in each dimension.
         """
         data = self.data
-        tukey_H = np.tile(scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
-                          (1, len(data[data.axes[1]]), len(data[data.axes[2]])))
-        tukey_K = np.tile(scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
-                          (len(data[data.axes[0]]), 1, len(data[data.axes[2]])))
+        tukey_H = np.tile(
+            scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
+        )
+        tukey_K = np.tile(
+            scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+            (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
+        )
         window = tukey_H * tukey_K
 
         del tukey_H, tukey_K
         gc.collect()
 
-        tukey_L = np.tile(scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
-                          (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
+        tukey_L = np.tile(
+            scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
+            (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
         window = window * tukey_L
 
         self.window = window
@@ -967,22 +1052,28 @@ class Interpolator():
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension and for the hexagonal truncation (H, HK, K, L).
+            The alpha parameters for the Tukey window in each dimension and
+             for the hexagonal truncation (H, HK, K, L).
             Default is (1.0, 1.0, 1.0, 1.0).
 
         Notes
         -----
-        The hexagonal Tukey window is applied to the dataset in a manner that preserves hexagonal symmetry.
+        The hexagonal Tukey window is applied to the dataset in a manner that
+         preserves hexagonal symmetry.
         """
         data = self.data
         H_ = data[data.axes[0]]
         K_ = data[data.axes[1]]
         L_ = data[data.axes[2]]
 
-        tukey_H = np.tile(scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
-                          (1, len(data[data.axes[1]]), len(data[data.axes[2]])))
-        tukey_K = np.tile(scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
-                          (len(data[data.axes[0]]), 1, len(data[data.axes[2]])))
+        tukey_H = np.tile(
+            scipy.signal.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
+        )
+        tukey_K = np.tile(
+            scipy.signal.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
+            (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
+        )
         window = tukey_H * tukey_K
 
         del tukey_H, tukey_K
@@ -1007,8 +1098,10 @@ class Interpolator():
         del tukey_HK
         gc.collect()
 
-        tukey_L = np.tile(scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
-                          (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
+        tukey_L = np.tile(
+            scipy.signal.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
+            (len(data[data.axes[0]]), len(data[data.axes[1]]), 1)
+        )
         window = window * tukey_L
 
         del tukey_L
@@ -1031,7 +1124,8 @@ class Interpolator():
         """
         Apply the window function to the interpolated data.
 
-        The window function, if set, is applied to the `interpolated` data to produce the `tapered` result.
+        The window function, if set, is applied to the `interpolated` data
+         to produce the `tapered` result.
 
         Returns
         -------
@@ -1044,27 +1138,34 @@ def fourier_transform_nxdata(data):
     """
     Perform a 3D Fourier Transform on the given NXdata object.
 
-    This function applies an inverse Fourier Transform to the input data using the `pyfftw` library to optimize performance.
-    The result is a transformed array with spatial frequency components calculated along each axis.
+    This function applies an inverse Fourier Transform to the input data
+     using the `pyfftw` library to optimize performance. The result is a
+      transformed array with spatial frequency components calculated along
+      each axis.
 
     Parameters
     ----------
     data : NXdata
-        An NXdata object containing the data to be transformed. It should include the `signal` field for the data and `axes` fields
-        specifying the coordinate axes.
+        An NXdata object containing the data to be transformed. It should
+         include the `signal` field for the data and `axes` fields
+         specifying the coordinate axes.
 
     Returns
     -------
     NXdata
-        A new NXdata object containing the Fourier Transformed data. The result includes:
+        A new NXdata object containing the Fourier Transformed data. The
+         result includes:
         - `dPDF`: The transformed data array.
         - `x`, `y`, `z`: Arrays representing the frequency components along each axis.
 
     Notes
     -----
-    - The FFT is performed in two stages: first along the last dimension of the input array and then along the first two dimensions.
-    - The function uses `pyfftw` for efficient computation of the Fourier Transform.
-    - The output frequency components are computed based on the step sizes of the original data axes.
+    - The FFT is performed in two stages: first along the last dimension of
+     the input array and then along the first two dimensions.
+    - The function uses `pyfftw` for efficient computation of the Fourier
+     Transform.
+    - The output frequency components are computed based on the step sizes
+     of the original data axes.
     """
     start = time.time()
     print("Starting FFT.")
@@ -1074,8 +1175,11 @@ def fourier_transform_nxdata(data):
     fft_array = np.zeros(padded.shape)
     print("FFT on axes 1,2")
     for k in range(0, padded.shape[2]):
-        fft_array[:, :, k] = np.real(np.fft.fftshift(
-            pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(padded[:, :, k]), planner_effort='FFTW_MEASURE')))
+        fft_array[:, :, k] = np.real(
+            np.fft.fftshift(
+                pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(padded[:, :, k]),
+                                                  planner_effort='FFTW_MEASURE'))
+        )
         print(f'k={k}                  ', end='\r')
 
     print("FFT on axis 3")
@@ -1083,8 +1187,12 @@ def fourier_transform_nxdata(data):
         for j in range(0, padded.shape[1]):
             f_slice = fft_array[i, j, :]
             print(f'i={i}                  ', end='\r')
-            fft_array[i, j, :] = np.real(np.fft.fftshift(
-                pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice), planner_effort='FFTW_MEASURE')))
+            fft_array[i, j, :] = np.real(
+                np.fft.fftshift(
+                    pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice),
+                                                      planner_effort='FFTW_MEASURE')
+                )
+            )
 
     end = time.time()
     print("FFT complete.")
@@ -1105,8 +1213,9 @@ def fourier_transform_nxdata(data):
 
 class DeltaPDF:
     """
-        A class for processing and analyzing 3D diffraction data using various operations, including masking,
-        interpolation, padding, and Fourier transformation.
+        A class for processing and analyzing 3D diffraction data using various
+         operations, including masking, interpolation, padding, and Fourier
+          transformation.
 
         Attributes
         ----------
@@ -1119,9 +1228,11 @@ class DeltaPDF:
         reciprocal_lattice_params : tuple or None
             Reciprocal lattice parameters (a*, b*, c*, al*, be*, ga*).
         puncher : Puncher
-            An instance of the Puncher class for generating masks and punching the data.
+            An instance of the Puncher class for generating masks and punching
+             the data.
         interpolator : Interpolator
-            An instance of the Interpolator class for interpolating and applying windows to the data.
+            An instance of the Interpolator class for interpolating and applying
+             windows to the data.
         padder : Padder
             An instance of the Padder class for padding the data.
         mask : ndarray or None
@@ -1161,7 +1272,8 @@ class DeltaPDF:
 
     def set_data(self, data):
         """
-        Set the input diffraction data and update the Puncher and Interpolator with the data.
+        Set the input diffraction data and update the Puncher and Interpolator
+         with the data.
 
         Parameters
         ----------
@@ -1174,7 +1286,8 @@ class DeltaPDF:
 
     def set_lattice_params(self, lattice_params):
         """
-        Sets the lattice parameters and calculates the reciprocal lattice parameters.
+        Sets the lattice parameters and calculates the reciprocal lattice
+         parameters.
 
         Parameters
         ----------
@@ -1218,8 +1331,9 @@ class DeltaPDF:
         punch_radius : float
             Radius for the Bragg peak mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around each Bragg position,
-            corresponding to coefficients for H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the sphere to be removed
+             around each Bragg position, corresponding to coefficients
+              for H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -1261,8 +1375,9 @@ class DeltaPDF:
         punch_radius : float
             Radius for the mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around each Bragg position,
-            corresponding to coefficients for H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the sphere to be removed around
+             each Bragg position, corresponding to coefficients for
+             H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -1277,7 +1392,8 @@ class DeltaPDF:
         """
         Apply the mask to the dataset, setting masked regions to NaN.
 
-        This method creates a new dataset where the masked regions are set to NaN, effectively "punching" those regions.
+        This method creates a new dataset where the masked regions are set to
+         NaN, effectively "punching" those regions.
         """
         self.puncher.punch()
         self.punched = self.puncher.punched
@@ -1299,8 +1415,9 @@ class DeltaPDF:
         """
         Perform interpolation on the dataset using the specified kernel.
 
-        The interpolation is done by convolving the data with the kernel using the `convolve_fft` function.
-        Updates the `interpolated` attribute with the result.
+        The interpolation is done by convolving the data with the kernel using
+         the `convolve_fft` function. Updates the `interpolated` attribute with
+          the result.
 
         Prints the time taken for the interpolation process.
 
@@ -1318,11 +1435,13 @@ class DeltaPDF:
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension (H, K, L). Default is (1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window in each dimension
+             (H, K, L). Default is (1.0, 1.0, 1.0).
 
         Notes
         -----
-        The window function is generated based on the size of the dataset in each dimension.
+        The window function is generated based on the size of the dataset
+        in each dimension.
         """
         self.interpolator.set_tukey_window(tukey_alphas)
         self.window = self.interpolator.window
@@ -1334,12 +1453,13 @@ class DeltaPDF:
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension and for the hexagonal truncation (H, HK, K, L).
-            Default is (1.0, 1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window in each dimension and
+             for the hexagonal truncation (H, HK, K, L). Default is (1.0, 1.0, 1.0, 1.0).
 
         Notes
         -----
-        The hexagonal Tukey window is applied to the dataset in a manner that preserves hexagonal symmetry.
+        The hexagonal Tukey window is applied to the dataset in a manner that
+         preserves hexagonal symmetry.
         """
         self.interpolator.set_hexagonal_tukey_window(tukey_alphas)
 
@@ -1358,7 +1478,8 @@ class DeltaPDF:
         """
         Apply the window function to the interpolated data.
 
-        The window function, if set, is applied to the `interpolated` data to produce the `tapered` result.
+        The window function, if set, is applied to the `interpolated` data to
+         produce the `tapered` result.
 
         Returns
         -------
@@ -1384,12 +1505,14 @@ class DeltaPDF:
         """
         self.padded = self.padder.pad(padding)
 
-    def fft(self):
+    def perform_fft(self):
         """
         Perform a 3D Fourier Transform on the padded data.
 
-        This function applies an inverse Fourier Transform to the padded data using the `pyfftw` library to optimize performance.
-        The result is a transformed array with spatial frequency components calculated along each axis.
+        This function applies an inverse Fourier Transform to the padded data
+         using the `pyfftw` library to optimize performance. The result is a
+          transformed array with spatial frequency components calculated along
+           each axis.
 
         Parameters
         ----------
@@ -1401,8 +1524,11 @@ class DeltaPDF:
 
         Notes
         -----
-        - The FFT is performed in two stages: first along the last dimension of the input array and then along the first two dimensions.
-        - The function uses `pyfftw` for efficient computation of the Fourier Transform.
-        - The output frequency components are computed based on the step sizes of the original data axes.
+        - The FFT is performed in two stages: first along the last dimension of
+         the input array and then along the first two dimensions.
+        - The function uses `pyfftw` for efficient computation of the Fourier
+         Transform.
+        - The output frequency components are computed based on the step sizes
+         of the original data axes.
         """
         self.fft = fourier_transform_nxdata(self.padded)

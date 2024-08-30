@@ -111,7 +111,8 @@ class LinecutModel:
         Parameters
         ----------
         model_components : Model or list of Models
-            The model component(s) to be used for fitting, which will be combined into a CompositeModel.
+            The model component(s) to be used for fitting,
+             which will be combined into a CompositeModel.
         """
 
         # If the model only has one component, then use it as the model
