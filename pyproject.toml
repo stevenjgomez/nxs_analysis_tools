@@ -39,6 +39,9 @@ dependencies = [
     'pandas>=2.0.2',
     'nexusformat>=1.0.1',
     'lmfit>=1.2.1',
+    'astropy>=5.3.4',
+    'pyfftw>=0.13.1',
+    'scipy>=1.10.1'
     ]
 
 [project.optional-dependencies]
