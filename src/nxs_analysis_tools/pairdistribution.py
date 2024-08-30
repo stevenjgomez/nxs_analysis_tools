@@ -875,9 +875,6 @@ class Gaussian3DKernel(Kernel):
         The default is [1, 0, 1, 0, 1, 0], corresponding to the Gaussian form:
         (1 * X^2 + 0 * X * Y + 1 * Y^2 + 0 * Y * Z + 1 * Z^2 + 0 * Z * X).
 
-    **kwargs : keyword arguments
-        Additional keyword arguments passed to the parent class constructor.
-
     Raises
     ------
     ValueError
