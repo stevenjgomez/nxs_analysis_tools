@@ -433,30 +433,33 @@ class Symmetrizer3D:
         q1, q2, q3 = self.q1, self.q2, self.q3
         out_array = np.zeros(data[data.signal].shape)
 
-        print('Symmetrizing ' + self.plane1 + ' planes...')
-        for k, value in enumerate(q3):
-            print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
-            data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
-            out_array[:, :, k] = data_symmetrized[data.signal].nxdata
-        print('\nSymmetrized ' + self.plane1 + ' planes.')
+        if self.plane1symmetrizer.theta_max:
+            print('Symmetrizing ' + self.plane1 + ' planes...')
+            for k, value in enumerate(q3):
+                print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
+                data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
+                out_array[:, :, k] = data_symmetrized[data.signal].nxdata
+            print('\nSymmetrized ' + self.plane1 + ' planes.')
 
-        print('Symmetrizing ' + self.plane2 + ' planes...')
-        for j, value in enumerate(q2):
-            print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
-            data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
-                NXdata(NXfield(out_array[:, j, :], name=data.signal), (q1, q3))
-            )
-            out_array[:, j, :] = data_symmetrized[data.signal].nxdata
-        print('\nSymmetrized ' + self.plane2 + ' planes.')
+        if self.plane2symmetrizer.theta_max:
+            print('Symmetrizing ' + self.plane2 + ' planes...')
+            for j, value in enumerate(q2):
+                print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
+                data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
+                    NXdata(NXfield(out_array[:, j, :], name=data.signal), (q1, q3))
+                )
+                out_array[:, j, :] = data_symmetrized[data.signal].nxdata
+            print('\nSymmetrized ' + self.plane2 + ' planes.')
 
-        print('Symmetrizing ' + self.plane3 + ' planes...')
-        for i, value in enumerate(q1):
-            print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
-            data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
-                NXdata(NXfield(out_array[i, :, :], name=data.signal), (q2, q3))
-            )
-            out_array[i, :, :] = data_symmetrized[data.signal].nxdata
-        print('\nSymmetrized ' + self.plane3 + ' planes.')
+        if self.plane3symmetrizer.theta_max:
+            print('Symmetrizing ' + self.plane3 + ' planes...')
+            for i, value in enumerate(q1):
+                print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
+                data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
+                    NXdata(NXfield(out_array[i, :, :], name=data.signal), (q2, q3))
+                )
+                out_array[i, :, :] = data_symmetrized[data.signal].nxdata
+            print('\nSymmetrized ' + self.plane3 + ' planes.')
 
         out_array[out_array < 0] = 0
 
