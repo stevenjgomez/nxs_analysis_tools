@@ -1292,6 +1292,7 @@ class DeltaPDF:
         self.data = data
         self.puncher.set_data(data)
         self.interpolator.set_data(data)
+        self.padder.set_data(data)
         self.tapered = data
         self.padded = data
         self.interpolated = data
