@@ -1213,7 +1213,7 @@ def fourier_transform_nxdata(data):
     fft = NXdata(NXfield(fft_array, name='dPDF'),
                  (NXfield(np.linspace(-0.5 / H_step, 0.5 / H_step, padded.shape[0]), name='x'),
                   NXfield(np.linspace(-0.5 / K_step, 0.5 / K_step, padded.shape[1]), name='y'),
-                  NXfield(np.linspace(-0.5 / L_step, 0.5 / L_step, padded.shape[1]), name='z'),
+                  NXfield(np.linspace(-0.5 / L_step, 0.5 / L_step, padded.shape[2]), name='z'),
                   )
                  )
     return fft
