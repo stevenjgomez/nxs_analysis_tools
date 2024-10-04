@@ -1476,6 +1476,7 @@ class DeltaPDF:
          preserves hexagonal symmetry.
         """
         self.interpolator.set_hexagonal_tukey_window(tukey_alphas)
+        self.window = self.interpolator.window
 
     def set_window(self, window):
         """
