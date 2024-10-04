@@ -1140,7 +1140,7 @@ class Interpolator:
         self.tapered = self.interpolated * self.window
 
 
-def fourier_transform_nxdata(data):
+def fourier_transform_nxdata(data, is_2d=False):
     """
     Perform a 3D Fourier Transform on the given NXdata object.
 
@@ -1156,6 +1156,10 @@ def fourier_transform_nxdata(data):
         include the `signal` field for the data and `axes` fields
         specifying the coordinate axes.
 
+    is_2d : bool
+        If true, skip FFT on out-of-plane direction and only do FFT
+        on axes 0 and 1. Default False.
+
     Returns
     -------
     NXdata
@@ -1163,16 +1167,13 @@ def fourier_transform_nxdata(data):
         result includes:
 
         - `dPDF`: The transformed data array.
-        - `x`, `y`, `z`: Arrays representing the frequency components along each axis.
+        - `x`, `y`, `z`: Arrays representing the real-space components along each axis.
 
     Notes
     -----
-    - The FFT is performed in two stages: first along the last dimension of
-    the input array and then along the first two dimensions.
-    - The function uses `pyfftw` for efficient computation of the Fourier
-    Transform.
-    - The output frequency components are computed based on the step sizes
-    of the original data axes.
+    - The FFT is performed in two stages: first along the last dimension of the input array and then along the first two dimensions.
+    - The function uses `pyfftw` for efficient computation of the Fourier Transform.
+    - The output frequency components are computed based on the step sizes of the original data axes.
 
     """
     start = time.time()
@@ -1181,7 +1182,9 @@ def fourier_transform_nxdata(data):
     padded = data[data.signal].nxdata
 
     fft_array = np.zeros(padded.shape)
+
     print("FFT on axes 1,2")
+
     for k in range(0, padded.shape[2]):
         fft_array[:, :, k] = np.real(
             np.fft.fftshift(
@@ -1190,17 +1193,18 @@ def fourier_transform_nxdata(data):
         )
         print(f'k={k}                  ', end='\r')
 
-    print("FFT on axis 3")
-    for i in range(0, padded.shape[0]):
-        for j in range(0, padded.shape[1]):
-            f_slice = fft_array[i, j, :]
-            print(f'i={i}                  ', end='\r')
-            fft_array[i, j, :] = np.real(
-                np.fft.fftshift(
-                    pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice),
-                                                      planner_effort='FFTW_MEASURE')
+    if not is_2d:
+        print("FFT on axis 3")
+        for i in range(0, padded.shape[0]):
+            for j in range(0, padded.shape[1]):
+                f_slice = fft_array[i, j, :]
+                print(f'i={i}                  ', end='\r')
+                fft_array[i, j, :] = np.real(
+                    np.fft.fftshift(
+                        pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice),
+                                                          planner_effort='FFTW_MEASURE')
+                    )
                 )
-            )
 
     end = time.time()
     print("FFT complete.")
@@ -1520,7 +1524,7 @@ class DeltaPDF:
         """
         self.padded = self.padder.pad(padding)
 
-    def perform_fft(self):
+    def perform_fft(self, is_2d=False):
         """
         Perform a 3D Fourier Transform on the padded data.
 
@@ -1548,4 +1552,4 @@ class DeltaPDF:
 
 
         """
-        self.fft = fourier_transform_nxdata(self.padded)
+        self.fft = fourier_transform_nxdata(self.padded, is_2d=is_2d)
