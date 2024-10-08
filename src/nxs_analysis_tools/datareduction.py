@@ -787,7 +787,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
 
         p = Padder(sliced_data)
         padding = tuple(len(sliced_data[axis]) for axis in sliced_data.axes)
-        counts = p.pad(padding).counts
+        counts = p.pad(padding)
+        counts = p.padded[p.padded.signal]
 
         counts_skewed = ndimage.affine_transform(counts,
                                                  t.inverted().get_matrix()[:2, :2],
@@ -884,7 +885,8 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
 
     p = Padder(data)
     padding = tuple(len(data[axis]) for axis in data.axes)
-    counts = p.pad(padding).counts
+    counts = p.pad(padding)
+    counts = p.padded[p.padded.signal]
 
     counts_skewed = ndimage.affine_transform(counts,
                                              t.inverted().get_matrix()[:2, :2],
