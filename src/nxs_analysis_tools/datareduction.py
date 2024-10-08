@@ -849,7 +849,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         elif rotation_axis == 2:
             output_array[:, :, i] = counts_unpadded
     print('\nDone.')
-    return NXdata(NXfield(output_array, name='counts'),
+    return NXdata(NXfield(output_array, name=p.padded.signal),
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
 
 
@@ -939,7 +939,7 @@ def rotate_data2D(data, lattice_angle, rotation_angle):
     counts_unpadded = p.unpad(counts_unskewed)
 
     print('\nDone.')
-    return NXdata(NXfield(counts_unpadded, name='counts'),
+    return NXdata(NXfield(counts_unpadded, name=p.padded.signal),
                   (data[data.axes[0]], data[data.axes[1]]))
 
 
