@@ -8,6 +8,7 @@ import re
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import pandas as pd
 import numpy as np
 from IPython.display import display, Markdown
 from nxs_analysis_tools import load_data, Scissors
@@ -190,8 +191,12 @@ class TempDependence:
 
         # Convert all temperatures to int temporarily to sort temperatures list before loading
         self.temperatures = [int(t) for t in self.temperatures]
-        self.temperatures.sort()
+
+        loading_template = pd.DataFrame({'temperature': self.temperatures, 'filename': items_to_load})
+        loading_template = loading_template.sort_values(by='temperature')
+        self.temperatures = loading_template['temperature']
         self.temperatures = [str(t) for t in self.temperatures]
+        items_to_load = loading_template['filename'].to_list()
 
         for i, item in enumerate(items_to_load):
             path = os.path.join(self.sample_directory, item)
