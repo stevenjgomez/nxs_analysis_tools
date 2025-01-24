@@ -360,9 +360,19 @@ class Symmetrizer2D:
         symm_test = s.symmetrize_2d(data)
         fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
         axes = axesarr.reshape(-1)
+
+        # Plot the data
         plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data', **kwargs)
-        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
+
+        # Filter kwargs to exclude 'vmin' and 'vmax'
+        filtered_kwargs = {key: value for key, value in kwargs.items() if key not in ('vmin', 'vmax')}
+        # Plot the mask
+        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask', **filtered_kwargs)
+
+        # Plot the wedge
         plot_slice(s.wedge, skew_angle=s.skew_angle, ax=axes[2], title='wedge', **kwargs)
+
+        # Plot the symmetrized data
         plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized', **kwargs)
         plt.subplots_adjust(wspace=0.4)
         plt.show()
