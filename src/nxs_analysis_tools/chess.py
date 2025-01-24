@@ -202,7 +202,13 @@ class TempDependence:
             path = os.path.join(self.sample_directory, item)
 
             # Save dataset
-            self.datasets[self.temperatures[i]] = load_transform(path)
+            try:
+                self.datasets[self.temperatures[i]] = load_transform(path)
+            except Exception as e:
+                # Report temperature that was unable to load, then raise exception.
+                temp_failed = self.temperatures[i]
+                print(f"Failed to load data for temperature {temp_failed} K from file {item}. Error: {e}")
+                raise  # Re-raise the exception
 
             # Initialize scissors object
             self.scissors[self.temperatures[i]] = Scissors()
