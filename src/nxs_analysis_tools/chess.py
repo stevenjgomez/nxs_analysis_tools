@@ -172,6 +172,9 @@ class TempDependence:
         if temperatures_list:
             temperatures_list = [str(t) for t in temperatures_list]
 
+        # Clear existing temperatures before loading files
+        self.temperatures = []
+
         # Identify files to load
         items_to_load = []
         # Search for nxrefine .nxs files
