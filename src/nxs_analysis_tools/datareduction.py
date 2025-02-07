@@ -185,14 +185,14 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
     """
     if isinstance(data, np.ndarray):
         if X is None:
-            X = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='x')
+            X = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='x')
         if Y is None:
-            Y = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='y')
+            Y = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='y')
         if transpose:
             X, Y = Y, X
             data = data.transpose()
         data = NXdata(NXfield(data, name='value'), (X, Y))
-        data_arr = data
+        data_arr = data[data.signal].nxdata.transpose()
     elif isinstance(data, (NXdata, NXfield)):
         if X is None:
             X = data[data.axes[0]]

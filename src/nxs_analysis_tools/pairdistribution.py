@@ -185,23 +185,58 @@ class Symmetrizer2D:
         q1 = data_padded[data.axes[0]]
         q2 = data_padded[data.axes[1]]
 
-        # Define signal to be symmetrized
-        counts = data_padded[data.signal].nxdata
-
         # Calculate the angle for each data point
         theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
         # Create a boolean array for the range of angles
         symmetrization_mask = np.logical_and(theta >= theta_min * np.pi / 180,
                                              theta <= theta_max * np.pi / 180)
-        self.symmetrization_mask = NXdata(NXfield(p.unpad(symmetrization_mask),
-                                                  name='mask'),
-                                          (data[data.axes[0]], data[data.axes[1]])
-                                          )
 
-        self.wedge = NXdata(NXfield(p.unpad(counts * symmetrization_mask),
-                                    name=data.signal),
-                            (data[data.axes[0]], data[data.axes[1]])
-                            )
+        # Define signal to be transformed
+        counts = symmetrization_mask
+
+        # Scale and skew counts
+        skew_angle_adj = 90 - self.skew_angle
+
+        scale2 = counts.shape[0] / counts.shape[1]
+        counts_unscaled2 = ndimage.affine_transform(counts,
+                                                    Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
+                                                    offset=[-(1 - scale2) * counts.shape[
+                                                        0] / 2 / scale2, 0],
+                                                    order=0,
+                                                    )
+
+        scale1 = np.cos(skew_angle_adj * np.pi / 180)
+        counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
+                                                    Affine2D().scale(scale1, 1).inverted().get_matrix()[:2, :2],
+                                                    offset=[-(1 - scale1) * counts.shape[
+                                                        0] / 2 / scale1, 0],
+                                                    order=0,
+                                                    )
+
+        mask = ndimage.affine_transform(counts_unscaled1,
+                                        t.get_matrix()[:2, :2],
+                                        offset=[-counts.shape[0] / 2
+                                                * np.sin(skew_angle_adj * np.pi / 180), 0],
+                                        order=0,
+                                        )
+
+        # Convert mask to nxdata
+        mask = array_to_nxdata(mask, data_padded)
+
+        # Save mask for user interaction
+        self.symmetrization_mask = p.unpad(mask)
+
+        # Perform masking
+        wedge = mask * data_padded
+
+        # Save wedge for user interaction
+        self.wedge = p.unpad(wedge)
+
+        # Convert wedge back to array for further transformations
+        wedge = wedge[data.signal].nxdata
+
+        # Define signal to be transformed
+        counts = wedge
 
         # Scale and skew counts
         skew_angle_adj = 90 - self.skew_angle
@@ -216,7 +251,7 @@ class Symmetrizer2D:
                                          Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
                                          offset=[(1 - scale1) * counts.shape[0] / 2, 0],
                                          order=0,
-                                         ) * symmetrization_mask
+                                         )
 
         scale2 = counts.shape[0] / counts.shape[1]
         wedge = ndimage.affine_transform(wedge,
@@ -325,14 +360,23 @@ class Symmetrizer2D:
         symm_test = s.symmetrize_2d(data)
         fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
         axes = axesarr.reshape(-1)
+
+        # Plot the data
         plot_slice(data, skew_angle=s.skew_angle, ax=axes[0], title='data', **kwargs)
-        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask')
+
+        # Filter kwargs to exclude 'vmin' and 'vmax'
+        filtered_kwargs = {key: value for key, value in kwargs.items() if key not in ('vmin', 'vmax')}
+        # Plot the mask
+        plot_slice(s.symmetrization_mask, skew_angle=s.skew_angle, ax=axes[1], title='mask', **filtered_kwargs)
+
+        # Plot the wedge
         plot_slice(s.wedge, skew_angle=s.skew_angle, ax=axes[2], title='wedge', **kwargs)
+
+        # Plot the symmetrized data
         plot_slice(symm_test, skew_angle=s.skew_angle, ax=axes[3], title='symmetrized', **kwargs)
         plt.subplots_adjust(wspace=0.4)
         plt.show()
         return fig, axesarr
-
 
 class Symmetrizer3D:
     """
