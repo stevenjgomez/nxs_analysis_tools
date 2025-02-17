@@ -239,9 +239,6 @@ class TempDependence:
         temperature_folders.sort()  # Sort from low to high T
         temperature_folders = [str(i) for i in temperature_folders]  # Convert to strings
 
-        print('Found temperature folders:')
-        [print('[' + str(i) + '] ' + folder) for i, folder in enumerate(temperature_folders)]
-
         self.temperatures = temperature_folders
 
         if temperatures_list is not None:
@@ -252,9 +249,6 @@ class TempDependence:
             for file in os.listdir(os.path.join(self.sample_directory, T)):
                 if file.endswith(file_ending):
                     filepath = os.path.join(self.sample_directory, T, file)
-                    print('-----------------------------------------------')
-                    print('Loading ' + T + ' K indexed .nxs files...')
-                    print('Found ' + filepath)
 
                     # Load dataset at each temperature
                     self.datasets[T] = load_data(filepath)
