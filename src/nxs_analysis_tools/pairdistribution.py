@@ -536,7 +536,7 @@ class Symmetrizer3D:
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
 
-def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
+def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=None):
     """
     Generate a 3D Gaussian distribution.
 
@@ -558,16 +558,23 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
         Coefficients for the Gaussian expression, including cross-terms between axes.
          Default is [1, 0, 1, 0, 1, 0],
          corresponding to (1*H**2 + 0*H*K + 1*K**2 + 0*K*L + 1*L**2 + 0*L*H).
+    center : tuple
+        Tuple of coordinates for the center of the Gaussian. Default is (0,0,0).
 
     Returns
     -------
     gaussian : ndarray
         3D Gaussian distribution array.
     """
+    if center is None:
+        center=(0,0,0)
     if coeffs is None:
         coeffs = [1, 0, 1, 0, 1, 0]
     a, b, c, al, be, ga = lattice_params
     a_, b_, c_, _, _, _ = reciprocal_lattice_params((a, b, c, al, be, ga))
+    H = H-center[0]
+    K = K-center[1]
+    L = L-center[2]
     H, K, L = np.meshgrid(H, K, L, indexing='ij')
     gaussian = amp * np.exp(-(coeffs[0] * H ** 2 +
                               coeffs[1] * (b_ * a_ / (a_ ** 2)) * H * K +
@@ -580,7 +587,6 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None):
     elif gaussian.ndim == 2:
         gaussian = gaussian.transpose()
     return gaussian.transpose(1, 0, 2)
-
 
 class Puncher:
     """
