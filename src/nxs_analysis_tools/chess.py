@@ -151,6 +151,8 @@ class TempDependence:
                 self.temperatures.append(temperature)
         # Convert all temperatures to int temporarily to sort temperatures list
         self.temperatures = [int(t) for t in self.temperatures]
+        self.temperatures.sort()
+        self.temperatures = [str(t) for t in self.temperatures]
 
     def set_sample_directory(self, path):
         """
