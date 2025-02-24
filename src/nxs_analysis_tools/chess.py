@@ -134,7 +134,9 @@ class TempDependence:
         Set the list of temperatures by automatically scanning the sample directory.
         """
 
-        # Assert that self.sample_directory must exist first.
+        # Assert that self.sample_directory must exist
+        if not os.path.isdir(self.sample_directory):
+            raise FileNotFoundError(f"Sample directory '{self.sample_directory}' does not exist.")
 
         # Clear existing temperatures
         self.temperatures = []
