@@ -135,8 +135,8 @@ class TempDependence:
         """
 
         # Assert that self.sample_directory must exist
-        if not os.path.isdir(self.sample_directory):
-            raise FileNotFoundError(f"Sample directory '{self.sample_directory}' does not exist.")
+        if self.sample_directory is None:
+            raise ValueError("Sample directory is not set. Use set_sample_directory(path) first.")
 
         # Clear existing temperatures
         self.temperatures = []
