@@ -15,7 +15,7 @@ from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
-           'reciprocal_lattice_params', 'rotate_data',
+           'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D'
            'array_to_nxdata', 'Padder']
 
 
@@ -853,7 +853,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
                   (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
 
 
-def rotate_data2D(data, lattice_angle, rotation_angle):
+def rotate_data_2D(data, lattice_angle, rotation_angle):
     """
     Rotates 2D data.
 
