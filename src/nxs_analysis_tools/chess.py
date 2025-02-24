@@ -50,6 +50,8 @@ class TempDependence:
     -------
     set_temperatures(temperatures):
         Set the list of temperatures for the datasets.
+    find_temperatures():
+        Set the list of temperatures by automatically scanning the sample directory.
     set_sample_directory(path):
         Set the directory path where the datasets are located.
     initialize():
@@ -105,7 +107,7 @@ class TempDependence:
         Initialize the TempDependence class with default values.
         """
 
-        self.sample_directory = ''
+        self.sample_directory = None
         self.xlabel = ''
         self.datasets = {}
         self.temperatures = []
@@ -126,6 +128,27 @@ class TempDependence:
             List of temperatures to set.
         """
         self.temperatures = temperatures
+
+    def find_temperatures(self):
+        """
+        Set the list of temperatures by automatically scanning the sample directory.
+        """
+
+        # Assert that self.sample_directory must exist first.
+
+        # Clear existing temperatures
+        self.temperatures = []
+
+        # Search for nxrefine .nxs files
+        for item in os.listdir(self.sample_directory):
+            pattern = r'_(\d+)\.nxs'
+            match = re.search(pattern, item)
+            if match:
+                # Identify temperature
+                temperature = match.group(1)
+                self.temperatures.append(temperature)
+        # Convert all temperatures to int temporarily to sort temperatures list
+        self.temperatures = [int(t) for t in self.temperatures]
 
     def set_sample_directory(self, path):
         """
