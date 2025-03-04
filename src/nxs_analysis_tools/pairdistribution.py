@@ -477,7 +477,7 @@ class Symmetrizer3D:
         q1, q2, q3 = self.q1, self.q2, self.q3
         out_array = np.zeros(data[data.signal].shape)
 
-        if self.plane1symmetrizer.theta_max:
+        if self.plane1symmetrizer.theta_max is not None:
             print('Symmetrizing ' + self.plane1 + ' planes...')
             for k, value in enumerate(q3):
                 print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
@@ -485,7 +485,7 @@ class Symmetrizer3D:
                 out_array[:, :, k] = data_symmetrized[data.signal].nxdata
             print('\nSymmetrized ' + self.plane1 + ' planes.')
 
-        if self.plane2symmetrizer.theta_max:
+        if self.plane2symmetrizer.theta_max is not None:
             print('Symmetrizing ' + self.plane2 + ' planes...')
             for j, value in enumerate(q2):
                 print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
@@ -495,7 +495,7 @@ class Symmetrizer3D:
                 out_array[:, j, :] = data_symmetrized[data.signal].nxdata
             print('\nSymmetrized ' + self.plane2 + ' planes.')
 
-        if self.plane3symmetrizer.theta_max:
+        if self.plane3symmetrizer.theta_max is not None:
             print('Symmetrizing ' + self.plane3 + ' planes...')
             for i, value in enumerate(q1):
                 print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
