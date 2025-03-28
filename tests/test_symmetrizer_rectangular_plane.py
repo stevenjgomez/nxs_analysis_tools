@@ -194,14 +194,13 @@ class Symmetrizer2D:
         # Scale and skew counts
         skew_angle_adj = 90 - self.skew_angle
 
-        scale2 = q1.max()/q2.max()
+        scale2 = 1 # q1.max()/q2.max()
         counts_unscaled2 = ndimage.affine_transform(counts,
                                                     Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
                                                     offset=[-(1 - scale2) * counts.shape[
                                                         0] / 2 / scale2, 0],
                                                     order=0,
                                                     )
-        plot_slice(counts_unscaled2)
 
         scale1 = np.cos(skew_angle_adj * np.pi / 180)
         counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
@@ -251,7 +250,7 @@ class Symmetrizer2D:
                                          order=0,
                                          )
 
-        scale2 = q1.max()/q2.max()
+        scale2 = counts.shape[0]/counts.shape[1]
         wedge = ndimage.affine_transform(wedge,
                                          Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
                                          offset=[(1 - scale2) * counts.shape[0] / 2, 0],
