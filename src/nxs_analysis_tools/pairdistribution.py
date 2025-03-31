@@ -480,7 +480,8 @@ class Symmetrizer3D:
         if self.plane1symmetrizer.theta_max is not None:
             print('Symmetrizing ' + self.plane1 + ' planes...')
             for k, value in enumerate(q3):
-                print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
+                print(f'Symmetrizing {q3.nxname}={value:.02f}.'
+                      f'..', end='\r')
                 data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
                 out_array[:, :, k] = data_symmetrized[data.signal].nxdata
             print('\nSymmetrized ' + self.plane1 + ' planes.')
@@ -1032,7 +1033,7 @@ class Interpolator:
         """
         self.kernel = kernel
 
-    def interpolate(self):
+    def interpolate(self, verbose=True):
         """
         Perform interpolation on the dataset using the specified kernel.
 
@@ -1048,19 +1049,19 @@ class Interpolator:
         """
         start = time.time()
 
-        if self.interp_time:
+        if self.interp_time and verbose:
             print(f"Last interpolation took {self.interp_time / 60:.2f} minutes.")
 
-        print("Running interpolation...")
+        print("Running interpolation...") if verbose else None
         result = np.real(
             convolve_fft(self.data[self.data.signal].nxdata,
                          self.kernel, allow_huge=True, return_fft=False))
-        print("Interpolation finished.")
+        print("Interpolation finished.") if verbose else None
 
         end = time.time()
         interp_time = end - start
 
-        print(f'Interpolation took {interp_time / 60:.2f} minutes.')
+        print(f'Interpolation took {interp_time / 60:.2f} minutes.') if verbose else None
 
         result[result < 0] = 0
         self.interpolated = array_to_nxdata(result, self.data)
