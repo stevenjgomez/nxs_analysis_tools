@@ -58,9 +58,9 @@ class TempDependence:
         Initialize Scissors and LinecutModel objects for each temperature.
     set_data(temperature, data):
         Set the dataset for a specific temperature.
-    load_transforms(temperatures_list=None):
+    load_transforms(temperatures_list=None, print_tree=True):
         Load transform datasets (from nxrefine) based on temperature.
-    load_datasets(file_ending='hkli.nxs', temperatures_list=None):
+    load_datasets(file_ending='hkli.nxs', temperatures_list=None, print_tree=True):
         Load datasets (CHESS format) from the specified folder.
     get_sample_directory():
         Get the folder path where the datasets are located.
@@ -186,7 +186,7 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures_list=None):
+    def load_transforms(self, temperatures_list=None, print_tree=True):
         """
         Load transform datasets (from nxrefine) based on temperature.
 
@@ -194,6 +194,8 @@ class TempDependence:
         ----------
         temperatures_list : list of int or None, optional
             List of temperatures to load. If None, all available temperatures are loaded.
+        print_tree : bool, optional
+            Whether to print the data tree upon loading. Default True.
         """
         # Convert all temperatures to strings
         if temperatures_list:
@@ -231,7 +233,7 @@ class TempDependence:
 
             # Save dataset
             try:
-                self.datasets[self.temperatures[i]] = load_transform(path)
+                self.datasets[self.temperatures[i]] = load_transform(path, print_tree)
             except Exception as e:
                 # Report temperature that was unable to load, then raise exception.
                 temp_failed = self.temperatures[i]
@@ -245,7 +247,7 @@ class TempDependence:
             # Initialize linecutmodel object
             self.linecutmodels[self.temperatures[i]] = LinecutModel()
 
-    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None):
+    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None, print_tree=True):
         """
         Load datasets (CHESS format) from the specified folder.
 
@@ -256,6 +258,8 @@ class TempDependence:
         temperatures_list : list of int or None, optional
             The list of specific temperatures to load. If None, all available temperatures are
             loaded. The default is None.
+        print_tree : bool, optional
+            Whether to print the data tree upon loading. Default True.
         """
         temperature_folders = []  # Empty list to store temperature folder names
         for item in os.listdir(self.sample_directory):
@@ -278,7 +282,7 @@ class TempDependence:
                     filepath = os.path.join(self.sample_directory, T, file)
 
                     # Load dataset at each temperature
-                    self.datasets[T] = load_data(filepath)
+                    self.datasets[T] = load_data(filepath, print_tree)
 
                     # Initialize scissors object at each temperature
                     self.scissors[T] = Scissors()

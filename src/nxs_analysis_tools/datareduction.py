@@ -29,6 +29,9 @@ def load_data(path, print_tree=True):
     path : str
         The path to the NeXus data file.
 
+    print_tree : bool, optional
+        Whether to print the data tree upon loading. Default True.
+
     Returns
     -------
     data : nxdata object
@@ -51,11 +54,16 @@ def load_transform(path, print_tree=True):
 
     Parameters
     ----------
-    path : str The path to the transform data file.
+    path : str
+        The path to the transform data file.
+
+    print_tree : bool, optional
+        Whether to print the data tree upon loading. Default True.
 
     Returns
     -------
-    data : nxdata object The loaded data stored in a nxdata object.
+    data : nxdata object
+        The loaded data stored in a nxdata object.
     """
 
     g = nxload(path)
