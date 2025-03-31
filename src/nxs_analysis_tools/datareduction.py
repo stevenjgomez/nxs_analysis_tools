@@ -19,7 +19,7 @@ __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
            'array_to_nxdata', 'Padder']
 
 
-def load_data(path):
+def load_data(path, print_tree=True):
     """
     Load data from a NeXus file at a specified path. It is assumed that the data follows the CHESS
     file structure (i.e., root/entry/data/counts, etc.).
@@ -38,14 +38,14 @@ def load_data(path):
 
     g = nxload(path)
     try:
-        print(g.entry.data.tree)
+        print(g.entry.data.tree) if print_tree else None
     except NeXusError:
         pass
 
     return g.entry.data
 
 
-def load_transform(path):
+def load_transform(path, print_tree=True):
     """
     Load data obtained from nxrefine output from a specified path.
 
@@ -57,9 +57,15 @@ def load_transform(path):
     -------
     data : nxdata object The loaded data stored in a nxdata object.
     """
+
     g = nxload(path)
-    return NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
+
+    data = NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
                   (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))
+
+    print(data.tree) if print_tree else None
+
+    return data
 
 
 def array_to_nxdata(array, data_template, signal_name='counts'):
