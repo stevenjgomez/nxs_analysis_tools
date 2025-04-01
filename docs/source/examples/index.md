@@ -1,6 +1,7 @@
 # Examples
 
 ```{toctree}
+loading_chess_data
 using_plot_slice
 using_scissors
 fitting_linecuts
