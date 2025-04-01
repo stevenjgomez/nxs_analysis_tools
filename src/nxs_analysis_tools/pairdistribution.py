@@ -1606,14 +1606,16 @@ class DeltaPDF:
         """
         Perform a 3D Fourier Transform on the padded data.
 
-        This function applies an inverse Fourier Transform to the padded data
-        using the `pyfftw` library to optimize performance. The result is a
-        transformed array with spatial frequency components calculated along
-        each axis.
+        This method applies an inverse Fourier Transform to the padded data
+        using `pyfftw` for optimized performance. The result is stored in
+        the `fft` attribute as an NXdata object containing the transformed
+        spatial frequency components.
 
         Parameters
         ----------
-        None
+        is_2d : bool, optional
+           If True, performs the FFT only along the first two axes,
+           skipping the out-of-plane direction (default is False).
 
         Returns
         -------
@@ -1621,13 +1623,12 @@ class DeltaPDF:
 
         Notes
         -----
-        - The FFT is performed in two stages: first along the last dimension of
-        the input array and then along the first two dimensions.
-        - The function uses `pyfftw` for efficient computation of the Fourier
-        Transform.
-        - The output frequency components are computed based on the step sizes
-        of the original data axes.
-
+        - Calls `fourier_transform_nxdata` to perform the transformation.
+        - The FFT is computed in two stages: first along the last dimension,
+         then along the first two dimensions.
+        - The output includes frequency components computed from the step
+         sizes of the original data axes.
 
         """
+
         self.fft = fourier_transform_nxdata(self.padded, is_2d=is_2d)
