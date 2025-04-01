@@ -1494,21 +1494,34 @@ class DeltaPDF:
         self.interpolator.set_kernel(kernel)
         self.kernel = kernel
 
-    def interpolate(self):
+    def interpolate(self, verbose=True, positive_values=True):
         """
         Perform interpolation on the dataset using the specified kernel.
 
-        The interpolation is done by convolving the data with the kernel using
-         the `convolve_fft` function. Updates the `interpolated` attribute with
-          the result.
+        This method convolves the dataset with a kernel using `convolve_fft`
+        to perform interpolation. The resulting interpolated data is stored
+        in the `interpolated` attribute.
 
-        Prints the time taken for the interpolation process.
+        Parameters
+        ----------
+        verbose : bool, optional
+            If True, prints progress messages and timing information
+            (default is True).
+        positive_values : bool, optional
+            If True, sets negative interpolated values to zero
+            (default is True).
+
+        Notes
+        -----
+        - The convolution operation is performed in Fourier space.
+        - If a previous interpolation time is recorded, it is displayed
+          before starting a new interpolation.
 
         Returns
         -------
         None
         """
-        self.interpolator.interpolate()
+        self.interpolator.interpolate(verbose, positive_values)
         self.interpolated = self.interpolator.interpolated
 
     def set_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0)):
