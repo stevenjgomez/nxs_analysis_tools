@@ -76,7 +76,7 @@ def load_transform(path, print_tree=True):
     return data
 
 
-def array_to_nxdata(array, data_template, signal_name='counts'):
+def array_to_nxdata(array, data_template, signal_name=None):
     """
     Create an NXdata object from an input array and an NXdata template,
     with an optional signal name.
@@ -101,6 +101,8 @@ def array_to_nxdata(array, data_template, signal_name='counts'):
         based on the template.
     """
     d = data_template
+    if signal_name is None:
+        signal_name = d.signal
     return NXdata(NXfield(array, name=signal_name),
                   tuple(d[d.axes[i]] for i in range(len(d.axes))))
 
