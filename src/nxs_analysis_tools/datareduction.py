@@ -92,7 +92,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
 
     signal_name : str, optional
         The name of the signal within the NXdata object. If not provided,
-        the default signal name 'counts' is used.
+        the signal name is inherited from the data_template.
 
     Returns
     -------
