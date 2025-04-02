@@ -458,20 +458,35 @@ class Symmetrizer3D:
         self.a_star, self.b_star, self.c_star, \
             self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
 
-    def symmetrize(self):
+    def symmetrize(self, positive_values=True):
         """
-        Perform the symmetrization of the 3D dataset by sequentially applying
-         2D symmetrization on the three principal planes.
+        Symmetrize the 3D dataset by sequentially applying 2D symmetrization
+        on the three principal planes.
 
-        This method symmetrizes the dataset on the three principal planes
-         (q1-q2, q1-q3, q2-q3) and handles any negative values that might result
-          from the symmetrization process.
+        This method performs symmetrization along the (q1-q2), (q1-q3),
+        and (q2-q3) planes, ensuring that the dataset maintains expected
+        symmetry properties. Optionally, negative values resulting from the
+        symmetrization process can be set to zero.
+
+        Parameters
+        ----------
+        positive_values : bool, optional
+            If True, sets negative symmetrized values to zero (default is True).
 
         Returns
         -------
-        symmetrized : NXdata
-            The symmetrized 3D dataset.
+        NXdata
+            The symmetrized 3D dataset stored in the `symmetrized` attribute.
+
+        Notes
+        -----
+        - Symmetrization is performed sequentially across three principal
+          planes using corresponding 2D symmetrization methods.
+        - The process prints progress updates and timing information.
+        - If `theta_max` is not set for a particular plane symmetrizer,
+          that plane is skipped.
         """
+
         starttime = time.time()
         data = self.data
         q1, q2, q3 = self.q1, self.q2, self.q3
@@ -506,7 +521,8 @@ class Symmetrizer3D:
                 out_array[i, :, :] = data_symmetrized[data.signal].nxdata
             print('\nSymmetrized ' + self.plane3 + ' planes.')
 
-        out_array[out_array < 0] = 0
+        if positive_values:
+            out_array[out_array < 0] = 0
 
         stoptime = time.time()
         print(f"\nSymmetrization finished in {((stoptime - starttime) / 60):.02f} minutes.")
