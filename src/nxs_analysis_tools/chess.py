@@ -374,15 +374,13 @@ class TempDependence:
             A dictionary of linecuts obtained from the cutting operation.
         """
 
-        center = center if center is not None else self.scissors[self.temperatures[0]].center
-        window = window if window is not None else self.scissors[self.temperatures[0]].window
-        axis = axis if axis is not None else self.scissors[self.temperatures[0]].axis
-
         for T in self.temperatures:
             if verbose:
                 print("-------------------------------")
                 print("Cutting T = " + T + " K data...")
-            self.scissors[T].cut_data(center, window, axis, verbose)
+            self.scissors[T].set_center(center)
+            self.scissors[T].set_window(window)
+            self.scissors[T].cut_data(axis=axis, verbose=verbose)
             self.linecuts[T] = self.scissors[T].linecut
             self.linecutmodels[T].set_data(self.linecuts[T])
 
