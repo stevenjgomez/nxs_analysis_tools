@@ -468,7 +468,7 @@ class TempDependence:
             _, ax = plt.subplots()
         p = ax.pcolormesh(X, Y, v_2d, **kwargs)
         plt.colorbar(p, label='counts')
-        ax.set(xlabel=cut.axes, ylabel=r'$T$ (K)')
+        ax.set(xlabel=self.xlabel, ylabel=r'$T$ (K)')
 
         return p
 
