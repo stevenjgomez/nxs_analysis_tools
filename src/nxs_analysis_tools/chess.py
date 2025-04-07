@@ -98,6 +98,8 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
+    plot_order_parameter(self):
+        Plot the temperature dependence of the peakheight parameter.
     print_fit_report():
         Print the fit report for each temperature.
     """
@@ -642,6 +644,44 @@ class TempDependence:
                                   ylabel=self.datasets[self.temperatures[0]].signal,
                                   title=f"{T} K",
                                   **kwargs)
+
+    def plot_order_parameter(self):
+        """
+        Plot the temperature dependence of the peak height (order parameter).
+
+        This method extracts the peak height from each temperature-dependent
+        line cut fit stored in `linecutmodels` and plots it as a function
+        of temperature using matplotlib.
+
+        Returns
+        -------
+        Figure
+            Matplotlib Figure object containing the peak height vs. temperature plot.
+        Axes
+            Matplotlib Axes object associated with the figure.
+
+        Notes
+        -----
+        - Temperature values are converted to integers for plotting.
+        - Peak heights are extracted from the 'peakheight' parameter in the model results.
+        - The plot uses standard axes labels with temperature in Kelvin.
+        """
+
+        # Create an array of temperature values
+        temperatures = [int(T) for T in self.temperatures]
+
+        # Create an empty list for the peak heights
+        peakheights = []
+
+        # Extract the peakheight at every temperature
+        for T in self.temperatures:
+            peakheights.append(self.linecutmodels[T].modelresult.params['peakheight'].value)
+
+        # Plot the peakheights vs. temperature
+        fig, ax = plt.subplots()
+        ax.plot(temperatures, peakheights)
+        ax.set(xlabel='$T$ (K)', ylabel='peakheight')
+        return fig, ax
 
     def print_fit_report(self):
         """
