@@ -33,13 +33,13 @@ classifiers = [
     'Topic :: Scientific/Engineering',
 ]
 dependencies = [
-    'matplotlib>=3.7.1',
-    'numpy>=1.24.3',
+    'matplotlib>=3.10.0',
+    'numpy>=2.0.0',
     'ipython>=1.0.0',
     'pandas>=2.0.2',
-    'nexusformat>=1.0.1',
+    'nexusformat>=1.0.8',
     'lmfit>=1.2.1',
-    'astropy>=5.3.4',
+    'astropy>=7.0.1',
     'pyfftw>=0.13.1',
     'scipy>=1.14.1'
     ]
