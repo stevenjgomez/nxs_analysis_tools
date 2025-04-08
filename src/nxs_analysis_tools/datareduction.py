@@ -16,7 +16,7 @@ from scipy import ndimage
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D'
-           'array_to_nxdata', 'Padder']
+                                                       'array_to_nxdata', 'Padder']
 
 
 def load_data(path, print_tree=True):
@@ -559,7 +559,8 @@ class Scissors:
 
         return self.linecut
 
-    def highlight_integration_window(self, data=None, width=None, height=None, label=None, highlight_color='red', **kwargs):
+    def highlight_integration_window(self, data=None, width=None, height=None, label=None, highlight_color='red',
+                                     **kwargs):
         """
         Plots the integration window highlighted on the three principal 2D cross-sections of a 3D dataset.
 
@@ -612,9 +613,9 @@ class Scissors:
         ax.add_patch(rect_diffuse)
 
         if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[0]-width/2,center[0]+width/2))
+            ax.set(xlim=(center[0] - width / 2, center[0] + width / 2))
         if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[1]-height/2,center[1]+height/2))
+            ax.set(ylim=(center[1] - height / 2, center[1] + height / 2))
 
         # Plot cross-section 2
         slice_obj = [slice(None)] * data.ndim
@@ -636,10 +637,9 @@ class Scissors:
         ax.add_patch(rect_diffuse)
 
         if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[0]-width/2,center[0]+width/2))
+            ax.set(xlim=(center[0] - width / 2, center[0] + width / 2))
         if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[2]-height/2,center[2]+height/2))
-
+            ax.set(ylim=(center[2] - height / 2, center[2] + height / 2))
 
         # Plot cross-section 3
         slice_obj = [slice(None)] * data.ndim
@@ -661,10 +661,9 @@ class Scissors:
         ax.add_patch(rect_diffuse)
 
         if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[1]-width/2,center[1]+width/2))
+            ax.set(xlim=(center[1] - width / 2, center[1] + width / 2))
         if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[2]-height/2,center[2]+height/2))
-
+            ax.set(ylim=(center[2] - height / 2, center[2] + height / 2))
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.5)
@@ -690,7 +689,7 @@ class Scissors:
 
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-        # Plot cross section 1
+        # Plot cross-section 1
         slice_obj = [slice(None)] * data.ndim
         slice_obj[2] = center[2]
         p1 = plot_slice(data[slice_obj],
@@ -710,7 +709,7 @@ class Scissors:
                         **kwargs)
         axes[1].set_aspect(len(data[data.axes[0]].nxdata) / len(data[data.axes[2]].nxdata))
 
-        # Plot cross section 3
+        # Plot cross-section 3
         slice_obj = [slice(None)] * data.ndim
         slice_obj[0] = center[0]
         p2 = plot_slice(data[slice_obj],
@@ -726,6 +725,7 @@ class Scissors:
         plt.show()
 
         return p1, p2, p3
+
 
 def reciprocal_lattice_params(lattice_params):
     """
@@ -1039,7 +1039,7 @@ class Padder:
         self.data = data
 
         self.steps = tuple((data[axis].nxdata[1] - data[axis].nxdata[0])
-                            for axis in data.axes)
+                           for axis in data.axes)
 
         # Absolute value of the maximum value; assumes the domain of the input
         # is symmetric (eg, -H_min = H_max)
