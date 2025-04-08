@@ -15,8 +15,8 @@ from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
-           'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D'
-                                                       'array_to_nxdata', 'Padder']
+           'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
+           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder']
 
 
 def load_data(path, print_tree=True):
@@ -800,6 +800,36 @@ def reciprocal_lattice_params(lattice_params):
                                       / (np.sin(alpha) * np.sin(beta))))
 
     return a_star, b_star, c_star, alpha_star, beta_star, gamma_star
+
+
+def convert_to_inverse_angstroms(data, lattice_params):
+    """
+    Convert the axes of a 3D NXdata object from reciprocal lattice units (r.l.u.)
+    to inverse angstroms using provided lattice parameters.
+
+    Parameters
+    ----------
+    data : :class:`nexusformat.nexus.NXdata`
+        A 3D NXdata object with axes in reciprocal lattice units.
+
+    lattice_params : tuple of float
+        A tuple containing the real-space lattice parameters
+        (a, b, c, alpha, beta, gamma) in angstroms and degrees.
+
+    Returns
+    -------
+    NXdata
+        A new NXdata object with axes scaled to inverse angstroms.
+    """
+
+    a_, b_, c_, al_, be_, ga_ = reciprocal_lattice_params(lattice_params)
+
+    new_data = data.nxsignal
+    a_star = NXfield(data.nxaxes[0].nxdata * a_, name='a_star')
+    b_star = NXfield(data.nxaxes[1].nxdata * b_, name='b_star')
+    c_star = NXfield(data.nxaxes[2].nxdata * c_, name='c_star')
+
+    return NXdata(new_data, (a_star, b_star, c_star))
 
 
 def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=False):
