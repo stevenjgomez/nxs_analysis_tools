@@ -561,8 +561,7 @@ class Scissors:
 
     def highlight_integration_window(self, data=None, label=None, highlight_color='red', **kwargs):
         """
-        Plots integration window highlighted on the three principal cross sections of the first
-        temperature dataset.
+        Plots integration window highlighted on the three principal 2D cross sections of the dataset.
 
         Parameters
         ----------
@@ -570,7 +569,7 @@ class Scissors:
             The 2D heatmap dataset to plot. If not provided, the dataset stored in `self.data` will
             be used.
         label : str, optional
-            The label for the integration window plot.
+            The label for the rectangle highlighting the integration window.
         highlight_color : str, optional
             The edge color used to highlight the integration window. Default is 'red'.
         **kwargs : keyword arguments, optional
