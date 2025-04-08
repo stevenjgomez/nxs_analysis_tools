@@ -559,21 +559,30 @@ class Scissors:
 
         return self.linecut
 
-    def highlight_integration_window(self, data=None, label=None, highlight_color='red', **kwargs):
+    def highlight_integration_window(self, data=None, width=None, height=None, label=None, highlight_color='red', **kwargs):
         """
-        Plots integration window highlighted on the three principal 2D cross sections of the dataset.
+        Plots the integration window highlighted on the three principal 2D cross-sections of a 3D dataset.
 
         Parameters
         ----------
         data : array-like, optional
-            The 2D heatmap dataset to plot. If not provided, the dataset stored in `self.data` will
-            be used.
+            The 3D dataset to visualize. If not provided, uses `self.data`.
+        width : float, optional
+            Width of the visible x-axis range in each subplot. Used to zoom in on the integration region.
+        height : float, optional
+            Height of the visible y-axis range in each subplot. Used to zoom in on the integration region.
         label : str, optional
-            The label for the rectangle highlighting the integration window.
+            Label for the rectangle patch marking the integration window, used in the legend.
         highlight_color : str, optional
-            The edge color used to highlight the integration window. Default is 'red'.
-        **kwargs : keyword arguments, optional
-            Additional keyword arguments to customize the plot.
+            Color of the rectangle edges highlighting the integration window. Default is 'red'.
+        **kwargs : dict, optional
+            Additional keyword arguments passed to `plot_slice` for customizing the plot (e.g., colormap, vmin, vmax).
+
+        Returns
+        -------
+        p1, p2, p3 : matplotlib.collections.QuadMesh
+            The plotted QuadMesh objects for the three cross-sections:
+            XY at fixed Z, XZ at fixed Y, and YZ at fixed X.
 
         """
         data = self.data if data is None else data
@@ -583,7 +592,7 @@ class Scissors:
         # Create a figure and subplots
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-        # Plot cross section 1
+        # Plot cross-section 1
         slice_obj = [slice(None)] * data.ndim
         slice_obj[2] = center[2]
 
@@ -602,7 +611,12 @@ class Scissors:
         )
         ax.add_patch(rect_diffuse)
 
-        # Plot cross section 2
+        if 'xlim' not in kwargs and width is not None:
+            ax.set(xlim=(center[0]-width/2,center[0]+width/2))
+        if 'ylim' not in kwargs and height is not None:
+            ax.set(ylim=(center[1]-height/2,center[1]+height/2))
+
+        # Plot cross-section 2
         slice_obj = [slice(None)] * data.ndim
         slice_obj[1] = center[1]
 
@@ -621,7 +635,13 @@ class Scissors:
         )
         ax.add_patch(rect_diffuse)
 
-        # Plot cross section 3
+        if 'xlim' not in kwargs and width is not None:
+            ax.set(xlim=(center[0]-width/2,center[0]+width/2))
+        if 'ylim' not in kwargs and height is not None:
+            ax.set(ylim=(center[2]-height/2,center[2]+height/2))
+
+
+        # Plot cross-section 3
         slice_obj = [slice(None)] * data.ndim
         slice_obj[0] = center[0]
 
@@ -639,6 +659,12 @@ class Scissors:
             facecolor='none', transform=p3.get_transform(), label=label,
         )
         ax.add_patch(rect_diffuse)
+
+        if 'xlim' not in kwargs and width is not None:
+            ax.set(xlim=(center[1]-width/2,center[1]+width/2))
+        if 'ylim' not in kwargs and height is not None:
+            ax.set(ylim=(center[2]-height/2,center[2]+height/2))
+
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.5)
@@ -700,7 +726,6 @@ class Scissors:
         plt.show()
 
         return p1, p2, p3
-
 
 def reciprocal_lattice_params(lattice_params):
     """
