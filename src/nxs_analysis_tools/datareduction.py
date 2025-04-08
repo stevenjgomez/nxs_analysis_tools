@@ -107,7 +107,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
                   tuple(d[d.axes[i]] for i in range(len(d.axes))))
 
 
-def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
+def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, vmax=None,
                skew_angle=90, ax=None, xlim=None, ylim=None,
                xticks=None, yticks=None, cbar=True, logscale=False,
                symlogscale=False, cmap='viridis', linthresh=1,
@@ -199,7 +199,37 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
     p : :class:`matplotlib.collections.QuadMesh`
         The `matplotlib` QuadMesh object representing the plotted data.
     """
+    is_array = False
+    is_nxdata = False
+
     if isinstance(data, np.ndarray):
+        is_array = True
+    elif isinstance(data, (NXdata, NXfield)):
+        is_nxdata = True
+    else:
+        raise TypeError(f"Unexpected data type: {type(data)}. "
+                        f"Supported types are np.ndarray and NXdata.")
+
+    # If three-dimensional, demand sum_axis to reduce to two dimensions.
+    if is_array and len(data.shape) == 3:
+        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+
+        data = data.sum(axis=sum_axis)
+
+    if is_nxdata and len(data.shape) == 3:
+        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+
+        arr = data.nxsignal.nxdata
+        arr = arr.sum(axis=sum_axis)
+
+        # Create a 2D template from the original nxdata
+        slice_obj = [slice(None)] * len(data.shape)
+        slice_obj[sum_axis] = 0
+
+        # Use the 2D template to create a new nxdata
+        data = array_to_nxdata(arr, data[slice_obj])
+
+    if is_array:
         if X is None:
             X = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='x')
         if Y is None:
@@ -209,7 +239,7 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
             data = data.transpose()
         data = NXdata(NXfield(data, name='value'), (X, Y))
         data_arr = data[data.signal].nxdata.transpose()
-    elif isinstance(data, (NXdata, NXfield)):
+    elif is_nxdata:
         if X is None:
             X = data[data.axes[0]]
         if Y is None:
@@ -218,9 +248,6 @@ def plot_slice(data, X=None, Y=None, transpose=False, vmin=None, vmax=None,
             X, Y = Y, X
             data = data.transpose()
         data_arr = data[data.signal].nxdata.transpose()
-    else:
-        raise TypeError(f"Unexpected data type: {type(data)}. "
-                        f"Supported types are np.ndarray and NXdata.")
 
     # Display Markdown heading
     if mdheading is None:
