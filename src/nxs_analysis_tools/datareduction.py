@@ -130,6 +130,10 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         The Y axis values. If None, a default range from 0 to the number of
          rows in `data` is used.
 
+    sum_axis : int, optional
+        If the input data is 3D, this specifies the axis to sum over in order
+        to reduce the data to 2D for plotting. Required if `data` has three dimensions.
+
     transpose : bool, optional
         If True, transpose the dataset and its axes before plotting.
         Default is False.
