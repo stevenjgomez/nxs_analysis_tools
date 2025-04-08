@@ -384,3 +384,5 @@ data = load_data(r'C:\Users\steve\OneDrive\Documents\UCSB\Projects\RECd3P3\mini\
 s = Scissors(data)
 s.cut_data(center=(1,1,0), window=(0.5,0.2,0.2))
 print(s.highlight_integration_window(vmin=0, vmax=100, width=10, height=10))
+
+print(data.shape)
