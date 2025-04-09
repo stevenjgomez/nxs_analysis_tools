@@ -49,7 +49,7 @@ def load_data(path, print_tree=True):
     return g.entry.data
 
 
-def load_transform(path, print_tree=True, use_nxlink=False):
+def load_transform(path, print_tree=True):
     """
     Load transform data from an nxrefine output file.
 
@@ -61,29 +61,20 @@ def load_transform(path, print_tree=True, use_nxlink=False):
     print_tree : bool, optional
         If True, prints the NeXus data tree upon loading. Default is True.
 
-    use_nxlink : bool, optional
-        If True, returns the NXdata object using the original NXlink without modifying the data shape.
-        If False, loads the data from file and returns a new NXdata object with the signal transposed
-        to match the (Qh, Qk, Ql) axis order. Default is False.
-
     Returns
     -------
     data : NXdata
-        The loaded transform data as an NXdata object. When use_nxlink=False, the signal is transposed
-        to (Qh, Qk, Ql) order.
+        The loaded transform data as an NXdata object.
     """
 
-    if use_nxlink:
-        return nxload(path).entry.transform
-    else:
-        g = nxload(path)
+    g = nxload(path)
 
-        data = NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
-                      (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))
+    data = NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
+                  (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))
 
-        print(data.tree) if print_tree else None
+    print(data.tree) if print_tree else None
 
-        return data
+    return data
 
 
 def array_to_nxdata(array, data_template, signal_name=None):
