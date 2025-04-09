@@ -16,7 +16,8 @@ from scipy import ndimage
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
-           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder']
+           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
+           'rebin_nxdata', 'rebin_3d', 'rebin_1d']
 
 
 def load_data(path, print_tree=True):
