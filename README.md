@@ -14,6 +14,12 @@ Install nxs-analysis-tools with ``pip``:
 pip install nxs-analysis-tools
 ```
 
+The source code can be downloaded from the nxs-analysis-tools Git repository:
+
+```{code-block} console
+git clone https://github.com/stevenjgomez/nxs-analysis-tools.git
+```
+
 ## License
 
 This project is licensed under the MIT License.
