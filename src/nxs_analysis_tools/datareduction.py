@@ -60,7 +60,6 @@ def lazy_loaded(path, print_tree=True, **kwargs):
             assert data.ndim == 3
             return data
         def __get__(self, obj, obtype=None):
-            print("Error", notarealobjectthatisinscope)
             return self._slice() 
         def __getitem__(self, key):
             data = self._slice()
