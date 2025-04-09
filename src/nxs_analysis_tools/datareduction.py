@@ -14,13 +14,12 @@ from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXent
 from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
+__all__ = ['load_data', 'load_transform', 'lazy_loaded', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
-           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
-           'rebin_nxdata', 'rebin_3d', 'rebin_1d']
+           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder']
 
 
-def load_data(path, print_tree=True):
+def load_data(path, print_tree=True, **kwargs):
     """
     Load data from a NeXus file at a specified path. It is assumed that the data follows the CHESS
     file structure (i.e., root/entry/data/counts, etc.).
@@ -40,7 +39,7 @@ def load_data(path, print_tree=True):
 
     """
 
-    g = nxload(path)
+    g = nxload(path, **kwargs)
     try:
         print(g.entry.data.tree) if print_tree else None
     except NeXusError:
@@ -48,8 +47,80 @@ def load_data(path, print_tree=True):
 
     return g.entry.data
 
+def indexulatorinator(sl, q):
+    if type(sl) is float:
+        return [np.argmin(np.abs(q - sl))]
+    elif type(sl) is slice:
+        start = sl.start if sl.start is not None else -np.inf
+        stop = sl.stop if sl.stop is not None else np.inf
 
-def load_transform(path, print_tree=True, use_nxlink=False):
+        return (q >= start) & (q < stop)
+    else:
+        raise ValueError("Must slice with tuple or float for lazy loader to work")
+
+def lazy_loaded(path, print_tree=True, **kwargs):
+    g = nxload(path, **kwargs)
+    qh, qk, ql = np.array(g.entry.transform.Qh), np.array(g.entry.transform.Qk), np.array(g.entry.transform.Ql)
+    class LazyLoader:
+        ndim = 3
+        nxname = "Milo"
+
+        def __get__(self, obj, objtype=None):
+            raise ValueError("Can only index into a lazyloader")
+
+        def __getitem__(self, key):
+            if type(key) is float:
+                return self[key, ::, ::]
+            assert type(key) is tuple
+            if len(key) == 2:
+                return self[key[0], key[1], ::]
+            if len(key) == 1:
+                return self[key[0], ::, ::]
+            assert len(key) == 3
+            sliced = g.entry.transform.data[
+                indexulatorinator(key[2], ql),
+                ::,
+                ::
+            ][
+                ::,
+                indexulatorinator(key[1], qk),
+                ::
+            ][
+                ::,
+                ::,
+                indexulatorinator(key[0], qh)
+            ].transpose()
+
+            axes = [
+                qh[indexulatorinator(key[0], qh)],
+                qk[indexulatorinator(key[1], qk)],
+                ql[indexulatorinator(key[2], ql)]
+            ]
+            axes.append(qh[indexulatorinator(key[0], qh)])
+            if type(key[0]) is float:
+                sliced = sliced[0,::,::]
+                del axes[0]
+                if type(key[1]) is float:
+                    sliced = sliced[0,::]
+                    del axes[0]
+                    if type(key[2]) is float:
+                        sliced = sliced[0]
+                        del axes[0]
+            elif type(key[1]) is float:
+                sliced = sliced[::,0,::]
+                del axes[1]
+                if type(key[2]) is float:
+                    sliced = sliced[::,0]
+                    del axes[1]
+            elif type(key[2]) is float:
+                sliced = sliced[::,::,0]
+                del axes[2]
+            return NXdata(sliced, axes)
+
+    return LazyLoader()
+
+
+def load_transform(path, print_tree=True, use_nxlink=False, **kwargs):
     """
     Load transform data from an nxrefine output file.
 
@@ -73,10 +144,11 @@ def load_transform(path, print_tree=True, use_nxlink=False):
         to (Qh, Qk, Ql) order.
     """
 
+
     if use_nxlink:
-        return nxload(path).entry.transform
+        return nxload(path, **kwargs).entry.transform
     else:
-        g = nxload(path)
+        g = nxload(path, **kwargs)
 
         data = NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
                       (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))
