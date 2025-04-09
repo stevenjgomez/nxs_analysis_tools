@@ -221,6 +221,7 @@ class TempDependence:
                     self.temperatures.append(temperature)
                     items_to_load.append(item)
                     # print(f'Preparing to load {temperature} K data: {item}')
+
         # Convert all temperatures to int temporarily to sort temperatures list before loading
         self.temperatures = [int(t) for t in self.temperatures]
 
