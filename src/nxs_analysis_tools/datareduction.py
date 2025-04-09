@@ -107,6 +107,130 @@ def array_to_nxdata(array, data_template, signal_name=None):
                   tuple(d[d.axes[i]] for i in range(len(d.axes))))
 
 
+def rebin_3d(array):
+    """
+    Rebins a 3D NumPy array by a factor of 2 along each dimension.
+
+    This function reduces the size of the input array by averaging over non-overlapping
+    2x2x2 blocks. Each dimension of the input array must be divisible by 2.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        A 3-dimensional NumPy array to be rebinned.
+
+    Returns
+    -------
+    np.ndarray
+        A rebinned array with shape (N//2, M//2, L//2) if the original shape was (N, M, L).
+    """
+
+    # Ensure the array shape is divisible by 2 in each dimension
+    shape = array.shape
+    if any(dim % 2 != 0 for dim in shape):
+        raise ValueError("Each dimension of the array must be divisible by 2 to rebin.")
+
+    # Reshape the array to group the data into 2x2x2 blocks
+    reshaped = array.reshape(shape[0] // 2, 2, shape[1] // 2, 2, shape[2] // 2, 2)
+
+    # Average over the 2x2x2 blocks
+    rebinned = reshaped.mean(axis=(1, 3, 5))
+
+    return rebinned
+
+
+def rebin_1d(array):
+    """
+    Rebins a 1D NumPy array by a factor of 2.
+
+    This function reduces the size of the input array by averaging over non-overlapping
+    pairs of elements. The input array length must be divisible by 2.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        A 1-dimensional NumPy array to be rebinned.
+
+    Returns
+    -------
+    np.ndarray
+        A rebinned array with length N//2 if the original length was N.
+    """
+
+    # Ensure the array length is divisible by 2
+    if len(array) % 2 != 0:
+        raise ValueError("The length of the array must be divisible by 2 to rebin.")
+
+    # Reshape the array to group elements into pairs
+    reshaped = array.reshape(len(array) // 2, 2)
+
+    # Average over the pairs
+    rebinned = reshaped.mean(axis=1)
+
+    return rebinned
+
+
+def rebin_nxdata(data):
+    """
+    Rebins the signal and axes of an NXdata object by a factor of 2 along each dimension.
+
+    This function first checks each axis of the input `NXdata` object:
+      - If the axis has an odd number of elements, the last element is excluded before rebinning.
+      - Then, each axis is rebinned using `rebin_1d`.
+
+    The signal array is similarly cropped to remove the last element along any dimension
+    with an odd shape, and then the data is averaged over 2x2x... blocks using the same
+    `rebin_1d` method (assumed to apply across 1D slices).
+
+    Parameters
+    ----------
+    data : NXdata
+        The NeXus data group containing the signal and axes to be rebinned.
+
+    Returns
+    -------
+    NXdata
+        A new NXdata object with signal and axes rebinned by a factor of 2 along each dimension.
+    """
+    # First, rebin axes
+    new_axes = []
+    for i in range(len(data.shape)):
+        if data.shape[i] % 2 == 1:
+            new_axes.append(
+                NXfield(
+                    rebin_1d(data.nxaxes[i].nxdata[:-1]),
+                    name=data.axes[i]
+                )
+            )
+        else:
+            new_axes.append(
+                NXfield(
+                    rebin_1d(data.nxaxes[i].nxdata[:]),
+                    name=data.axes[i]
+                )
+            )
+
+    # Second, rebin signal
+    data_arr = data.nxsignal.nxdata
+
+    # Crop the array if the shape is odd in any direction
+    slice_obj = []
+    for i, dim in enumerate(data_arr.shape):
+        if dim % 2 == 1:
+            slice_obj.append(slice(0, dim - 1))
+        else:
+            slice_obj.append(slice(None))
+
+    data_arr = data_arr[tuple(slice_obj)]
+
+    # Perform actual rebinning
+    data_arr = rebin_3d(data_arr)
+
+    return NXdata(NXfield(data_arr, name=data.signal),
+                  tuple([axis for axis in new_axes])
+                  )
+
+
 def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, vmax=None,
                skew_angle=90, ax=None, xlim=None, ylim=None,
                xticks=None, yticks=None, cbar=True, logscale=False,
