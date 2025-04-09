@@ -14,13 +14,12 @@ from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXent
 from scipy import ndimage
 
 # Specify items on which users are allowed to perform standalone imports
-__all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
+__all__ = ['load_data', 'load_transform', 'lazy_loaded', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
-           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
-           'rebin_nxdata', 'rebin_3d', 'rebin_1d']
+           'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder']
 
 
-def load_data(path, print_tree=True):
+def load_data(path, print_tree=True, **kwargs):
     """
     Load data from a NeXus file at a specified path. It is assumed that the data follows the CHESS
     file structure (i.e., root/entry/data/counts, etc.).
@@ -40,7 +39,7 @@ def load_data(path, print_tree=True):
 
     """
 
-    g = nxload(path)
+    g = nxload(path, **kwargs)
     try:
         print(g.entry.data.tree) if print_tree else None
     except NeXusError:
@@ -48,8 +47,30 @@ def load_data(path, print_tree=True):
 
     return g.entry.data
 
+def lazy_loaded(path, print_tree=True, **kwargs):
+    g = nxload(path, **kwargs)
+    class LazyLoader:
+        ndim = 3
+        nxname = "Milo"
+        def _slice(self):
+            data = NXdata(
+                    NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
+                    (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql)
+            )
+            assert data.ndim == 3
+            return data
+        def __get__(self, obj, obtype=None):
+            print("Error", notarealobjectthatisinscope)
+            return self._slice() 
+        def __getitem__(self, key):
+            data = self._slice()
+            keyed = data[key]
+            del data
+            return keyed
+    return LazyLoader()
 
-def load_transform(path, print_tree=True):
+
+def load_transform(path, print_tree=True, **kwargs):
     """
     Load data obtained from nxrefine output from a specified path.
 
@@ -67,7 +88,7 @@ def load_transform(path, print_tree=True):
         The loaded data stored in a nxdata object.
     """
 
-    g = nxload(path)
+    g = nxload(path, **kwargs)
 
     data = NXdata(NXfield(g.entry.transform.data.nxdata.transpose(2, 1, 0), name='counts'),
                   (g.entry.transform.Qh, g.entry.transform.Qk, g.entry.transform.Ql))

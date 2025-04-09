@@ -13,7 +13,7 @@ import numpy as np
 from IPython.display import display, Markdown
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
-from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
+from nxs_analysis_tools.datareduction import load_transform, lazy_loaded, reciprocal_lattice_params
 
 
 class TempDependence:
@@ -188,7 +188,7 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures_list=None, print_tree=True):
+    def load_transforms(self, temperatures_list=None, print_tree=True, lazy=False, **kwargs):
         """
         Load transform datasets (from nxrefine) based on temperature.
 
@@ -235,7 +235,10 @@ class TempDependence:
 
             # Save dataset
             try:
-                self.datasets[self.temperatures[i]] = load_transform(path, print_tree)
+                if not lazy:
+                    self.datasets[self.temperatures[i]] = load_transform(path, print_tree, **kwargs)
+                else:
+                    self.datasets[self.temperatures[i]] = lazy_loaded(path, print_tree, **kwargs)
             except Exception as e:
                 # Report temperature that was unable to load, then raise exception.
                 temp_failed = self.temperatures[i]
