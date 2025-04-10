@@ -234,6 +234,9 @@ class TempDependence:
         for i, item in enumerate(items_to_load):
             path = os.path.join(self.sample_directory, item)
 
+            # Ensure path is a string before using it
+            path = str(path)
+
             # Save dataset
             try:
                 self.datasets[self.temperatures[i]] = load_transform(path, print_tree)
