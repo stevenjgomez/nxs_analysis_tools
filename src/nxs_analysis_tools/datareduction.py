@@ -340,12 +340,12 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     # If three-dimensional, demand sum_axis to reduce to two dimensions.
     if is_array and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
 
         data = data.sum(axis=sum_axis)
 
     if is_nxdata and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
 
         arr = data.nxsignal.nxdata
         arr = arr.sum(axis=sum_axis)
