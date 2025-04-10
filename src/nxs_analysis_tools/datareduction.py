@@ -451,21 +451,21 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     # Add tick marks all around
     ax.tick_params(direction='in', top=True, right=True, which='both')
 
-    # Set tick locations
-    if xticks is None:
-        # Add default minor ticks
+    # Automatically set tick locations, only if NXdata or if X,Y axes are provided for an array
+    if is_nxdata or (is_array and (X is not None and Y is not None)):
+        # Add default minor ticks on x
         ax.xaxis.set_minor_locator(MultipleLocator(1))
-    else:
-        # Otherwise use user provided values
-        ax.xaxis.set_major_locator(MultipleLocator(xticks))
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-    if yticks is None:
-        # Add default minor ticks
+
+        if xticks is not None:
+            # Use user provided values
+            ax.xaxis.set_major_locator(MultipleLocator(xticks))
+
+        # Add default minor ticks on y
         ax.yaxis.set_minor_locator(MultipleLocator(1))
-    else:
-        # Otherwise use user provided values
-        ax.yaxis.set_major_locator(MultipleLocator(yticks))
-        ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+        if yticks is not None:
+            # Use user provided values
+            ax.yaxis.set_major_locator(MultipleLocator(yticks))
 
     # Apply transform to tick marks
     for i in range(0, len(ax.xaxis.get_ticklines())):
