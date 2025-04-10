@@ -715,8 +715,8 @@ class Scissors:
 
         return self.linecut
 
-    def highlight_integration_window(self, data=None, width=None, height=None, label=None, highlight_color='red',
-                                     **kwargs):
+    def highlight_integration_window(self, data=None, width=None, height=None,
+                                     label=None, highlight_color='red', **kwargs):
         """
         Plots the integration window highlighted on the three principal 2D cross-sections of a 3D dataset.
 
@@ -733,7 +733,7 @@ class Scissors:
         highlight_color : str, optional
             Color of the rectangle edges highlighting the integration window. Default is 'red'.
         **kwargs : dict, optional
-            Additional keyword arguments passed to `plot_slice` for customizing the plot (e.g., colormap, vmin, vmax).
+            Additional keyword arguments passed to `plot_slice` for customizing the plot (e.g., cmap, vmin, vmax).
 
         Returns
         -------

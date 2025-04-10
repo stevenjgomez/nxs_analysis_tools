@@ -225,7 +225,8 @@ class TempDependence:
         # Convert all temperatures to int temporarily to sort temperatures list before loading
         self.temperatures = [int(t) for t in self.temperatures]
 
-        loading_template = pd.DataFrame({'temperature': self.temperatures, 'filename': items_to_load})
+        loading_template = pd.DataFrame({'temperature': self.temperatures,
+                                         'filename': items_to_load})
         loading_template = loading_template.sort_values(by='temperature')
         self.temperatures = loading_template['temperature']
         self.temperatures = [str(t) for t in self.temperatures]
@@ -243,7 +244,8 @@ class TempDependence:
             except Exception as e:
                 # Report temperature that was unable to load, then raise exception.
                 temp_failed = self.temperatures[i]
-                print(f"Failed to load data for temperature {temp_failed} K from file {item}. Error: {e}")
+                print(f"Failed to load data for temperature {temp_failed} K from file {item}."
+                      f" Error: {e}")
                 raise  # Re-raise the exception
 
             # Initialize scissors object
