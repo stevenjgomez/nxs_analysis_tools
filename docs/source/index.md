@@ -2,8 +2,7 @@
 
 ## Overview
 
-nxs-analysis-tools provides a suite of tools for slicing (2D), cutting (1D), and transforming (e.g., symmetrizing, interpolating, deltaPDF) nexus format (.nxs) scattering data.
-
+nxs-analysis-tools provides a suite of tools for slicing (2D), cutting (1D), and transforming (e.g., symmetrization, interpolation, delta-PDF) nexus format (.nxs) scattering data.
 
 ## Contents
 
