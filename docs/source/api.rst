@@ -13,6 +13,12 @@ chess
 .. automodule:: nxs_analysis_tools.chess
     :members:
 
+fitting
+-----
+
+.. automodule:: nxs_analysis_tools.fitting
+    :members:
+
 pairdistribution
 ----------------
 
