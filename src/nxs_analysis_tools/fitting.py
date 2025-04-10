@@ -151,7 +151,7 @@ class LinecutModel:
         Parameters
             The initialized parameters for the model.
         """
-        # Intialize empty parameters (in function)
+        # Initialize empty parameters (in function)
         params = self.model.make_params()
         self.params = params
 
