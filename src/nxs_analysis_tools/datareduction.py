@@ -104,8 +104,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
     d = data_template
     if signal_name is None:
         signal_name = d.signal
-    return NXdata(NXfield(array, name=signal_name),
-                  tuple(d[d.axes[i]] for i in range(len(d.axes))))
+    return NXdata(NXfield(array, name=signal_name), d.nxaxes)
 
 
 def rebin_3d(array):
