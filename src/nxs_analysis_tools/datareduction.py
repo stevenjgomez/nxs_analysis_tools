@@ -104,8 +104,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
     d = data_template
     if signal_name is None:
         signal_name = d.signal
-    return NXdata(NXfield(array, name=signal_name),
-                  tuple(d[d.axes[i]] for i in range(len(d.axes))))
+    return NXdata(NXfield(array, name=signal_name), d.nxaxes)
 
 
 def rebin_3d(array):
@@ -341,12 +340,12 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     # If three-dimensional, demand sum_axis to reduce to two dimensions.
     if is_array and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
 
         data = data.sum(axis=sum_axis)
 
     if is_nxdata and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is a 3D array"
+        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
 
         arr = data.nxsignal.nxdata
         arr = arr.sum(axis=sum_axis)
@@ -452,21 +451,21 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     # Add tick marks all around
     ax.tick_params(direction='in', top=True, right=True, which='both')
 
-    # Set tick locations
-    if xticks is None:
-        # Add default minor ticks
+    # Automatically set tick locations, only if NXdata or if X,Y axes are provided for an array
+    if is_nxdata or (is_array and (X is not None and Y is not None)):
+        # Add default minor ticks on x
         ax.xaxis.set_minor_locator(MultipleLocator(1))
-    else:
-        # Otherwise use user provided values
-        ax.xaxis.set_major_locator(MultipleLocator(xticks))
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-    if yticks is None:
-        # Add default minor ticks
+
+        if xticks is not None:
+            # Use user provided values
+            ax.xaxis.set_major_locator(MultipleLocator(xticks))
+
+        # Add default minor ticks on y
         ax.yaxis.set_minor_locator(MultipleLocator(1))
-    else:
-        # Otherwise use user provided values
-        ax.yaxis.set_major_locator(MultipleLocator(yticks))
-        ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+        if yticks is not None:
+            # Use user provided values
+            ax.yaxis.set_major_locator(MultipleLocator(yticks))
 
     # Apply transform to tick marks
     for i in range(0, len(ax.xaxis.get_ticklines())):
