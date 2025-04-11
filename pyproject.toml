@@ -67,3 +67,4 @@ dev = [
 'Bug Tracker' = 'https://github.com/stevenjgomez/nxs_analysis_tools/issues'
 'Documentation' = 'https://nxs-analysis-tools.readthedocs.io/en/stable/'
 'Source Code' = 'https://github.com/stevenjgomez/nxs_analysis_tools'
+'DOI' = 'https://doi.org/10.5281/zenodo.15186359'
