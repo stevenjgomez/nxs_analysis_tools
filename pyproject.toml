@@ -68,3 +68,24 @@ dev = [
 'Documentation' = 'https://nxs-analysis-tools.readthedocs.io/en/stable/'
 'Source Code' = 'https://github.com/stevenjgomez/nxs_analysis_tools'
 'DOI' = 'https://doi.org/10.5281/zenodo.15186359'
+
+[tool.bumpver]
+current_version = "0.1.3-dev"
+version_pattern = "MAJOR.MINOR.PATCH[-TAG]"
+tag_pattern = "vMAJOR.MINOR.PATCH[-TAG]"
+commit_message = "Bump version {old_version} -> {new_version}"
+tag_message = "{new_version}"
+tag_scope = "default"
+pre_commit_hook = ""
+post_commit_hook = ""
+commit = false
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+]
+"src/_meta/__init__.py" = [
+    "__version__ = '{version}'",
+]
