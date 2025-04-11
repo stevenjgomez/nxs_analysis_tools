@@ -78,13 +78,14 @@ tag_message = "{new_version}"
 tag_scope = "default"
 pre_commit_hook = ""
 post_commit_hook = ""
-commit = false
+commit = true
 tag = false
 push = false
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
     'current_version = "{version}"',
+    "version = '{version}'"
 ]
 "src/_meta/__init__.py" = [
     "__version__ = '{version}'",
