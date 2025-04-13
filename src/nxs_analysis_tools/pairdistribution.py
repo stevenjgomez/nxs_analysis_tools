@@ -1274,8 +1274,7 @@ class Interpolator:
         # Create list of pixels where H = H.max() or K = K.max() or L = L.max()
         edges = np.where(np.logical_or(np.logical_or(HH == H.max(), KK == K.max()), LL == L.max()), RR, RR.max())
         Qmax = edges.min()
-        window = np.ones(RR.data.shape)
-        alpha = 1.0
+        alpha = tukey_alpha
         period = (Qmax * alpha) / np.pi
 
         window = np.where(RR > Qmax * (1 - alpha), (np.cos((RR - Qmax * (1 - alpha)) / period) + 1) / 2, 1)
