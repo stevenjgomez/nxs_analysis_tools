@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from nxs_analysis_tools import *
 
-from src.nxs_analysis_tools.pairdistribution import Interpolator
+from nxs_analysis_tools.pairdistribution import Interpolator
 
 data = load_data('../docs/source/examples/example_data/plot_slice_data/cubic_hkli.nxs')
 h = Interpolator()
