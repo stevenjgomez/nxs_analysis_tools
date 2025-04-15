@@ -329,9 +329,17 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     p : :class:`matplotlib.collections.QuadMesh`
         The `matplotlib` QuadMesh object representing the plotted data.
     """
+
+    # Some logic to control the processing of the arrays
     is_array = False
     is_nxdata = False
+    no_xy_provided = True
 
+    # If X,Y not provided by user
+    if X is not None and Y is not None:
+        no_xy_provided = False
+
+    # Examine data type to be plotted
     if isinstance(data, np.ndarray):
         is_array = True
     elif isinstance(data, (NXdata, NXfield)):
@@ -469,9 +477,12 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     ax.tick_params(direction='in', top=True, right=True, which='both')
 
     # Automatically set tick locations, only if NXdata or if X,Y axes are provided for an array
-    if is_nxdata or (is_array and (X is not None and Y is not None)):
+    if is_nxdata or (is_array and (no_xy_provided == False)):
         # Add default minor ticks on x
         ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+        # Add tick marks all around
+        ax.tick_params(direction='in', top=True, right=True, which='both')
 
         if xticks is not None:
             # Use user provided values
@@ -483,6 +494,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         if yticks is not None:
             # Use user provided values
             ax.yaxis.set_major_locator(MultipleLocator(yticks))
+    else:
+        # Add tick marks all around
+        ax.tick_params(direction='in', top=True, right=True, which='major')
 
     # Apply transform to tick marks
     for i in range(0, len(ax.xaxis.get_ticklines())):
