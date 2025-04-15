@@ -246,13 +246,15 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     data : :class:`nexusformat.nexus.NXdata` or ndarray
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
-    X : NXfield, optional
-        The X axis values. If None, a default range from 0 to the number of
-         columns in `data` is used.
+    X : ndarray or NXfield, optional
+        The values for the X axis. If `data` is an NXdata object and `X` is None, the X axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `X` is None, a default
+        range from 0 to the number of columns in `data` is used.
 
-    Y : NXfield, optional
-        The Y axis values. If None, a default range from 0 to the number of
-         rows in `data` is used.
+    Y : ndarray or NXfield, optional
+        The values for the Y axis. If `data` is an NXdata object and `Y` is None, the Y axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `Y` is None, a default
+        range from 0 to the number of rows in `data` is used.
 
     sum_axis : int, optional
         If the input data is 3D, this specifies the axis to sum over in order
@@ -359,9 +361,24 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     if is_array:
         if X is None:
-            X = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='x')
+            X = NXfield(np.arange(data.shape[0]), name='x')
+        elif isinstance(X, np.ndarray):
+            X = NXfield(X, name='x')
+        elif isinstance(X, NXfield):
+            pass
+        else:
+            raise TypeError("X must be of type np.ndarray or NXdata")
+
+        # Convert Y to NXfield if it is not already
         if Y is None:
-            Y = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='y')
+            Y = NXfield(np.arange(data.shape[1]), name='y')
+        elif isinstance(Y, np.ndarray):
+            Y = NXfield(Y, name='y')
+        elif isinstance(Y, NXfield):
+            pass
+        else:
+            raise TypeError("Y must be of type np.ndarray or NXdata")
+
         if transpose:
             X, Y = Y, X
             data = data.transpose()
