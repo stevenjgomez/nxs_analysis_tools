@@ -1662,6 +1662,41 @@ class DeltaPDF:
         self.interpolator.set_hexagonal_tukey_window(tukey_alphas)
         self.window = self.interpolator.window
 
+    def set_ellipsoidal_tukey_window(self, tukey_alpha=1.0, coeffs=None):
+        """
+        Set an ellipsoidal Tukey window function for data tapering.
+
+        The Tukey window smoothly tapers the data to zero near the edges of the
+        elliptical region defined by quadratic form coefficients. This helps reduce
+        artifacts in Fourier transforms and other operations sensitive to boundary effects.
+
+        Parameters
+        ----------
+        tukey_alpha : float, optional
+            Tapering parameter for the Tukey window, between 0 and 1.
+            - `tukey_alpha = 0` results in a ellipsoidal window (no tapering).
+            - `tukey_alpha = 1` results in a full cosine taper.
+            Default is 1.0.
+
+        coeffs : tuple of float, optional
+            Coefficients `(c0, c1, c2, c3, c4, c5)` defining the ellipsoidal
+            quadratic form:
+                R^2 = c0*H^2 + c1*H*K + c2*K^2 + c3*K*L + c4*L^2 + c5*L*H
+            If None, coefficients are automatically set to match the edges of the
+            reciprocal space axes (H, K, L), which should be appropriate in cases
+            where H, K, and L are orthogonal.
+
+        Notes
+        -----
+        - The maximum allowed radius `Qmax` is determined from the minimum radius
+          value along the edges of reciprocal space.
+        - The Tukey window is applied radially as a function of the distance `R`
+          from the center, defined by the ellipsoidal quadratic form.
+        """
+        self.interpolator.set_ellipsoidal_tukey_window(tukey_alpha=tukey_alpha, coeffs=coeffs)
+        self.window = self.interpolator.window
+
+
     def set_window(self, window):
         """
         Set a custom window function for data tapering.
