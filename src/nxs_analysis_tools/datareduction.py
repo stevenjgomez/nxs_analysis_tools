@@ -138,6 +138,36 @@ def rebin_3d(array):
 
     return rebinned
 
+def rebin_2d(array):
+    """
+    Rebins a 2D NumPy array by a factor of 2 along each dimension.
+
+    This function reduces the size of the input array by averaging over non-overlapping
+    2x2 blocks. Each dimension of the input array must be divisible by 2.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        A 2-dimensional NumPy array to be rebinned.
+
+    Returns
+    -------
+    np.ndarray
+        A rebinned array with shape (N//2, M//2) if the original shape was (N, M).
+    """
+
+    # Ensure the array shape is divisible by 2 in each dimension
+    shape = array.shape
+    if any(dim % 2 != 0 for dim in shape):
+        raise ValueError("Each dimension of the array must be divisible by 2 to rebin.")
+
+    # Reshape the array to group the data into 2x2 blocks
+    reshaped = array.reshape(shape[0] // 2, 2, shape[1] // 2, 2)
+
+    # Average over the 2x2 blocks
+    rebinned = reshaped.mean(axis=(1, 3))
+
+    return rebinned
 
 def rebin_1d(array):
     """
@@ -179,7 +209,7 @@ def rebin_nxdata(data):
       - Then, each axis is rebinned using `rebin_1d`.
 
     The signal array is similarly cropped to remove the last element along any dimension
-    with an odd shape, and then the data is averaged over 2x2x... blocks using `rebin_3d`.
+    with an odd shape, and then the data is averaged over 2x2x... blocks.
 
     Parameters
     ----------
@@ -223,7 +253,12 @@ def rebin_nxdata(data):
     data_arr = data_arr[tuple(slice_obj)]
 
     # Perform actual rebinning
-    data_arr = rebin_3d(data_arr)
+    if data.ndim == 3:
+        data_arr = rebin_3d(data_arr)
+    elif data.ndim == 2:
+        data_arr = rebin_2d(data_arr)
+    elif data.ndim == 1:
+        data_arr = rebin_1d(data_arr)
 
     return NXdata(NXfield(data_arr, name=data.signal),
                   tuple([axis for axis in new_axes])
