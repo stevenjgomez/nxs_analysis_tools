@@ -179,8 +179,7 @@ def rebin_nxdata(data):
       - Then, each axis is rebinned using `rebin_1d`.
 
     The signal array is similarly cropped to remove the last element along any dimension
-    with an odd shape, and then the data is averaged over 2x2x... blocks using the same
-    `rebin_1d` method (assumed to apply across 1D slices).
+    with an odd shape, and then the data is averaged over 2x2x... blocks using `rebin_3d`.
 
     Parameters
     ----------
