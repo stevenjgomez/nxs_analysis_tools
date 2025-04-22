@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.ticker import MultipleLocator
+import matplotlib.animation as animation
 from matplotlib import colors
 from matplotlib import patches
-from IPython.display import display, Markdown
+from IPython.display import display, Markdown, HTML
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy import ndimage
+
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
