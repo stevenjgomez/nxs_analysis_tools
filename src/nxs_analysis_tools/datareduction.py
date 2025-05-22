@@ -138,6 +138,36 @@ def rebin_3d(array):
 
     return rebinned
 
+def rebin_2d(array):
+    """
+    Rebins a 2D NumPy array by a factor of 2 along each dimension.
+
+    This function reduces the size of the input array by averaging over non-overlapping
+    2x2 blocks. Each dimension of the input array must be divisible by 2.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        A 2-dimensional NumPy array to be rebinned.
+
+    Returns
+    -------
+    np.ndarray
+        A rebinned array with shape (N//2, M//2) if the original shape was (N, M).
+    """
+
+    # Ensure the array shape is divisible by 2 in each dimension
+    shape = array.shape
+    if any(dim % 2 != 0 for dim in shape):
+        raise ValueError("Each dimension of the array must be divisible by 2 to rebin.")
+
+    # Reshape the array to group the data into 2x2 blocks
+    reshaped = array.reshape(shape[0] // 2, 2, shape[1] // 2, 2)
+
+    # Average over the 2x2 blocks
+    rebinned = reshaped.mean(axis=(1, 3))
+
+    return rebinned
 
 def rebin_1d(array):
     """
@@ -179,8 +209,7 @@ def rebin_nxdata(data):
       - Then, each axis is rebinned using `rebin_1d`.
 
     The signal array is similarly cropped to remove the last element along any dimension
-    with an odd shape, and then the data is averaged over 2x2x... blocks using the same
-    `rebin_1d` method (assumed to apply across 1D slices).
+    with an odd shape, and then the data is averaged over 2x2x... blocks.
 
     Parameters
     ----------
@@ -224,7 +253,12 @@ def rebin_nxdata(data):
     data_arr = data_arr[tuple(slice_obj)]
 
     # Perform actual rebinning
-    data_arr = rebin_3d(data_arr)
+    if data.ndim == 3:
+        data_arr = rebin_3d(data_arr)
+    elif data.ndim == 2:
+        data_arr = rebin_2d(data_arr)
+    elif data.ndim == 1:
+        data_arr = rebin_1d(data_arr)
 
     return NXdata(NXfield(data_arr, name=data.signal),
                   tuple([axis for axis in new_axes])
@@ -246,13 +280,15 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     data : :class:`nexusformat.nexus.NXdata` or ndarray
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
-    X : NXfield, optional
-        The X axis values. If None, a default range from 0 to the number of
-         columns in `data` is used.
+    X : ndarray or NXfield, optional
+        The values for the X axis. If `data` is an NXdata object and `X` is None, the X axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `X` is None, a default
+        range from 0 to the number of columns in `data` is used.
 
-    Y : NXfield, optional
-        The Y axis values. If None, a default range from 0 to the number of
-         rows in `data` is used.
+    Y : ndarray or NXfield, optional
+        The values for the Y axis. If `data` is an NXdata object and `Y` is None, the Y axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `Y` is None, a default
+        range from 0 to the number of rows in `data` is used.
 
     sum_axis : int, optional
         If the input data is 3D, this specifies the axis to sum over in order
@@ -327,9 +363,17 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     p : :class:`matplotlib.collections.QuadMesh`
         The `matplotlib` QuadMesh object representing the plotted data.
     """
+
+    # Some logic to control the processing of the arrays
     is_array = False
     is_nxdata = False
+    no_xy_provided = True
 
+    # If X,Y not provided by user
+    if X is not None and Y is not None:
+        no_xy_provided = False
+
+    # Examine data type to be plotted
     if isinstance(data, np.ndarray):
         is_array = True
     elif isinstance(data, (NXdata, NXfield)):
@@ -339,43 +383,72 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
                         f"Supported types are np.ndarray and NXdata.")
 
     # If three-dimensional, demand sum_axis to reduce to two dimensions.
-    if is_array and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
+    if data.ndim == 3:
+        assert sum_axis is not None, "sum_axis must be specified when data.ndim == 3."
 
-        data = data.sum(axis=sum_axis)
+        if is_array:
+            data = data.sum(axis=sum_axis)
+        elif is_nxdata:
+            arr = data.nxsignal.nxdata
+            arr = arr.sum(axis=sum_axis)
 
-    if is_nxdata and len(data.shape) == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data is 3D."
+            # Create a 2D template from the original nxdata
+            slice_obj = [slice(None)] * len(data.shape)
+            slice_obj[sum_axis] = 0
 
-        arr = data.nxsignal.nxdata
-        arr = arr.sum(axis=sum_axis)
+            # Use the 2D template to create a new nxdata
+            data = array_to_nxdata(arr, data[slice_obj])
 
-        # Create a 2D template from the original nxdata
-        slice_obj = [slice(None)] * len(data.shape)
-        slice_obj[sum_axis] = 0
-
-        # Use the 2D template to create a new nxdata
-        data = array_to_nxdata(arr, data[slice_obj])
-
+    # If the data is of type ndarray, then convert to NXdata
     if is_array:
+        # Convert X to NXfield if it is not already
         if X is None:
-            X = NXfield(np.linspace(0, data.shape[0], data.shape[0]), name='x')
+            X = NXfield(np.arange(data.shape[0]), name='x')
+        elif isinstance(X, np.ndarray):
+            X = NXfield(X, name='x')
+        elif isinstance(X, NXfield):
+            pass
+        else:
+            raise TypeError("X must be of type np.ndarray or NXdata")
+
+        # Convert Y to NXfield if it is not already
         if Y is None:
-            Y = NXfield(np.linspace(0, data.shape[1], data.shape[1]), name='y')
+            Y = NXfield(np.arange(data.shape[1]), name='y')
+        elif isinstance(Y, np.ndarray):
+            Y = NXfield(Y, name='y')
+        elif isinstance(Y, NXfield):
+            pass
+        else:
+            raise TypeError("Y must be of type np.ndarray or NXdata")
+
         if transpose:
             X, Y = Y, X
             data = data.transpose()
+
         data = NXdata(NXfield(data, name='value'), (X, Y))
-        data_arr = data[data.signal].nxdata.transpose()
+        data_arr = data.nxsignal.nxdata.transpose()
+    # Otherwise, if data is of type NXdata, then decide whether to create axes,
+    # use provided axes, or inherit axes.
     elif is_nxdata:
         if X is None:
-            X = data[data.axes[0]]
+            X = data.nxaxes[0]
+        elif isinstance(X, np.ndarray):
+            X = NXfield(X, name='x')
+        elif isinstance(X, NXdata):
+            pass
         if Y is None:
-            Y = data[data.axes[1]]
+            Y = data.nxaxes[1]
+        elif isinstance(Y, np.ndarray):
+            Y = NXfield(Y, name='y')
+        elif isinstance(Y, NXdata):
+            pass
+
+        # Transpose axes and data if specified
         if transpose:
             X, Y = Y, X
             data = data.transpose()
-        data_arr = data[data.signal].nxdata.transpose()
+
+        data_arr = data.nxsignal.nxdata.transpose()
 
     # Display Markdown heading
     if mdheading is None:
@@ -406,6 +479,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         norm = colors.SymLogNorm(linthresh=linthresh, vmin=-1 * vmax, vmax=vmax)
     elif logscale:
         norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+
 
     # Plot data
     p = ax.pcolormesh(X.nxdata, Y.nxdata, data_arr, shading='auto', norm=norm, cmap=cmap, **kwargs)
@@ -448,13 +522,14 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     # Correct aspect ratio for the x/y axes after transformation
     ax.set(aspect=np.cos(skew_angle_adj * np.pi / 180))
 
-    # Add tick marks all around
-    ax.tick_params(direction='in', top=True, right=True, which='both')
 
     # Automatically set tick locations, only if NXdata or if X,Y axes are provided for an array
-    if is_nxdata or (is_array and (X is not None and Y is not None)):
+    if is_nxdata or (is_array and (no_xy_provided == False)):
         # Add default minor ticks on x
         ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+        # Add tick marks all around
+        ax.tick_params(direction='in', top=True, right=True, which='both')
 
         if xticks is not None:
             # Use user provided values
@@ -466,6 +541,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         if yticks is not None:
             # Use user provided values
             ax.yaxis.set_major_locator(MultipleLocator(yticks))
+    else:
+        # Add tick marks all around
+        ax.tick_params(direction='in', top=True, right=True, which='major')
 
     # Apply transform to tick marks
     for i in range(0, len(ax.xaxis.get_ticklines())):
@@ -753,8 +831,8 @@ class Scissors:
         slice_obj[2] = center[2]
 
         p1 = plot_slice(data[slice_obj],
-                        X=data[data.axes[0]],
-                        Y=data[data.axes[1]],
+                        X=data.nxaxes[0],
+                        Y=data.nxaxes[1],
                         ax=axes[0],
                         **kwargs)
         ax = axes[0]
@@ -777,8 +855,8 @@ class Scissors:
         slice_obj[1] = center[1]
 
         p2 = plot_slice(data[slice_obj],
-                        X=data[data.axes[0]],
-                        Y=data[data.axes[2]],
+                        X=data.nxaxes[0],
+                        Y=data.nxaxes[2],
                         ax=axes[1],
                         **kwargs)
         ax = axes[1]
@@ -801,8 +879,8 @@ class Scissors:
         slice_obj[0] = center[0]
 
         p3 = plot_slice(data[slice_obj],
-                        X=data[data.axes[1]],
-                        Y=data[data.axes[2]],
+                        X=data.nxaxes[1],
+                        Y=data.nxaxes[2],
                         ax=axes[2],
                         **kwargs)
         ax = axes[2]
@@ -849,31 +927,31 @@ class Scissors:
         slice_obj = [slice(None)] * data.ndim
         slice_obj[2] = center[2]
         p1 = plot_slice(data[slice_obj],
-                        X=data[data.axes[0]],
-                        Y=data[data.axes[1]],
+                        X=data.nxaxes[0],
+                        Y=data.nxaxes[1],
                         ax=axes[0],
                         **kwargs)
-        axes[0].set_aspect(len(data[data.axes[0]].nxdata) / len(data[data.axes[1]].nxdata))
+        axes[0].set_aspect(len(data.nxaxes[0].nxdata) / len(data.nxaxes[1].nxdata))
 
         # Plot cross section 2
         slice_obj = [slice(None)] * data.ndim
         slice_obj[1] = center[1]
         p3 = plot_slice(data[slice_obj],
-                        X=data[data.axes[0]],
-                        Y=data[data.axes[2]],
+                        X=data.nxaxes[0],
+                        Y=data.nxaxes[2],
                         ax=axes[1],
                         **kwargs)
-        axes[1].set_aspect(len(data[data.axes[0]].nxdata) / len(data[data.axes[2]].nxdata))
+        axes[1].set_aspect(len(data.nxaxes[0].nxdata) / len(data.nxaxes[2].nxdata))
 
         # Plot cross-section 3
         slice_obj = [slice(None)] * data.ndim
         slice_obj[0] = center[0]
         p2 = plot_slice(data[slice_obj],
-                        X=data[data.axes[1]],
-                        Y=data[data.axes[2]],
+                        X=data.nxaxes[1],
+                        Y=data.nxaxes[2],
                         ax=axes[2],
                         **kwargs)
-        axes[2].set_aspect(len(data[data.axes[1]].nxdata) / len(data[data.axes[2]].nxdata))
+        axes[2].set_aspect(len(data.nxaxes[1].nxdata) / len(data.nxaxes[2].nxdata))
 
         # Adjust subplot padding
         fig.subplots_adjust(wspace=0.3)
@@ -984,7 +1062,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         Rotated data as an NXdata object.
     """
     # Define output array
-    output_array = np.zeros(data[data.signal].shape)
+    output_array = np.zeros(data.nxsignal.shape)
 
     # Define shear transformation
     skew_angle_adj = 90 - lattice_angle
@@ -1085,7 +1163,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
             output_array[:, :, i] = counts_unpadded
     print('\nDone.')
     return NXdata(NXfield(output_array, name=p.padded.signal),
-                  (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]]))
+                  (data.nxaxes[0], data.nxaxes[1], data.nxaxes[2]))
 
 
 def rotate_data_2D(data, lattice_angle, rotation_angle):
@@ -1180,7 +1258,7 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
 
     print('\nDone.')
     return NXdata(NXfield(counts_unpadded, name=p.padded.signal),
-                  (data[data.axes[0]], data[data.axes[1]]))
+                  (data.nxaxes[0], data.nxaxes[1]))
 
 
 class Padder:
@@ -1265,7 +1343,7 @@ class Padder:
         data = self.data
         self.padding = padding
 
-        padded_shape = tuple(data[data.signal].nxdata.shape[i]
+        padded_shape = tuple(data.nxsignal.nxdata.shape[i]
                              + self.padding[i] * 2 for i in range(data.ndim))
 
         # Create padded dataset
@@ -1275,7 +1353,7 @@ class Padder:
         for i, _ in enumerate(slice_obj):
             slice_obj[i] = slice(self.padding[i], -self.padding[i], None)
         slice_obj = tuple(slice_obj)
-        padded[slice_obj] = data[data.signal].nxdata
+        padded[slice_obj] = data.nxsignal.nxdata
 
         padmaxes = tuple(self.maxes[i] + self.padding[i] * self.steps[i]
                          for i in range(data.ndim))
