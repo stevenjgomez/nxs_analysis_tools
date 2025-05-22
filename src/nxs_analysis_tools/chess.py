@@ -188,7 +188,7 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures_list=None, print_tree=True):
+    def load_transforms(self, temperatures_list=None, print_tree=True, use_nxlink=False):
         """
         Load transform datasets (from nxrefine) based on temperature.
 
@@ -196,8 +196,14 @@ class TempDependence:
         ----------
         temperatures_list : list of int or None, optional
             List of temperatures to load. If None, all available temperatures are loaded.
+        
         print_tree : bool, optional
             Whether to print the data tree upon loading. Default True.
+        
+        use_nxlink : bool, optional
+            If True, maintains the NXlink defined in the data file, which references
+            the raw data in the transform.nxs file. This saves memory when working with
+            many datasets. In this case, the axes are in reverse order. Default is False.
         """
         # Convert all temperatures to strings
         if temperatures_list:
@@ -240,7 +246,7 @@ class TempDependence:
 
             # Save dataset
             try:
-                self.datasets[self.temperatures[i]] = load_transform(path, print_tree)
+                self.datasets[self.temperatures[i]] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
             except Exception as e:
                 # Report temperature that was unable to load, then raise exception.
                 temp_failed = self.temperatures[i]
