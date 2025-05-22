@@ -6,11 +6,12 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'nxs-analysis-tools'
-version = '0.1.4'
+version = '0.1.5'
 description = 'Reduce and transform nexus format (.nxs) scattering data.'
 readme = 'README.md'
 requires-python = '>=3.7'
-license = { file = 'LICENSE' }
+license = "MIT"
+license-files = ['LICENSE']
 authors = [{ name = 'Steven J. Gomez Alvarado', email = 'stevenjgomez@ucsb.edu' }]
 
 keywords = [
@@ -24,7 +25,6 @@ keywords = [
 classifiers = [
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: MIT License',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.9',
@@ -71,7 +71,7 @@ dev = [
 'DOI' = 'https://doi.org/10.5281/zenodo.15186359'
 
 [tool.bumpver]
-current_version = "0.1.4"
+current_version = "0.1.5"
 version_pattern = "MAJOR.MINOR.PATCH[-TAG]"
 tag_pattern = "vMAJOR.MINOR.PATCH[-TAG]"
 commit_message = "Bump version {old_version} -> {new_version}"
