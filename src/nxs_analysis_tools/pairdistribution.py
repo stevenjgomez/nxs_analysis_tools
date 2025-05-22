@@ -1256,12 +1256,6 @@ class Interpolator:
 
         # Create radius array
         RR = np.sqrt(
-            c[0] * HH ** 2 + c[1] * HH * KK + c[2] * KK ** 2 +
-            c[3] * KK * LL + c[4] * LL ** 2 + c[5] * LL * HH
-        )
-
-        # Create radius array
-        RR = np.sqrt(
             c[0] * HH ** 2 +
             c[1] * HH * KK +
             c[2] * KK ** 2 +

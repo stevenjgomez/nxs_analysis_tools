@@ -173,7 +173,7 @@ class TempDependence:
         """
         for temperature in self.temperatures:
             self.scissors[temperature] = Scissors()
-            self.scissors[temperature] = LinecutModel()
+            self.linecutmodels[temperature] = LinecutModel()
 
     def set_data(self, temperature, data):
         """
