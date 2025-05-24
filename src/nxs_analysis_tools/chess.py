@@ -14,6 +14,7 @@ from IPython.display import display, Markdown
 from nxs_analysis_tools import load_data, Scissors
 from nxs_analysis_tools.fitting import LinecutModel
 from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
+from lmfit.models import PseudoVoigtModel, LinearModel
 
 
 class TempDependence:
@@ -469,7 +470,7 @@ class TempDependence:
         y = np.array([int(t) for t in self.temperatures])
 
         # Collect counts from each temperature and ensure they are numpy arrays
-        v = [self.linecuts[T].counts.nxdata for T in self.temperatures]
+        v = [self.linecuts[T].nxsignal.nxdata for T in self.temperatures]
 
         # Convert list of arrays to a 2D array for the heatmap
         v_2d = np.array(v)
@@ -656,6 +657,21 @@ class TempDependence:
                                   ylabel=self.datasets[self.temperatures[0]].signal,
                                   title=f"{T} K",
                                   **kwargs)
+
+    def fit_peaks_simple(self):
+        """
+        Fit all linecuts in the temperature series using a pseudo-Voigt peak shape and linear
+        background.
+        """
+
+        for T in self.temperatures:
+            linecutmodel = self.linecutmodels[T]
+            linecutmodel.set_model_components([PseudoVoigtModel(prefix='peak'),
+                                                LinearModel(prefix='background')])
+            linecutmodel.make_params()
+            linecutmodel.guess()
+            linecutmodel.fit()
+
 
     def plot_order_parameter(self):
         """
