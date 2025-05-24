@@ -99,7 +99,9 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
-    plot_order_parameter(self):
+    fit_peaks_simple():
+        Initialize and fit a model with a pseudo-Voigt peakshape and linear background.
+    plot_order_parameter():
         Plot the temperature dependence of the peakheight parameter.
     print_fit_report():
         Print the fit report for each temperature.
