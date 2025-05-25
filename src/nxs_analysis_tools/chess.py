@@ -99,6 +99,8 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
+    overlay_fits(numpoints=1000, vertical_offset=0, cmap='viridis', ax=ax):
+        Plot raw data and fitted models for each temperature.
     fit_peaks_simple():
         Initialize and fit a model with a pseudo-Voigt peakshape and linear background.
     plot_order_parameter():
@@ -551,7 +553,7 @@ class TempDependence:
 
         Parameters
         ----------
-        model_components : Model or iterable of Model
+        model_components : Model, CompositeModel, or iterable of Model
             The model components to set for all line cut models.
 
         """
@@ -564,7 +566,8 @@ class TempDependence:
 
         This method sets the parameter hints for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `set_param_hint` method
-        with the provided arguments and keyword arguments.
+        with the provided arguments and keyword arguments. These are implemented when the
+        .make_params() method is called.
 
         Parameters
         ----------
@@ -576,10 +579,40 @@ class TempDependence:
         """
         [linecutmodel.set_param_hint(*args, **kwargs)
          for linecutmodel in self.linecutmodels.values()]
+    
+    def params_set(self, name, **kwargs):
+        """
+        Set constraints on a parameter for all line cut models.
+
+        This method updates the specified parameter across all models in
+        `self.linecutmodels` using the keyword arguments provided. These
+        keyword arguments are passed to the `set()` method of the parameter,
+        which comes from a `lmfit.Parameters` object.
+
+        Parameters
+        ----------
+        name : str
+            Name of the parameter to modify (must exist in each model).
+        **kwargs
+            Constraint arguments passed to `Parameter.set()`, such as `value`,
+            `min`, `max`, `vary`, etc.
+
+        Raises
+        ------
+        KeyError
+            If the parameter `name` does not exist in one of the models.
+
+        Example
+        -------
+        >>> sample.params_set('peakamplitude', value=5, min=0, vary=True)
+        """
+
+        for linecutmodel in self.linecutmodels.values():
+            linecutmodel.params[name].set(**kwargs)
 
     def make_params(self):
         """
-        Make parameters for all line cut models.
+        Create and initialize the parameters for all models.
 
         This method creates the parameters for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `make_params` method.
@@ -588,7 +621,8 @@ class TempDependence:
 
     def guess(self):
         """
-        Make initial parameter guesses for all line cut models.
+        Make initial parameter guesses for all line cut models. This overwrites any prior initial
+        values and constraints.
 
         This method generates initial parameter guesses for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `guess` method.
@@ -660,10 +694,56 @@ class TempDependence:
                                   title=f"{T} K",
                                   **kwargs)
 
-    def fit_peaks_simple(self):
+    def overlay_fits(self, numpoints=1000, vertical_offset=0, cmap='viridis', ax=None):
+        """
+        Plot raw data and fitted models for each temperature with optional vertical offsets.
+
+        Parameters:
+        -----------
+        numpoints : int, default=1000
+            Number of points to evaluate for the fitted model curves.
+        vertical_offset : float, default=0
+            Amount to vertically offset each linecut for clarity.
+        cmap : str, default='viridis'
+            Name of the matplotlib colormap used to distinguish different temperatures.
+        ax : matplotlib.axes.Axes or None, default=None
+            Axis object to plot on. If None, a new figure and axis are created.
+
+        The function:
+        - Uses a colormap to assign unique colors to each temperature.
+        - Plots raw data alongside evaluated fit models for each linecut.
+        - Vertically offsets each trace by a constant value for visual separation.
+        - Displays a legend in reverse order to match top-to-bottom visual stacking.
+        - Automatically labels the x- and y-axes based on NeXus-style data metadata.
+        """
+
+        # Create a figure and axes if an axis is not already provided
+        _, ax = plt.subplots() if ax is None else (None, ax)
+
+        # Generate a color palette for the various temperatures
+        cmap = plt.get_cmap(cmap)
+        colors = [cmap(i / len(self.temperatures)) for i, _ in enumerate(self.temperatures)]
+
+        for i, lm in enumerate(self.linecutmodels.values()):
+            # Plot the raw data
+            ax.plot(lm.x, lm.y + vertical_offset * i, '.', c=colors[i])
+
+            # Evaluate the fit
+            x_eval = np.linspace(lm.x.min(), lm.x.max(), numpoints)
+            y_eval = lm.modelresult.eval(x=x_eval)
+            ax.plot(x_eval, y_eval + vertical_offset * i, '-', c=colors[i], label=self.temperatures[i])
+
+        # Reverse legend entries to match top-to-bottom stacking
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[::-1], labels[::-1])
+
+        # Add axis labels
+        ax.set(xlabel=lm.data.nxaxes[0].nxname, ylabel=lm.data.nxsignal.nxname)
+        
+    def fit_peak_simple(self):
         """
         Fit all linecuts in the temperature series using a pseudo-Voigt peak shape and linear
-        background.
+        background, with no constraints.
         """
 
         for T in self.temperatures:
@@ -673,7 +753,6 @@ class TempDependence:
             linecutmodel.make_params()
             linecutmodel.guess()
             linecutmodel.fit()
-
 
     def plot_order_parameter(self):
         """
