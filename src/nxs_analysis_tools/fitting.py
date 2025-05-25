@@ -3,8 +3,8 @@ Module for fitting of linecuts using the lmfit package.
 """
 
 import operator
-from lmfit.model import Model
-from lmfit.model import CompositeModel
+from lmfit import Parameters
+from lmfit.model import Model, CompositeModel
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -118,7 +118,17 @@ class LinecutModel:
         # If the model only has one component, then use it as the model
         if isinstance(model_components, Model):
             self.model = model_components
-        # Else, combine the components into a composite model and use that as the
+            self.params = self.model.make_params()
+
+        # If the model is a composite model, then use it as the model
+        elif isinstance(model_components, CompositeModel):
+            self.model = model_components
+            # Make params for each component of the model
+            self.params = Parameters()
+            for component in self.model.components:
+                self.params.update(component.make_params())
+                
+        # Else, combine the components into a composite model and use that as the model
         else:
             self.model_components = model_components
             self.model = model_components[0]
@@ -126,6 +136,11 @@ class LinecutModel:
             # Combine remaining components into the composite model
             for component in model_components[1:]:
                 self.model = CompositeModel(self.model, component, operator.add)
+
+            # Make params for each component of the model
+            self.params = Parameters()
+            for component in self.model.components:
+                self.params.update(component.make_params())
 
     def set_param_hint(self, *args, **kwargs):
         """
@@ -161,7 +176,7 @@ class LinecutModel:
         """
         Perform initial guesses for each model component.
         """
-        for model_component in list(self.model_components):
+        for model_component in self.model.components:
             self.params.update(model_component.guess(self.y, x=self.x))
 
     def print_initial_params(self):
