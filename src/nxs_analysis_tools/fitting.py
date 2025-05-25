@@ -145,7 +145,8 @@ class LinecutModel:
 
     def set_param_hint(self, *args, **kwargs):
         """
-        Set parameter hints for the model.
+        Set parameter hints for the model. These are implemented when the .make_params() method
+        is called.
 
         Parameters
         ----------
@@ -175,10 +176,21 @@ class LinecutModel:
 
     def guess(self):
         """
-        Perform initial guesses for each model component.
+        Perform initial guesses for each model component and update params.
+
+        Returns
+        -------
+        components_params : list
+            A list containing params objects for each component of the model.
         """
+        
+        components_params = []
+        
         for model_component in self.model.components:
             self.params.update(model_component.guess(self.y, x=self.x))
+            components_params.append(model_component.guess(self.y, x=self.x))
+        
+        return components_params
 
     def print_initial_params(self):
         """
