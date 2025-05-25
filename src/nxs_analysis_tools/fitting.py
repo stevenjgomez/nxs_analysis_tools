@@ -5,6 +5,7 @@ Module for fitting of linecuts using the lmfit package.
 import operator
 from lmfit import Parameters
 from lmfit.model import Model, CompositeModel
+from lmfit.models import PseudoVoigtModel, LinearModel
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -110,9 +111,8 @@ class LinecutModel:
 
         Parameters
         ----------
-        model_components : Model or list of Models
-            The model component(s) to be used for fitting,
-             which will be combined into a CompositeModel.
+        model_components : Model, CompositeModel, or iterable of Model
+            The model component(s) to be used for fitting.
         """
 
         # If the model only has one component, then use it as the model
@@ -176,7 +176,8 @@ class LinecutModel:
 
     def guess(self):
         """
-        Perform initial guesses for each model component and update params.
+        Perform initial guesses for each model component and update params. This overwrites any
+        prior initial values and constraints.
 
         Returns
         -------
@@ -279,6 +280,17 @@ class LinecutModel:
         if fit_report:
             print(self.modelresult.fit_report())
         return ax
+    
+    def fit_peak_simple(self):
+        """
+        Fit all linecuts in the temperature series using a pseudo-Voigt peak shape and linear
+        background, with no constraints.
+        """
+        self.set_model_components([PseudoVoigtModel(prefix='peak'),
+                                            LinearModel(prefix='background')])
+        self.make_params()
+        self.guess()
+        self.fit()
 
     def print_fit_report(self):
         """

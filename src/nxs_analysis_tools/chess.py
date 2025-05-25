@@ -551,7 +551,7 @@ class TempDependence:
 
         Parameters
         ----------
-        model_components : Model or iterable of Model
+        model_components : Model, CompositeModel, or iterable of Model
             The model components to set for all line cut models.
 
         """
@@ -564,7 +564,8 @@ class TempDependence:
 
         This method sets the parameter hints for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `set_param_hint` method
-        with the provided arguments and keyword arguments.
+        with the provided arguments and keyword arguments. These are implemented when the
+        .make_params() method is called.
 
         Parameters
         ----------
@@ -576,10 +577,40 @@ class TempDependence:
         """
         [linecutmodel.set_param_hint(*args, **kwargs)
          for linecutmodel in self.linecutmodels.values()]
+    
+    def params_set(self, name, **kwargs):
+        """
+        Set constraints on a parameter for all line cut models.
+
+        This method updates the specified parameter across all models in
+        `self.linecutmodels` using the keyword arguments provided. These
+        keyword arguments are passed to the `set()` method of the parameter,
+        which comes from a `lmfit.Parameters` object.
+
+        Parameters
+        ----------
+        name : str
+            Name of the parameter to modify (must exist in each model).
+        **kwargs
+            Constraint arguments passed to `Parameter.set()`, such as `value`,
+            `min`, `max`, `vary`, etc.
+
+        Raises
+        ------
+        KeyError
+            If the parameter `name` does not exist in one of the models.
+
+        Example
+        -------
+        >>> sample.params_set('peakamplitude', value=5, min=0, vary=True)
+        """
+
+        for linecutmodel in self.linecutmodels.values():
+            linecutmodel.params[name].set(**kwargs)
 
     def make_params(self):
         """
-        Make parameters for all line cut models.
+        Create and initialize the parameters for all models.
 
         This method creates the parameters for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `make_params` method.
@@ -588,7 +619,8 @@ class TempDependence:
 
     def guess(self):
         """
-        Make initial parameter guesses for all line cut models.
+        Make initial parameter guesses for all line cut models. This overwrites any prior initial
+        values and constraints.
 
         This method generates initial parameter guesses for all line cut models in the analysis.
         It iterates over each line cut model and calls their respective `guess` method.
@@ -660,10 +692,10 @@ class TempDependence:
                                   title=f"{T} K",
                                   **kwargs)
 
-    def fit_peaks_simple(self):
+    def fit_peak_simple(self):
         """
         Fit all linecuts in the temperature series using a pseudo-Voigt peak shape and linear
-        background.
+        background, with no constraints.
         """
 
         for T in self.temperatures:
@@ -673,7 +705,6 @@ class TempDependence:
             linecutmodel.make_params()
             linecutmodel.guess()
             linecutmodel.fit()
-
 
     def plot_order_parameter(self):
         """
