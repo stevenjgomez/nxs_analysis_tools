@@ -99,7 +99,7 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
-    overlay_fits(numpoints=1000, vertical_offset=0, cmap='viridis', ax=ax):
+    overlay_fits(numpoints=None, vertical_offset=0, cmap='viridis', ax=ax):
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
@@ -694,14 +694,15 @@ class TempDependence:
                                   title=f"{T} K",
                                   **kwargs)
 
-    def overlay_fits(self, numpoints=1000, vertical_offset=0, cmap='viridis', ax=None):
+    def overlay_fits(self, numpoints=None, vertical_offset=0, cmap='viridis', ax=None):
         """
         Plot raw data and fitted models for each temperature with optional vertical offsets.
 
         Parameters:
         -----------
-        numpoints : int, default=1000
+        numpoints : int or None, default=None
             Number of points to evaluate for the fitted model curves.
+            If None, uses the number of raw data points for each linecut.
         vertical_offset : float, default=0
             Amount to vertically offset each linecut for clarity.
         cmap : str, default='viridis'
@@ -729,6 +730,7 @@ class TempDependence:
             ax.plot(lm.x, lm.y + vertical_offset * i, '.', c=colors[i])
 
             # Evaluate the fit
+            numpoints = len(lm.x) if numpoints is None else numpoints
             x_eval = np.linspace(lm.x.min(), lm.x.max(), numpoints)
             y_eval = lm.modelresult.eval(x=x_eval)
             ax.plot(x_eval, y_eval + vertical_offset * i, '-', c=colors[i], label=self.temperatures[i])
