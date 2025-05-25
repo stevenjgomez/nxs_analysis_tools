@@ -101,8 +101,8 @@ class TempDependence:
         Plot the fit results for each temperature.
     overlay_fits(numpoints=1000, vertical_offset=0, cmap='viridis', ax=ax):
         Plot raw data and fitted models for each temperature.
-    fit_peaks_simple():
-        Initialize and fit a model with a pseudo-Voigt peakshape and linear background.
+    fit_peak_simple():
+        Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
     plot_order_parameter():
         Plot the temperature dependence of the peakheight parameter.
     print_fit_report():

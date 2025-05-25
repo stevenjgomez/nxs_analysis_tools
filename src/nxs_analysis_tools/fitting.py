@@ -67,6 +67,8 @@ class LinecutModel:
         Fit the model to the data.
     plot_fit(self, numpoints=None, fit_report=True, **kwargs)
         Plot the fitted model.
+    fit_peak_simple():
+        Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
     print_fit_report(self)
         Print the fit report.
     """
