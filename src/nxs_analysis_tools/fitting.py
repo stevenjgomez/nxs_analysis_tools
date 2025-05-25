@@ -123,11 +123,12 @@ class LinecutModel:
         # If the model is a composite model, then use it as the model
         elif isinstance(model_components, CompositeModel):
             self.model = model_components
+            self.model_components = self.model.components
             # Make params for each component of the model
             self.params = Parameters()
             for component in self.model.components:
                 self.params.update(component.make_params())
-                
+
         # Else, combine the components into a composite model and use that as the model
         else:
             self.model_components = model_components
