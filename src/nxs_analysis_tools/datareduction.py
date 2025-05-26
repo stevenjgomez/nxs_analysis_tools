@@ -408,6 +408,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
             # Use the 2D template to create a new nxdata
             data = array_to_nxdata(arr, data[slice_obj])
+            
+    if data.ndim != 2:
+        raise ValueError("Slice data must be 2D.")
 
     # If the data is of type ndarray, then convert to NXdata
     if is_array:
