@@ -109,12 +109,22 @@ class TempDependence:
         Print the fit report for each temperature.
     """
 
-    def __init__(self):
+    def __init__(self, sample_directory=None):
         """
-        Initialize the TempDependence class with default values.
+        Initialize the TempDependence class.
+
+        Parameters
+        ----------
+        sample_directory : str, optional
+            Path to the directory containing the temperature folders.
+            If None, no directory is set initially.
         """
 
-        self.sample_directory = None
+        if sample_directory is None:
+            self.sample_directory = None
+        else:
+            self.set_sample_directory(sample_directory)
+
         self.xlabel = ''
         self.datasets = {}
         self.temperatures = []
@@ -138,7 +148,7 @@ class TempDependence:
 
     def find_temperatures(self):
         """
-        Set the list of temperatures by automatically scanning the sample directory.
+        Set the list of temperatures by automatically scanning the sample directory for .nxs files from nxrefine.
         """
 
         # Assert that self.sample_directory must exist
