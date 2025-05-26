@@ -3,6 +3,7 @@
 ```{toctree}
 loading_chess_data
 using_plot_slice
+animations
 using_scissors
 fitting_linecuts
 performing_HHL_linecut

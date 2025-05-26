@@ -2,22 +2,27 @@
 Reduces scattering data into 2D and 1D datasets.
 """
 import os
+import io
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.ticker import MultipleLocator
+import matplotlib.animation as animation
 from matplotlib import colors
 from matplotlib import patches
-from IPython.display import display, Markdown
+from IPython.display import display, Markdown, HTML, Image
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy import ndimage
+
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
            'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
-           'rebin_nxdata', 'rebin_3d', 'rebin_1d']
+           'rebin_nxdata', 'rebin_3d', 'rebin_1d', 'animate_slice_temp',
+           'animate_slice_axis']
 
 
 def load_data(path, print_tree=True):
@@ -407,6 +412,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
             # Use the 2D template to create a new nxdata
             data = array_to_nxdata(arr, data[slice_obj])
 
+    if data.ndim != 2:
+        raise ValueError("Slice data must be 2D.")
+
     # If the data is of type ndarray, then convert to NXdata
     if is_array:
         # Convert X to NXfield if it is not already
@@ -599,6 +607,175 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     # Return the quadmesh object
     return p
+
+def animate_slice_temp(temp_dependence, slice_obj, ax=None, interval=500, save_gif=False, filename='animation',
+                       title=True, title_fmt='d', plot_slice_kwargs=None, ax_kwargs=None):
+    """
+    Animate 2D slices from a temperature-dependent dataset.
+
+    Creates a matplotlib animation by extracting 2D slices from each dataset 
+    in a TempDependence object and animating them in sequence by temperature.
+    Optionally displays the animation inline and/or saves it as a GIF.
+
+    Parameters
+    ----------
+    temp_dependence : nxs_analysis_tools.chess.TempDependence
+        Object holding datasets at various temperatures.
+    slice_obj : list of slice or None
+        Slice object to apply to each dataset; None entries are treated as ':'.
+    ax : matplotlib.axes.Axes, optional
+        The axes object to plot on. If None, a new figure and axes will be created.
+    interval : int, optional
+        Delay between frames in milliseconds. Default is 500.
+    save_gif : bool, optional
+        If True, saves the animation to a .gif file. Default is False.
+    filename : str, optional
+        Filename (without extension) for saved .gif. Default is 'animation'.
+    title : bool, optional
+        If True, displays the temperature in the title of each frame. Default is True.
+    title_fmt : str, optional
+        Format string for temperature values (e.g., '.2f' for 2 decimals). Default is 'd' (integer).
+    plot_slice_kwargs : dict, optional
+        Additional keyword arguments passed to `plot_slice`.
+    ax_kwargs : dict, optional
+        Keyword arguments passed to `ax.set`.
+
+    Returns
+    -------
+    ani : matplotlib.animation.FuncAnimation
+        The resulting animation object.
+    """
+    if ax is None:
+        fig,ax = plt.subplots() # Generate a new figure and axis
+    else:
+        fig = ax.figure  # Get the figure from the provided axis
+
+
+    if plot_slice_kwargs is None:
+        plot_slice_kwargs = {}
+    if ax_kwargs is None:
+        ax_kwargs = {}
+
+    # Normalize the slice object
+    normalized_slice = [slice(None) if s is None else s for s in slice_obj]
+
+    # Warn if colorbar is requested
+    if plot_slice_kwargs.get('cbar', False):
+        warnings.warn("Colorbar is not supported in animation and will be ignored.", UserWarning)
+        plot_slice_kwargs['cbar'] = False
+    elif 'cbar' not in plot_slice_kwargs.keys():
+        plot_slice_kwargs['cbar'] = False
+
+    def update(temp):
+        ax.clear()
+        dataset = temp_dependence.datasets[temp]
+        plot_slice(dataset[tuple(normalized_slice)], ax=ax, **plot_slice_kwargs)
+        ax.set(**ax_kwargs)
+
+        if title:
+            try:
+                formatted_temp = f"{int(temp):{title_fmt}}"
+            except ValueError:
+                raise ValueError(f"Invalid title_fmt '{title_fmt}' for temperature value '{temp}'")
+            ax.set(title=f'$T$={formatted_temp}')
+
+    ani = animation.FuncAnimation(fig, update,
+                                  frames=temp_dependence.temperatures,
+                                  interval=interval, repeat=False)
+
+    display(HTML(ani.to_jshtml()))
+
+    if save_gif:
+        gif_file = f'{filename}.gif'
+        writer = animation.PillowWriter(fps=1000 / interval)
+        ani.save(gif_file, writer=writer)
+        with open(gif_file, 'rb') as f:
+            display(Image(f.read(), format='gif'))
+
+    return ani
+
+def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=False, filename='animation', title=True, title_fmt='.2f', plot_slice_kwargs={}, ax_kwargs={}):
+    """
+    Animate 2D slices of a 3D dataset along a given axis.
+
+    Creates a matplotlib animation by sweeping through 2D slices of a 3D 
+    dataset along the specified axis. Optionally displays the animation 
+    inline (e.g., in Jupyter) and/or saves it as a GIF.
+
+    Parameters
+    ----------
+    data : nexusformat.nexus.NXdata
+        The 3D dataset to visualize.
+    axis : int
+        The axis along which to animate (must be 0, 1, or 2).
+    axis_values : iterable
+        The values along the animation axis to use as animation frames.
+    ax : matplotlib.axes.Axes, optional
+        The axes object to plot on. If None, a new figure and axes will be created.
+    interval : int, optional
+        Delay between frames in milliseconds. Default is 500.
+    save_gif : bool, optional
+        If True, saves the animation as a .gif file. Default is False.
+    filename : str, optional
+        Filename (without extension) to use for the saved .gif. Default is 'animation'.
+    title : bool, optional
+        If True, displays the axis value as a title for each frame. Default is True.
+    title_fmt : str, optional
+        Format string for axis value in the title (e.g., '.2f' for 2 decimals). Default is '.2f'.
+    plot_slice_kwargs : dict, optional
+        Additional keyword arguments passed to `plot_slice`.
+    ax_kwargs : dict, optional
+        Keyword arguments passed to `ax.set` to update axis settings.
+
+    Returns
+    -------
+    ani : matplotlib.animation.FuncAnimation
+        The animation object.
+    """
+    if ax is None:
+        fig,ax = plt.subplots() # Generate a new figure and axis
+    else:
+        fig = ax.figure  # Get the figure from the provided axis
+
+    if axis not in [0, 1, 2]:
+        raise ValueError("axis must be either 0, 1, or 2.")
+
+    if plot_slice_kwargs.get('cbar', False):
+        warnings.warn("Colorbar is not supported in animation and will be ignored.", UserWarning)
+        plot_slice_kwargs['cbar'] = False
+    elif 'cbar' not in plot_slice_kwargs.keys():
+        plot_slice_kwargs['cbar'] = False
+
+    
+
+    def update(parameter):
+        ax.clear()
+
+        # Construct slicing object for the selected axis
+        slice_obj = [slice(None)] * 3
+        slice_obj[axis] = parameter
+
+        # Plot the 2D slice
+        plot_slice(data[tuple(slice_obj)], ax=ax, **plot_slice_kwargs)
+        ax.set(**ax_kwargs)
+
+        if title:
+            axis_label = data.axes[axis]
+            ax.set(title=f'${axis_label}$={parameter:{title_fmt}}')
+
+    ani = animation.FuncAnimation(fig, update, frames=axis_values, interval=interval, repeat=False)
+
+    display(HTML(ani.to_jshtml()))
+
+    if save_gif:
+        gif_file = f'{filename}.gif'
+        writergif = animation.PillowWriter(fps=1000/interval)
+        ani.save(gif_file, writer=writergif)
+        display(HTML(ani.to_jshtml()))
+        with open(gif_file, 'rb') as file:
+            display(Image(file.read(), format='gif'))
+
+    return ani
 
 
 class Scissors:
