@@ -103,7 +103,7 @@ class TempDependence:
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
-    plot_order_parameter():
+    plot_order_parameter(ax, **kwargs):
         Plot the temperature dependence of the peakheight parameter.
     print_fit_report():
         Print the fit report for each temperature.
@@ -464,7 +464,7 @@ class TempDependence:
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes, optional
+        ax : :class:`matplotlib.axes.Axes`, optional
             The axes on which to plot the heatmap. If None, a new figure and axes
             are created. The default is None.
         **kwargs
@@ -717,7 +717,7 @@ class TempDependence:
             Amount to vertically offset each linecut for clarity.
         cmap : str, default='viridis'
             Name of the matplotlib colormap used to distinguish different temperatures.
-        ax : matplotlib.axes.Axes or None, default=None
+        ax : :class:`matplotlib.axes.Axes` or None, default=None
             Axis object to plot on. If None, a new figure and axis are created.
 
         The function:
@@ -766,13 +766,21 @@ class TempDependence:
             linecutmodel.guess()
             linecutmodel.fit()
 
-    def plot_order_parameter(self):
+    def plot_order_parameter(self, ax=None, **kwargs):
         """
         Plot the temperature dependence of the peak height (order parameter).
 
         This method extracts the peak height from each temperature-dependent
         line cut fit stored in `linecutmodels` and plots it as a function
         of temperature using matplotlib.
+
+        Parameters
+        ----------
+        ax : :class:`matplotlib.axes.Axes`, optional
+            Axis object to plot on. If None, a new figure and axis are created.
+        **kwargs
+            Keyword arguments to be passed to the plot function.
+
 
         Returns
         -------
@@ -796,11 +804,19 @@ class TempDependence:
 
         # Extract the peakheight at every temperature
         for T in self.temperatures:
+            
+            # Verify that the fit has already been completed
+            if self.linecutmodels[T].modelresult is None:
+                raise AttributeError("Model result is empty. Have you fit the data to a model?")
+            
             peakheights.append(self.linecutmodels[T].modelresult.params['peakheight'].value)
 
         # Plot the peakheights vs. temperature
-        fig, ax = plt.subplots()
-        ax.plot(temperatures, peakheights)
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+        ax.plot(temperatures, peakheights, **kwargs)
         ax.set(xlabel='$T$ (K)', ylabel='peakheight')
         return fig, ax
 
