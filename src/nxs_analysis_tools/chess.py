@@ -804,6 +804,11 @@ class TempDependence:
 
         # Extract the peakheight at every temperature
         for T in self.temperatures:
+            
+            # Verify that the fit has already been completed
+            if self.linecutmodels[T].modelresult is None:
+                raise AttributeError("Model result is empty. Have you fit the data to a model?")
+            
             peakheights.append(self.linecutmodels[T].modelresult.params['peakheight'].value)
 
         # Plot the peakheights vs. temperature
