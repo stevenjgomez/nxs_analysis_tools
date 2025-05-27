@@ -764,7 +764,7 @@ class TempDependence:
                                                 LinearModel(prefix='background')])
             linecutmodel.make_params()
             linecutmodel.guess()
-            linecutmodel.params.set('peakamplitude', min=0)
+            linecutmodel.params['peakamplitude'].set(min=0)
             linecutmodel.fit()
 
     def plot_order_parameter(self, ax=None, **kwargs):
