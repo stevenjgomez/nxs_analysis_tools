@@ -103,7 +103,7 @@ class TempDependence:
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
-    plot_order_parameter():
+    plot_order_parameter(ax, **kwargs):
         Plot the temperature dependence of the peakheight parameter.
     print_fit_report():
         Print the fit report for each temperature.
@@ -766,7 +766,7 @@ class TempDependence:
             linecutmodel.guess()
             linecutmodel.fit()
 
-    def plot_order_parameter(self, ax, **kwargs):
+    def plot_order_parameter(self, ax=None, **kwargs):
         """
         Plot the temperature dependence of the peak height (order parameter).
 
@@ -776,7 +776,7 @@ class TempDependence:
 
         Parameters
         ----------
-        ax : :class:`matplotlib.axes.Axes`
+        ax : :class:`matplotlib.axes.Axes`, optional
             Axis object to plot on. If None, a new figure and axis are created.
         **kwargs
             Keyword arguments to be passed to the plot function.
