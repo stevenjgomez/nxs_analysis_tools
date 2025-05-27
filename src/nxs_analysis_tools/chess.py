@@ -810,7 +810,7 @@ class TempDependence:
         if ax is None:
             fig, ax = plt.subplots()
         else:
-            fig = ax.figure()
+            fig = ax.figure
         ax.plot(temperatures, peakheights, **kwargs)
         ax.set(xlabel='$T$ (K)', ylabel='peakheight')
         return fig, ax
