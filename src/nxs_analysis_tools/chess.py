@@ -99,7 +99,8 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
-    overlay_fits(numpoints=None, vertical_offset=0, cmap='viridis', ax=ax):
+    overlay_fits(numpoints=None, vertical_offset=0, cmap='viridis', ax=ax, 
+                 data_kwargs=None, fit_kwargs=None):
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
