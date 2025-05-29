@@ -398,7 +398,8 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     # If three-dimensional, demand sum_axis to reduce to two dimensions.
     if data.ndim == 3:
-        assert sum_axis is not None, "sum_axis must be specified when data.ndim == 3."
+        if sum_axis is None:
+            raise ValueError("sum_axis must be specified when data.ndim == 3.")
 
         if is_array:
             data = data.sum(axis=sum_axis)

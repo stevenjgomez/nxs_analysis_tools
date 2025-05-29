@@ -400,7 +400,8 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
         """
 
-        assert data is not None, "Symmetrizer3D requires a 3D NXdata object for initialization."
+        if data is None:
+            raise ValueError("Symmetrizer3D requires a 3D NXdata object for initialization.")
 
         self.a, self.b, self.c, self.al, self.be, self.ga = [None] * 6
         self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star = [None] * 6
