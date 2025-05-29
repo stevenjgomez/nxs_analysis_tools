@@ -608,8 +608,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     # Return the quadmesh object
     return p
 
-def animate_slice_temp(temp_dependence, slice_obj, ax=None, interval=500, save_gif=False, filename='animation',
-                       title=True, title_fmt='d', plot_slice_kwargs=None, ax_kwargs=None):
+def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False, interval=500, 
+                       save_gif=False, filename='animation',  title=True, title_fmt='d', 
+                       plot_slice_kwargs=None, ax_kwargs=None):
     """
     Animate 2D slices from a temperature-dependent dataset.
 
@@ -625,6 +626,8 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, interval=500, save_g
         Slice object to apply to each dataset; None entries are treated as ':'.
     ax : matplotlib.axes.Axes, optional
         The axes object to plot on. If None, a new figure and axes will be created.
+    reverse_temps : bool, optional
+        If True, animates datasets with increasing temperature. Default is False.
     interval : int, optional
         Delay between frames in milliseconds. Default is 500.
     save_gif : bool, optional
@@ -679,8 +682,17 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, interval=500, save_g
                 raise ValueError(f"Invalid title_fmt '{title_fmt}' for temperature value '{temp}'")
             ax.set(title=f'$T$={formatted_temp}')
 
+    # Animate frames upon warming
+    if reverse_temps:
+        frames = temp_dependence.temperatures.copy()
+    # Animate frames upon cooling (default)
+    else:
+        frames = temp_dependence.temperatures.copy()
+        frames.reverse()
+        
+
     ani = animation.FuncAnimation(fig, update,
-                                  frames=temp_dependence.temperatures,
+                                  frames=frames,
                                   interval=interval, repeat=False)
 
     display(HTML(ani.to_jshtml()))
