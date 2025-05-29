@@ -6,7 +6,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'nxs-analysis-tools'
-version = '0.1.9'
+version = '0.1.10-alpha'
 description = 'Reduce and transform nexus format (.nxs) scattering data.'
 readme = 'README.md'
 requires-python = '>=3.7'
@@ -71,7 +71,7 @@ dev = [
 'DOI' = 'https://doi.org/10.5281/zenodo.15186359'
 
 [tool.bumpver]
-current_version = "0.1.9"
+current_version = "0.1.10-alpha"
 version_pattern = "MAJOR.MINOR.PATCH[-TAG]"
 tag_pattern = "vMAJOR.MINOR.PATCH[-TAG]"
 commit_message = "Bump version {old_version} -> {new_version}"
