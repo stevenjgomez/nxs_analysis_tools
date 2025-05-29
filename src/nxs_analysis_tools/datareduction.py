@@ -1,5 +1,6 @@
 """
-Reduces scattering data into 2D and 1D datasets.
+Tools for reducing data into 2D and 1D, and visualization functions for plotting and animating 
+data.
 """
 import os
 import io
