@@ -1,7 +1,7 @@
 """
 This module provides classes and functions for analyzing scattering datasets collected at CHESS
-(ID4B) with temperature dependence. It includes functions for loading data, cutting data, and
-plotting linecuts.
+(ID4B) with temperature dependence. It includes functions for loading temperature series and 
+performing operations on all datasets in the series at once (e.g., cutting, fitting). 
 """
 import os
 import re
