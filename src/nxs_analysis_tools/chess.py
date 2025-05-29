@@ -99,7 +99,8 @@ class TempDependence:
         Fit the line cut models for each temperature.
     plot_fit(mdheadings=False, **kwargs):
         Plot the fit results for each temperature.
-    overlay_fits(numpoints=None, vertical_offset=0, cmap='viridis', ax=ax):
+    overlay_fits(numpoints=None, vertical_offset=0, cmap='viridis', ax=ax, 
+                 data_kwargs=None, fit_kwargs=None):
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
@@ -704,7 +705,8 @@ class TempDependence:
                                   title=f"{T} K",
                                   **kwargs)
 
-    def overlay_fits(self, numpoints=None, vertical_offset=0, cmap='viridis', ax=None):
+    def overlay_fits(self, numpoints=None, vertical_offset=0, cmap='viridis', ax=None,
+                     data_kwargs=None, fit_kwargs=None):
         """
         Plot raw data and fitted models for each temperature with optional vertical offsets.
 
@@ -719,6 +721,11 @@ class TempDependence:
             Name of the matplotlib colormap used to distinguish different temperatures.
         ax : :class:`matplotlib.axes.Axes` or None, default=None
             Axis object to plot on. If None, a new figure and axis are created.
+        data_kwargs : dict
+            Keyword arguments to be passed to the data plot function.
+        fit_kwargs : dict
+            Keyword arguments to be passed to the fit plot function.
+
 
         The function:
         - Uses a colormap to assign unique colors to each temperature.
@@ -731,19 +738,24 @@ class TempDependence:
         # Create a figure and axes if an axis is not already provided
         _, ax = plt.subplots() if ax is None else (None, ax)
 
+        if data_kwargs is None:
+            data_kwargs = {}
+        if fit_kwargs is None:
+            fit_kwargs = {}
+
         # Generate a color palette for the various temperatures
         cmap = plt.get_cmap(cmap)
         colors = [cmap(i / len(self.temperatures)) for i, _ in enumerate(self.temperatures)]
 
         for i, lm in enumerate(self.linecutmodels.values()):
             # Plot the raw data
-            ax.plot(lm.x, lm.y + vertical_offset * i, '.', c=colors[i])
+            ax.plot(lm.x, lm.y + vertical_offset * i, '.', c=colors[i], **data_kwargs)
 
             # Evaluate the fit
             numpoints = len(lm.x) if numpoints is None else numpoints
             x_eval = np.linspace(lm.x.min(), lm.x.max(), numpoints)
             y_eval = lm.modelresult.eval(x=x_eval)
-            ax.plot(x_eval, y_eval + vertical_offset * i, '-', c=colors[i], label=self.temperatures[i])
+            ax.plot(x_eval, y_eval + vertical_offset * i, '-', c=colors[i], label=self.temperatures[i], **fit_kwargs)
 
         # Reverse legend entries to match top-to-bottom stacking
         handles, labels = ax.get_legend_handles_labels()
