@@ -438,11 +438,16 @@ class TempDependence:
         # Get the Viridis colormap
         cmap = mpl.colormaps.get_cmap('viridis')
 
+        # Reverse zorder
+        zorder = 0
+
         for i, linecut in enumerate(self.linecuts.values()):
+            
             x_data = linecut[linecut.axes].nxdata
             y_data = linecut[linecut.signal].nxdata + i * vertical_offset
-            ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i],
-                    **kwargs)
+            ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i], 
+                    zorder=zorder, **kwargs)
+            zorder -= 1
 
         ax.set(xlabel=self.xlabel,
                ylabel=self.linecuts[self.temperatures[0]].signal)
