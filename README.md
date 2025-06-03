@@ -27,4 +27,5 @@ git clone https://github.com/stevenjgomez/nxs-analysis-tools.git
 ## License
 
 This project is licensed under the MIT License. If you find the nxs-analysis-tools package useful in your scientific publications, please cite the DOI below.
+
 [![DOI](https://zenodo.org/badge/644189683.svg)](https://doi.org/10.5281/zenodo.15186359)
