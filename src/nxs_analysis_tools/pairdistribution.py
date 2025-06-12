@@ -354,7 +354,6 @@ class Symmetrizer2D:
         >>> s = Symmetrizer2D()
         >>> s.set_parameters(theta_min, theta_max, skew_angle, mirror)
         >>> s.test(data)
-        ```
         """
         s = self
         symm_test = s.symmetrize_2d(data)
