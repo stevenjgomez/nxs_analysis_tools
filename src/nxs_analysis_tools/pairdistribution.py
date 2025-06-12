@@ -349,11 +349,11 @@ class Symmetrizer2D:
         - Subplot 3: The wedge slice used for reconstruction of the full symmetrized dataset.
         - Subplot 4: The symmetrized dataset.
 
-        Example usage:
-        ```
-        s = Symmetrizer2D()
-        s.set_parameters(theta_min, theta_max, skew_angle, mirror)
-        s.test(data)
+        Example
+        -------
+        >>> s = Symmetrizer2D()
+        >>> s.set_parameters(theta_min, theta_max, skew_angle, mirror)
+        >>> s.test(data)
         ```
         """
         s = self
