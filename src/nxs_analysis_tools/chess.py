@@ -59,10 +59,11 @@ class TempDependence:
         Initialize Scissors and LinecutModel objects for each temperature.
     set_data(temperature, data):
         Set the dataset for a specific temperature.
-    load_transforms(temperatures_list=None, print_tree=True):
+    load_transforms(temperatures_list=None, exclude_temperatures=None, print_tree=True):
         Load transform datasets (from nxrefine) based on temperature.
-    load_datasets(file_ending='hkli.nxs', temperatures_list=None, print_tree=True):
-        Load datasets (CHESS format) from the specified folder.
+    load_datasets(file_ending='hkli.nxs', temperatures_list=None, exclude_temperatures=None, 
+                  print_tree=True):
+        Load datasets (legacy CHESS format) from the specified folder.
     get_sample_directory():
         Get the folder path where the datasets are located.
     clear_datasets():
@@ -189,6 +190,8 @@ class TempDependence:
         """
         for temperature in self.temperatures:
             self.scissors[temperature] = Scissors()
+            if temperature in self.datasets.keys():
+                self.scissors[temperature].set_data(self.datasets[temperature])
             self.linecutmodels[temperature] = LinecutModel()
 
     def set_data(self, temperature, data):
@@ -204,7 +207,7 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures_list=None, print_tree=True, use_nxlink=False):
+    def load_transforms(self, temperatures_list=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
         """
         Load transform datasets (from nxrefine) based on temperature.
 
@@ -224,6 +227,8 @@ class TempDependence:
         # Convert all temperatures to strings
         if temperatures_list:
             temperatures_list = [str(t) for t in temperatures_list]
+        if exclude_temperatures:
+            exclude_temperatures = [str(t) for t in exclude_temperatures]
 
         # Clear existing temperatures before loading files
         self.temperatures = []
@@ -238,7 +243,7 @@ class TempDependence:
                 # Identify temperature
                 temperature = match.group(1)
                 # print(f'Temperature = {temperature}')
-                if (temperatures_list is None) or (temperature in temperatures_list):
+                if ((temperatures_list is None) or (temperature in temperatures_list)) and (temperature not in exclude_temperatures):
                     # Prepare file to be loaded
                     self.temperatures.append(temperature)
                     items_to_load.append(item)
@@ -270,40 +275,38 @@ class TempDependence:
                       f" Error: {e}")
                 raise  # Re-raise the exception
 
-            # Initialize scissors object
-            self.scissors[self.temperatures[i]] = Scissors()
-            self.scissors[self.temperatures[i]].set_data(self.datasets[self.temperatures[i]])
+        self.initialize()
 
-            # Initialize linecutmodel object
-            self.linecutmodels[self.temperatures[i]] = LinecutModel()
-
-    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None, print_tree=True):
+    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None, exclude_temperatures=None, print_tree=True):
         """
         Load datasets (CHESS format) from the specified folder.
 
         Parameters
         ----------
         file_ending : str, optional
-            The file extension of the datasets to be loaded. The default is 'hkli.nxs'.
-        temperatures_list : list of int or None, optional
-            The list of specific temperatures to load. If None, all available temperatures are
-            loaded. The default is None.
+            File extension of datasets to load. Default is 'hkli.nxs'.
+        temperatures_list : list of int or str, optional
+            Specific temperatures to load. If None, all temperatures are loaded.
+        exclude_temperatures : list of int or str, optional
+            Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
         print_tree : bool, optional
-            Whether to print the data tree upon loading. Default True.
+            If True, prints the NeXus tree structure for each file. Default is True.
         """
-        temperature_folders = []  # Empty list to store temperature folder names
-        for item in os.listdir(self.sample_directory):
-            try:
-                temperature_folders.append(int(item))  # If folder name can be int, add it
-            except ValueError:
-                pass  # Otherwise don't add it
-        temperature_folders.sort()  # Sort from low to high T
-        temperature_folders = [str(i) for i in temperature_folders]  # Convert to strings
-
-        self.temperatures = temperature_folders
 
         if temperatures_list is not None:
             self.temperatures = [str(t) for t in temperatures_list]
+        else:
+            self.temperatures = []  # Empty list to store temperature folder names
+            for item in os.listdir(self.sample_directory):
+                try:
+                    self.temperatures.append(int(item))  # If folder name can be int, add it
+                except ValueError:
+                    pass  # Otherwise don't add it
+            self.temperatures.sort()  # Sort from low to high T
+            self.temperatures = [str(i) for i in self.temperatures]  # Convert to strings
+            
+        if exclude_temperatures is not None:
+            [self.temperatures.remove(str(t)) for t in exclude_temperatures]
 
         # Load .nxs files
         for T in self.temperatures:
@@ -314,12 +317,7 @@ class TempDependence:
                     # Load dataset at each temperature
                     self.datasets[T] = load_data(filepath, print_tree)
 
-                    # Initialize scissors object at each temperature
-                    self.scissors[T] = Scissors()
-                    self.scissors[T].set_data(self.datasets[T])
-
-                    # Initialize linecutmodel object at each temperature
-                    self.linecutmodels[T] = LinecutModel()
+        self.initialize()
 
     def get_sample_directory(self):
         """
