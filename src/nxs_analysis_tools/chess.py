@@ -784,18 +784,19 @@ class TempDependence:
             linecutmodel.params['peakamplitude'].set(min=0)
             linecutmodel.fit()
 
-    def plot_order_parameter(self, ax=None, **kwargs):
+    def plot_order_parameter(self, param_name='peakheight', ax=None, **kwargs):
         """
         Plot the temperature dependence of the peak height (order parameter).
 
-        This method extracts the peak height from each temperature-dependent
-        line cut fit stored in `linecutmodels` and plots it as a function
-        of temperature using matplotlib.
+        This method extracts the values of a chosen parameter from each temperature-dependent
+        line cut fit stored in `linecutmodels` and plots it as a function of temperature.
 
         Parameters
         ----------
         ax : :class:`matplotlib.axes.Axes`, optional
             Axis object to plot on. If None, a new figure and axis are created.
+        param_name : str, optional
+            The name of the lmfit parameter to extract. Default is 'peakheight'.
         **kwargs
             Keyword arguments to be passed to the plot function.
 
@@ -827,7 +828,7 @@ class TempDependence:
             if self.linecutmodels[T].modelresult is None:
                 raise AttributeError("Model result is empty. Have you fit the data to a model?")
             
-            peakheights.append(self.linecutmodels[T].modelresult.params['peakheight'].value)
+            peakheights.append(self.linecutmodels[T].modelresult.params[param_name].value)
 
         # Plot the peakheights vs. temperature
         if ax is None:
@@ -835,7 +836,7 @@ class TempDependence:
         else:
             fig = ax.figure
         ax.plot(temperatures, peakheights, **kwargs)
-        ax.set(xlabel='$T$ (K)', ylabel='peakheight')
+        ax.set(xlabel='$T$ (K)', ylabel=param_name)
         return fig, ax
 
     def print_fit_report(self):
