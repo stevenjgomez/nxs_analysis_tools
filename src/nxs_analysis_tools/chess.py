@@ -104,7 +104,7 @@ class TempDependence:
         Plot raw data and fitted models for each temperature.
     fit_peak_simple():
         Perform a basic fit using a pseudo-Voigt peak shape, linear background, and no constraints.
-    plot_order_parameter(ax, **kwargs):
+    plot_order_parameter(ax, param_name='peakheight', **kwargs):
         Plot the temperature dependence of the peakheight parameter.
     print_fit_report():
         Print the fit report for each temperature.
