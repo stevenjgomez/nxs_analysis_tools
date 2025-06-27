@@ -215,6 +215,9 @@ class TempDependence:
         ----------
         temperatures_list : list of int or None, optional
             List of temperatures to load. If None, all available temperatures are loaded.
+
+        exclude_temperatures : int, str, optional
+            Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
         
         print_tree : bool, optional
             Whether to print the data tree upon loading. Default True.
@@ -228,7 +231,9 @@ class TempDependence:
         if temperatures_list:
             temperatures_list = [str(t) for t in temperatures_list]
         if exclude_temperatures:
-            exclude_temperatures = [str(t) for t in exclude_temperatures]
+            if isinstance(exclude_temperatures, str):
+                exclude_temperatures = [exclude_temperatures]
+            exclude_temperatures = [str(t) for t in list(exclude_temperatures)]
 
         # Clear existing temperatures before loading files
         self.temperatures = []
@@ -243,7 +248,15 @@ class TempDependence:
                 # Identify temperature
                 temperature = match.group(1)
                 # print(f'Temperature = {temperature}')
-                if ((temperatures_list is None) or (temperature in temperatures_list)) and (temperature not in exclude_temperatures):
+                if temperatures_list is not None:
+                    incl_temp = temperature in temperatures_list
+                else:
+                    incl_temp = True
+                if exclude_temperatures is not None:
+                    not_excl_temp = temperature not in exclude_temperatures
+                else:
+                    not_excl_temp = True
+                if incl_temp and not_excl_temp:
                     # Prepare file to be loaded
                     self.temperatures.append(temperature)
                     items_to_load.append(item)
