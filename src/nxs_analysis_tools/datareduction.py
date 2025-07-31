@@ -1313,7 +1313,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
                                                   order=0,
                                                   )
         # Scale data based on ratio of array dimensions
-        scale2 = counts.shape[0] / counts.shape[1]
+        scale2 = 1 # counts.shape[0] / counts.shape[1]
         counts_scaled2 = ndimage.affine_transform(counts_scaled1,
                                                   Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
                                                   offset=[(1 - scale2) * counts.shape[0] / 2, 0],
@@ -1416,7 +1416,7 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
                                               order=0,
                                               )
     # Scale data based on ratio of array dimensions
-    scale2 = counts.shape[0] / counts.shape[1]
+    scale2 = 1 # counts.shape[0] / counts.shape[1]
     counts_scaled2 = ndimage.affine_transform(counts_scaled1,
                                               Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
                                               offset=[(1 - scale2) * counts.shape[0] / 2, 0],
