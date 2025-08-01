@@ -8,7 +8,6 @@ class Symmetrizer2D:
     symmetrization_mask: NXdata
     mirror_axis: Incomplete
     symmetrized: Incomplete
-    wedges: Incomplete
     rotations: Incomplete
     transform: Incomplete
     mirror: Incomplete
@@ -17,6 +16,8 @@ class Symmetrizer2D:
     theta_min: Incomplete
     wedge: Incomplete
     def __init__(self, **kwargs) -> None: ...
+    transformer: Incomplete
+    t: Incomplete
     def set_parameters(self, theta_min, theta_max, lattice_angle: int = 90, mirror: bool = True, mirror_axis: int = 0) -> None: ...
     def symmetrize_2d(self, data): ...
     def test(self, data, **kwargs): ...
