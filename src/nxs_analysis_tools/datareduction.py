@@ -505,17 +505,8 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     p = ax.pcolormesh(X.nxdata, Y.nxdata, data_arr, shading='auto', norm=norm, cmap=cmap, **kwargs)
 
     ## Transform data to new coordinate system if necessary
-    # Correct skew angle
-    skew_angle_adj = 90 - skew_angle
-    # Create blank 2D affine transformation
-    t = Affine2D()
-    # Scale y-axis to preserve norm while shearing
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
-    # Shear along x-axis
-    t += Affine2D().skew_deg(skew_angle_adj, 0)
-    # Return to original y-axis scaling
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
-    ## Correct for x-displacement after shearing
+    t = ShearTransformer(skew_angle)
+
     # If ylims provided, use those
     if ylim is not None:
         # Set ylims
@@ -525,8 +516,8 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     else:
         ymin, ymax = ax.get_ylim()
     # Use ylims to calculate translation (necessary to display axes in correct position)
-    p.set_transform(t
-                    + Affine2D().translate(-ymin * np.sin(skew_angle_adj * np.pi / 180), 0)
+    p.set_transform(t.t
+                    + Affine2D().translate(-ymin * np.sin(t.shear_angle * np.pi / 180), 0)
                     + ax.transData)
 
     # Set x limits
@@ -535,12 +526,12 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     else:
         xmin, xmax = ax.get_xlim()
     if skew_angle <= 90:
-        ax.set(xlim=(xmin, xmax + (ymax - ymin) / np.tan((90 - skew_angle_adj) * np.pi / 180)))
+        ax.set(xlim=(xmin, xmax + (ymax - ymin) / np.tan((90 - t.shear_angle) * np.pi / 180)))
     else:
-        ax.set(xlim=(xmin - (ymax - ymin) / np.tan((skew_angle_adj - 90) * np.pi / 180), xmax))
+        ax.set(xlim=(xmin - (ymax - ymin) / np.tan((t.shear_angle - 90) * np.pi / 180), xmax))
 
     # Correct aspect ratio for the x/y axes after transformation
-    ax.set(aspect=np.cos(skew_angle_adj * np.pi / 180))
+    ax.set(aspect=np.cos(t.shear_angle * np.pi / 180))
 
 
     # Automatically set tick locations, only if NXdata or if X,Y axes are provided for an array
@@ -572,7 +563,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         line = ax.xaxis.get_majorticklines()[i]
         if i % 2:
             # Top ticks (translation here makes their direction="in")
-            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle_adj, 0))
+            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(t.shear_angle, 0))
             # This first method shifts the top ticks horizontally to match the skew angle.
             # This does not look good in all cases.
             # line.set_transform(Affine2D().translate((ymax-ymin)*np.sin(skew_angle*np.pi/180),0) +
@@ -582,7 +573,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
             line.set_transform(line.get_transform())  # This does nothing
         else:
             # Bottom ticks
-            m._transform.set(Affine2D().skew_deg(skew_angle_adj, 0))
+            m._transform.set(Affine2D().skew_deg(t.shear_angle, 0))
 
         line.set_marker(m)
 
@@ -590,9 +581,9 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         m = MarkerStyle(2)
         line = ax.xaxis.get_minorticklines()[i]
         if i % 2:
-            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(skew_angle_adj, 0))
+            m._transform.set(Affine2D().translate(0, -1) + Affine2D().skew_deg(t.shear_angle, 0))
         else:
-            m._transform.set(Affine2D().skew_deg(skew_angle_adj, 0))
+            m._transform.set(Affine2D().skew_deg(t.shear_angle, 0))
 
         line.set_marker(m)
 
