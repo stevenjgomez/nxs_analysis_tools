@@ -38,9 +38,6 @@ class Symmetrizer2D:
     symmetrized : NXdata or None
         The symmetrized dataset after applying the symmetrization operations.
         Default is None until symmetrization is performed.
-    wedges : NXdata or None
-        The wedges extracted from the dataset based on the angular limits.
-        Default is None until symmetrization is performed.
     rotations : int or None
         The number of rotations needed to reconstruct the full dataset from
         a single wedge. Default is None until parameters are set.
@@ -94,7 +91,6 @@ class Symmetrizer2D:
         """
         self.mirror_axis = None
         self.symmetrized = None
-        self.wedges = None
         self.rotations = None
         self.transform = None
         self.mirror = None
@@ -141,8 +137,6 @@ class Symmetrizer2D:
         self.rotations = rotations
 
         self.symmetrization_mask = None
-
-        self.wedges = None
 
         self.symmetrized = None
 
