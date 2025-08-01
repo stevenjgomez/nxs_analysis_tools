@@ -22,7 +22,7 @@ from .geometry import ShearTransformer
 
 # Specify items on which users are allowed to perform standalone imports
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
-           'reciprocal_lattice_params', 'rotate_data', 'rotate_data_2D',
+           'reciprocal_lattice_params', 'rotate_data',
            'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
            'rebin_nxdata', 'rebin_3d', 'rebin_1d', 'animate_slice_temp',
            'animate_slice_axis']
@@ -1315,8 +1315,12 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
     return NXdata(NXfield(output_array, name=p.padded.signal),
                   ([axis for axis in data.nxaxes]))
 
+
+
 def rotate_data_2D(data, lattice_angle, rotation_angle):
     """
+    DEPRECATED: Use `rotate_data` instead.
+
     Rotates 2D data.
 
     Parameters
@@ -1328,34 +1332,20 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
     rotation_angle : float
         Angle of rotation in degrees.
 
-
     Returns
     -------
     rotated_data : :class:`nexusformat.nexus.NXdata`
         Rotated data as an NXdata object.
     """
+    warnings.warn(
+        "rotate_data_2D is deprecated and will be removed in a future release. "
+        "Use rotate_data instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
-    # Add padding to avoid data cutoff during rotation
-    p = Padder(data)
-    padding = tuple(len(data[axis]) for axis in data.axes)
-    counts = p.pad(padding)
-    counts = p.padded[p.padded.signal]
-
-    # Skew data to match lattice angle
-    t = ShearTransformer(lattice_angle)
-    counts = t.apply(counts)
-    
-    # Perform rotation
-    counts = rotate(counts, rotation_angle, reshape=False, order=0)
-
-    # Undo skew transformation
-    counts = t.invert(counts)
-
-    # Remove padding
-    counts = p.unpad(counts)
-
-    return NXdata(NXfield(counts, name=p.padded.signal),
-                  (data.nxaxes[0], data.nxaxes[1]))
+    # Call the new general function
+    return rotate_data(data, lattice_angle=lattice_angle, rotation_angle=rotation_angle)
 
 
 class Padder:
