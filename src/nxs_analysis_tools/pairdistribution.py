@@ -15,6 +15,7 @@ from astropy.convolution import Kernel, convolve_fft
 import pyfftw
 from .datareduction import plot_slice, reciprocal_lattice_params, Padder, \
     array_to_nxdata
+from .geometry import ShearTransformer
 
 __all__ = ['Symmetrizer2D', 'Symmetrizer3D', 'Puncher', 'Interpolator',
            'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
@@ -129,16 +130,8 @@ class Symmetrizer2D:
         self.mirror = mirror
         self.mirror_axis = mirror_axis
 
-        # Define Transformation
-        skew_angle_adj = 90 - lattice_angle
-        t = Affine2D()
-        # Scale y-axis to preserve norm while shearing
-        t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
-        # Shear along x-axis
-        t += Affine2D().skew_deg(skew_angle_adj, 0)
-        # Return to original y-axis scaling
-        t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
-        self.transform = t
+        self.transformer = ShearTransformer(lattice_angle)
+        self.t = self.transformer.t
 
         # Calculate number of rotations needed to reconstruct the dataset
         if mirror:
@@ -191,37 +184,8 @@ class Symmetrizer2D:
         symmetrization_mask = np.logical_and(theta >= theta_min * np.pi / 180,
                                              theta <= theta_max * np.pi / 180)
 
-        # Define signal to be transformed
-        counts = symmetrization_mask
-
-        # Scale and skew counts
-        skew_angle_adj = 90 - self.skew_angle
-
-        scale2 = 1 # q1.max()/q2.max() # TODO: Need to double check this
-        counts_unscaled2 = ndimage.affine_transform(counts,
-                                                    Affine2D().scale(scale2, 1).inverted().get_matrix()[:2, :2],
-                                                    offset=[-(1 - scale2) * counts.shape[
-                                                        0] / 2 / scale2, 0],
-                                                    order=0,
-                                                    )
-
-        scale1 = np.cos(skew_angle_adj * np.pi / 180)
-        counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                    Affine2D().scale(scale1, 1).inverted().get_matrix()[:2, :2],
-                                                    offset=[-(1 - scale1) * counts.shape[
-                                                        0] / 2 / scale1, 0],
-                                                    order=0,
-                                                    )
-
-        mask = ndimage.affine_transform(counts_unscaled1,
-                                        t.get_matrix()[:2, :2],
-                                        offset=[-counts.shape[0] / 2
-                                                * np.sin(skew_angle_adj * np.pi / 180), 0],
-                                        order=0,
-                                        )
-
-        # Convert mask to nxdata
-        mask = array_to_nxdata(mask, data_padded)
+        # Bring mask from skewed basis to data array basis
+        mask = array_to_nxdata(self.transformer.invert(symmetrization_mask), data_padded)
 
         # Save mask for user interaction
         self.symmetrization_mask = p.unpad(mask)
@@ -235,84 +199,30 @@ class Symmetrizer2D:
         # Convert wedge back to array for further transformations
         wedge = wedge[data.signal].nxdata
 
-        # Define signal to be transformed
-        counts = wedge
-
-        # Scale and skew counts
-        skew_angle_adj = 90 - self.skew_angle
-        counts_skew = ndimage.affine_transform(counts,
-                                               t.inverted().get_matrix()[:2, :2],
-                                               offset=[counts.shape[0] / 2
-                                                       * np.sin(skew_angle_adj * np.pi / 180), 0],
-                                               order=0,
-                                               )
-        scale1 = np.cos(skew_angle_adj * np.pi / 180)
-        wedge = ndimage.affine_transform(counts_skew,
-                                         Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
-                                         offset=[(1 - scale1) * counts.shape[0] / 2, 0],
-                                         order=0,
-                                         )
-
-        scale2 = counts.shape[0]/counts.shape[1]
-        wedge = ndimage.affine_transform(wedge,
-                                         Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
-                                         offset=[(1 - scale2) * counts.shape[0] / 2, 0],
-                                         order=0,
-                                         )
+        # Bring wedge from data array basis to skewed basis for reconstruction
+        wedge = self.transformer.apply(wedge)
 
         # Reconstruct full dataset from wedge
-        reconstructed = np.zeros(counts.shape)
-        for _ in range(0, rotations):
-            # The following are attempts to combine images with minimal overlapping pixels
-            reconstructed += wedge
-            # reconstructed = np.where(reconstructed == 0, reconstructed + wedge, reconstructed)
+        reconstructed = np.zeros(wedge.shape)
 
+        for _ in range(0, rotations):
+            reconstructed += wedge
             wedge = ndimage.rotate(wedge, 360 / rotations, reshape=False, order=0)
 
-        # self.rotated_only = NXdata(NXfield(reconstructed, name=data.signal),
-        #                            (q1, q2))
-
         if mirror:
-            # The following are attempts to combine images with minimal overlapping pixels
             reconstructed = np.where(reconstructed == 0,
                                      reconstructed + np.flip(reconstructed, axis=mirror_axis),
                                      reconstructed)
-            # reconstructed += np.flip(reconstructed, axis=0)
 
-        # self.rotated_and_mirrored = NXdata(NXfield(reconstructed, name=data.signal),
-        #                                    (q1, q2))
+        reconstructed = self.transformer.invert(reconstructed)
 
-        reconstructed = ndimage.affine_transform(reconstructed,
-                                                 Affine2D().scale(
-                                                     scale2, 1
-                                                 ).inverted().get_matrix()[:2, :2],
-                                                 offset=[-(1 - scale2) * counts.shape[
-                                                     0] / 2 / scale2, 0],
-                                                 order=0,
-                                                 )
-        reconstructed = ndimage.affine_transform(reconstructed,
-                                                 Affine2D().scale(
-                                                     scale1, 1
-                                                 ).inverted().get_matrix()[:2, :2],
-                                                 offset=[-(1 - scale1) * counts.shape[
-                                                     0] / 2 / scale1, 0],
-                                                 order=0,
-                                                 )
-        reconstructed = ndimage.affine_transform(reconstructed,
-                                                 t.get_matrix()[:2, :2],
-                                                 offset=[(-counts.shape[0] / 2
-                                                          * np.sin(skew_angle_adj * np.pi / 180)),
-                                                         0],
-                                                 order=0,
-                                                 )
-
-        reconstructed_unpadded = p.unpad(reconstructed)
+        reconstructed = p.unpad(reconstructed)
 
         # Fix any overlapping pixels by truncating counts to max
-        reconstructed_unpadded[reconstructed_unpadded > data[data.signal].nxdata.max()] \
+        reconstructed[reconstructed > data[data.signal].nxdata.max()] \
             = data[data.signal].nxdata.max()
 
-        symmetrized = NXdata(NXfield(reconstructed_unpadded, name=data.signal),
+        symmetrized = NXdata(NXfield(reconstructed, name=data.signal),
                              (data[data.axes[0]],
                               data[data.axes[1]]))
 
