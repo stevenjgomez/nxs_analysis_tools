@@ -5,7 +5,7 @@ import time
 import os
 import gc
 import math
-from scipy import ndimage
+from scipy.ndimage import rotate, affine_transform
 import scipy
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
@@ -127,7 +127,7 @@ class Symmetrizer2D:
         self.mirror_axis = mirror_axis
 
         self.transformer = ShearTransformer(lattice_angle)
-        self.t = self.transformer.t
+        self.transform = self.transformer.t
 
         # Calculate number of rotations needed to reconstruct the dataset
         if mirror:
@@ -137,6 +137,8 @@ class Symmetrizer2D:
         self.rotations = rotations
 
         self.symmetrization_mask = None
+
+        self.wedges = None
 
         self.symmetrized = None
 
@@ -159,7 +161,6 @@ class Symmetrizer2D:
         theta_max = self.theta_max
         mirror = self.mirror
         mirror_axis = self.mirror_axis
-        t = self.transform
         rotations = self.rotations
 
         # Pad the dataset so that rotations don't get cutoff if they extend
@@ -181,6 +182,7 @@ class Symmetrizer2D:
         # Bring mask from skewed basis to data array basis
         mask = array_to_nxdata(self.transformer.invert(symmetrization_mask), data_padded)
 
+
         # Save mask for user interaction
         self.symmetrization_mask = p.unpad(mask)
 
@@ -196,18 +198,37 @@ class Symmetrizer2D:
         # Bring wedge from data array basis to skewed basis for reconstruction
         wedge = self.transformer.apply(wedge)
 
+        # Apply additional scaling before rotations
+        scale = wedge.shape[0]/wedge.shape[1]
+        wedge = affine_transform(wedge,
+                                         Affine2D().scale(scale, 1).get_matrix()[:2, :2],
+                                         offset=[(1 - scale) * wedge.shape[0] / 2, 0],
+                                         order=0,
+                                         )
+
         # Reconstruct full dataset from wedge
         reconstructed = np.zeros(wedge.shape)
 
         for _ in range(0, rotations):
             reconstructed += wedge
-            wedge = ndimage.rotate(wedge, 360 / rotations, reshape=False, order=0)
+            wedge = rotate(wedge, 360 / rotations, reshape=False, order=0)
 
         if mirror:
             reconstructed = np.where(reconstructed == 0,
                                      reconstructed + np.flip(reconstructed, axis=mirror_axis),
                                      reconstructed)
+            
 
+        # Undo scaling transformation
+        reconstructed = affine_transform(reconstructed,
+                                                 Affine2D().scale(
+                                                     scale, 1
+                                                 ).inverted().get_matrix()[:2, :2],
+                                                 offset=[-(1 - scale) * wedge.shape[
+                                                     0] / 2 / scale, 0],
+                                                 order=0,
+                                                 )
+        
         reconstructed = self.transformer.invert(reconstructed)
 
         reconstructed = p.unpad(reconstructed)
