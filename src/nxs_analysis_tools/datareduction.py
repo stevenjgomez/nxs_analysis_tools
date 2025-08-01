@@ -1227,9 +1227,9 @@ def convert_to_inverse_angstroms(data, lattice_params):
     return NXdata(new_data, (a_star, b_star, c_star))
 
 
-def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=False):
+def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printout=False):
     """
-    Rotates 3D data around a specified axis.
+    Rotates slices of data around the normal axis.
 
     Parameters
     ----------
@@ -1239,13 +1239,12 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         Angle between the two in-plane lattice axes in degrees.
     rotation_angle : float
         Angle of rotation in degrees.
-    rotation_axis : int
-        Axis of rotation (0, 1, or 2).
+    rotation_axis : int, optional
+        Axis of rotation (0, 1, or 2). Only necessary when data is three-dimensional.
     printout : bool, optional
-        Enables printout of rotation progress. If set to True, information
-        about each rotation slice will be printed to the console, indicating
-        the axis being rotated and the corresponding coordinate value.
-        Defaults to False.
+        Enables printout of rotation progress for three-dimensional data. If set to True,
+        information about each rotation slice will be printed to the console, indicating
+        the axis being rotated and the corresponding coordinate value. Defaults to False.
 
 
     Returns
@@ -1253,18 +1252,36 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
     rotated_data : :class:`nexusformat.nexus.NXdata`
         Rotated data as an NXdata object.
     """
+
+    if data.ndim == 3 and rotation_axis is None:
+        raise ValueError('rotation_axis must be specified for three-dimensional datasets.')
+    
+    if not((data.ndim == 2) or (data.ndim == 3)):
+        raise ValueError('Data must be 2 or 3 dimensional.')
+    
     # Define output array
     output_array = np.zeros(data.nxsignal.shape)
 
     # Iterate over all layers perpendicular to the rotation axis
-    for i,_ in enumerate(data.nxaxes[rotation_axis]):
-        # Print progress
-        if printout:
-            print(f'\rRotating {data.axes[rotation_axis]}'
-                  f'={data.nxaxes[rotation_axis][i]}...                      ',
-                  end='', flush=True)
-
-        sliced_data = np.take(data, indices=i, axis=rotation_axis)
+    if data.ndim == 3:
+        num_slices = len(data.nxaxes[rotation_axis])
+    elif data.ndim == 2:
+        num_slices = 1
+    
+    for i in range(num_slices):
+        
+        if data.ndim == 3:
+            # Print progress
+            if printout:
+                print(f'\rRotating {data.axes[rotation_axis]}'
+                f'={data.nxaxes[rotation_axis][i]}...                      ',
+                end='', flush=True)
+            index = [slice(None)] * 3
+            index[rotation_axis] = i
+            sliced_data = data[tuple(index)]
+            
+        elif data.ndim == 2:
+            sliced_data = data
 
         # Add padding to avoid data cutoff during rotation
         p = Padder(sliced_data)
@@ -1286,13 +1303,17 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         counts = p.unpad(counts)
 
         # Write slice
-        np.moveaxis(output_array, rotation_axis, 0)[i] = counts
+        if data.ndim == 3:
+            index = [slice(None)] * 3
+            index[rotation_axis] = i
+            output_array[tuple(index)] = counts
+        elif data.ndim == 2:
+            output_array = counts
 
     print('\nRotation completed.')
 
     return NXdata(NXfield(output_array, name=p.padded.signal),
-                  (data.nxaxes[0], data.nxaxes[1], data.nxaxes[2]))
-
+                  ([axis for axis in data.nxaxes]))
 
 def rotate_data_2D(data, lattice_angle, rotation_angle):
     """
