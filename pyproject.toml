@@ -61,6 +61,7 @@ dev = [
     'sphinx-copybutton >= 0.5.0',
     'sphinxext-opengraph >= 0.6.3',
     'twine >= 4.0.1',
+    'pooch >= 1.8.2',
 ]
 
 [project.urls]

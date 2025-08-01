@@ -775,7 +775,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
 
         if title:
             axis_label = data.axes[axis]
-            ax.set(title=f'${axis_label}$={parameter:{title_fmt}}')
+            ax.set(title=f'{axis_label}={parameter:{title_fmt}}')
 
     ani = animation.FuncAnimation(fig, update, frames=axis_values, interval=interval, repeat=False)
 
