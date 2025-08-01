@@ -15,7 +15,9 @@ from matplotlib import colors
 from matplotlib import patches
 from IPython.display import display, Markdown, HTML, Image
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
-from scipy import ndimage
+from scipy.ndimage import rotate
+
+from .geometry import ShearTransformer
 
 
 # Specify items on which users are allowed to perform standalone imports
@@ -1263,33 +1265,15 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
     # Define output array
     output_array = np.zeros(data.nxsignal.shape)
 
-    # Define shear transformation
-    skew_angle_adj = 90 - lattice_angle
-    t = Affine2D()
-    # Scale y-axis to preserve norm while shearing
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
-    # Shear along x-axis
-    t += Affine2D().skew_deg(skew_angle_adj, 0)
-    # Return to original y-axis scaling
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
-
     # Iterate over all layers perpendicular to the rotation axis
-    for i in range(len(data[data.axes[rotation_axis]])):
+    for i,_ in enumerate(data.nxaxes[rotation_axis]):
         # Print progress
         if printout:
             print(f'\rRotating {data.axes[rotation_axis]}'
-                  f'={data[data.axes[rotation_axis]][i]}...                      ',
+                  f'={data.nxaxes[rotation_axis][i]}...                      ',
                   end='', flush=True)
 
-        # Identify current slice
-        if rotation_axis == 0:
-            sliced_data = data[i, :, :]
-        elif rotation_axis == 1:
-            sliced_data = data[:, i, :]
-        elif rotation_axis == 2:
-            sliced_data = data[:, :, i]
-        else:
-            sliced_data = None
+        sliced_data = np.take(data, indices=i, axis=rotation_axis)
 
         # Add padding to avoid data cutoff during rotation
         p = Padder(sliced_data)
@@ -1297,70 +1281,24 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis, printout=Fal
         counts = p.pad(padding)
         counts = p.padded[p.padded.signal]
 
-        # Perform shear operation
-        counts_skewed = ndimage.affine_transform(counts,
-                                                 t.inverted().get_matrix()[:2, :2],
-                                                 offset=[counts.shape[0] / 2
-                                                         * np.sin(skew_angle_adj * np.pi / 180),
-                                                         0],
-                                                 order=0,
-                                                 )
-        # Scale data based on skew angle
-        scale1 = np.cos(skew_angle_adj * np.pi / 180)
-        counts_scaled1 = ndimage.affine_transform(counts_skewed,
-                                                  Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
-                                                  offset=[(1 - scale1) * counts.shape[0] / 2, 0],
-                                                  order=0,
-                                                  )
-        # Scale data based on ratio of array dimensions
-        scale2 = 1 # counts.shape[0] / counts.shape[1]
-        counts_scaled2 = ndimage.affine_transform(counts_scaled1,
-                                                  Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
-                                                  offset=[(1 - scale2) * counts.shape[0] / 2, 0],
-                                                  order=0,
-                                                  )
+        # Skew data to match lattice angle
+        t = ShearTransformer(lattice_angle)
+        counts = t.apply(counts)
 
         # Perform rotation
-        counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
+        counts = rotate(counts, rotation_angle, reshape=False, order=0)
 
-        # Undo scaling 2
-        counts_unscaled2 = ndimage.affine_transform(counts_rotated,
-                                                    Affine2D().scale(
-                                                        scale2, 1
-                                                    ).inverted().get_matrix()[:2, :2],
-                                                    offset=[-(1 - scale2) * counts.shape[
-                                                        0] / 2 / scale2, 0],
-                                                    order=0,
-                                                    )
-        # Undo scaling 1
-        counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                    Affine2D().scale(
-                                                        scale1, 1
-                                                    ).inverted().get_matrix()[:2, :2],
-                                                    offset=[-(1 - scale1) * counts.shape[
-                                                        0] / 2 / scale1, 0],
-                                                    order=0,
-                                                    )
-        # Undo shear operation
-        counts_unskewed = ndimage.affine_transform(counts_unscaled1,
-                                                   t.get_matrix()[:2, :2],
-                                                   offset=[
-                                                       (-counts.shape[0] / 2
-                                                        * np.sin(skew_angle_adj * np.pi / 180)),
-                                                       0],
-                                                   order=0,
-                                                   )
+        # Undo skew transformation
+        counts = t.invert(counts)
+        
         # Remove padding
-        counts_unpadded = p.unpad(counts_unskewed)
+        counts = p.unpad(counts)
 
-        # Write current slice
-        if rotation_axis == 0:
-            output_array[i, :, :] = counts_unpadded
-        elif rotation_axis == 1:
-            output_array[:, i, :] = counts_unpadded
-        elif rotation_axis == 2:
-            output_array[:, :, i] = counts_unpadded
-    print('\nDone.')
+        # Write slice
+        np.moveaxis(output_array, rotation_axis, 0)[i] = counts
+
+    print('\nRotation completed.')
+
     return NXdata(NXfield(output_array, name=p.padded.signal),
                   (data.nxaxes[0], data.nxaxes[1], data.nxaxes[2]))
 
@@ -1385,78 +1323,26 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
         Rotated data as an NXdata object.
     """
 
-    # Define transformation
-    skew_angle_adj = 90 - lattice_angle
-    t = Affine2D()
-    # Scale y-axis to preserve norm while shearing
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180))
-    # Shear along x-axis
-    t += Affine2D().skew_deg(skew_angle_adj, 0)
-    # Return to original y-axis scaling
-    t += Affine2D().scale(1, np.cos(skew_angle_adj * np.pi / 180)).inverted()
-
     # Add padding to avoid data cutoff during rotation
     p = Padder(data)
     padding = tuple(len(data[axis]) for axis in data.axes)
     counts = p.pad(padding)
     counts = p.padded[p.padded.signal]
 
-    # Perform shear operation
-    counts_skewed = ndimage.affine_transform(counts,
-                                             t.inverted().get_matrix()[:2, :2],
-                                             offset=[counts.shape[0] / 2
-                                                     * np.sin(skew_angle_adj * np.pi / 180), 0],
-                                             order=0,
-                                             )
-    # Scale data based on skew angle
-    scale1 = np.cos(skew_angle_adj * np.pi / 180)
-    counts_scaled1 = ndimage.affine_transform(counts_skewed,
-                                              Affine2D().scale(scale1, 1).get_matrix()[:2, :2],
-                                              offset=[(1 - scale1) * counts.shape[0] / 2, 0],
-                                              order=0,
-                                              )
-    # Scale data based on ratio of array dimensions
-    scale2 = 1 # counts.shape[0] / counts.shape[1]
-    counts_scaled2 = ndimage.affine_transform(counts_scaled1,
-                                              Affine2D().scale(scale2, 1).get_matrix()[:2, :2],
-                                              offset=[(1 - scale2) * counts.shape[0] / 2, 0],
-                                              order=0,
-                                              )
+    # Skew data to match lattice angle
+    t = ShearTransformer(lattice_angle)
+    counts = t.apply(counts)
+    
     # Perform rotation
-    counts_rotated = ndimage.rotate(counts_scaled2, rotation_angle, reshape=False, order=0)
+    counts = rotate(counts, rotation_angle, reshape=False, order=0)
 
-    # Undo scaling 2
-    counts_unscaled2 = ndimage.affine_transform(counts_rotated,
-                                                Affine2D().scale(
-                                                    scale2, 1
-                                                ).inverted().get_matrix()[:2, :2],
-                                                offset=[-(1 - scale2) * counts.shape[
-                                                    0] / 2 / scale2, 0],
-                                                order=0,
-                                                )
-    # Undo scaling 1
-    counts_unscaled1 = ndimage.affine_transform(counts_unscaled2,
-                                                Affine2D().scale(
-                                                    scale1, 1
-                                                ).inverted().get_matrix()[:2, :2],
-                                                offset=[-(1 - scale1) * counts.shape[
-                                                    0] / 2 / scale1, 0],
-                                                order=0,
-                                                )
-    # Undo shear operation
-    counts_unskewed = ndimage.affine_transform(counts_unscaled1,
-                                               t.get_matrix()[:2, :2],
-                                               offset=[
-                                                   (-counts.shape[0] / 2
-                                                    * np.sin(skew_angle_adj * np.pi / 180)),
-                                                   0],
-                                               order=0,
-                                               )
+    # Undo skew transformation
+    counts = t.invert(counts)
+
     # Remove padding
-    counts_unpadded = p.unpad(counts_unskewed)
+    counts = p.unpad(counts)
 
-    print('\nDone.')
-    return NXdata(NXfield(counts_unpadded, name=p.padded.signal),
+    return NXdata(NXfield(counts, name=p.padded.signal),
                   (data.nxaxes[0], data.nxaxes[1]))
 
 
