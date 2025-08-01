@@ -17,7 +17,7 @@ from IPython.display import display, Markdown, HTML, Image
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy.ndimage import rotate
 
-from .geometry import ShearTransformer
+from .lineartransformations import ShearTransformer
 
 
 # Specify items on which users are allowed to perform standalone imports

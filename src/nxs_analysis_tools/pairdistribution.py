@@ -15,7 +15,7 @@ from astropy.convolution import Kernel, convolve_fft
 import pyfftw
 from .datareduction import plot_slice, reciprocal_lattice_params, Padder, \
     array_to_nxdata
-from .geometry import ShearTransformer
+from .lineartransformations import ShearTransformer
 
 __all__ = ['Symmetrizer2D', 'Symmetrizer3D', 'Puncher', 'Interpolator',
            'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
