@@ -18,8 +18,8 @@ def shear_transformation(angle):
     return t
 
 class ShearTransformer():
-    def __init__(self, lattice_angle):
-        self.shear_angle = 90 - lattice_angle
+    def __init__(self, angle):
+        self.shear_angle = 90 - angle
         self.t = shear_transformation(self.shear_angle)
         self.scale = np.cos(self.shear_angle * np.pi / 180)
 
