@@ -5,6 +5,7 @@ import time
 import os
 import gc
 import math
+import warnings
 from scipy.ndimage import rotate, affine_transform
 import scipy
 import matplotlib.pyplot as plt
@@ -101,7 +102,7 @@ class Symmetrizer2D:
         if kwargs:
             self.set_parameters(**kwargs)
 
-    def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True, mirror_axis=0):
+    def set_parameters(self, theta_min, theta_max, lattice_angle=90, mirror=True, mirror_axis=None):
         """
         Sets the parameters for the symmetrization operation, and calculates the
          required transformations and rotations.
@@ -124,7 +125,17 @@ class Symmetrizer2D:
         self.theta_max = theta_max
         self.skew_angle = lattice_angle
         self.mirror = mirror
-        self.mirror_axis = mirror_axis
+        if mirror:
+            if mirror_axis is None:
+                self.mirror_axis = 0
+                warnings.warn(
+                    "mirror_axis not specified. Defaulting to 0. "
+                    "Set mirror_axis explicitly when using mirror=True.",
+                    UserWarning,
+                    stacklevel=2
+                )
+            else:
+                self.mirror_axis = mirror_axis
 
         self.transformer = ShearTransformer(lattice_angle)
         self.transform = self.transformer.t
