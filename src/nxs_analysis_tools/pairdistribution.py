@@ -867,6 +867,56 @@ def _round_up_to_odd_integer(value):
 
     return i
 
+class Gaussian2DKernel(Kernel):
+    """
+    Initialize a 2D Gaussian kernel.
+
+    This constructor creates a 2D Gaussian kernel with the specified
+    standard deviation and size. The Gaussian kernel is generated based on
+    the provided coefficients and is then normalized.
+
+    Parameters
+    ----------
+    stddev : float
+        The standard deviation of the Gaussian distribution, which controls
+        the width of the kernel.
+
+    size : tuple of int
+        The dimensions of the kernel, given as (x_dim, y_dim).
+
+    coeffs : list of float, optional
+        Coefficients for the Gaussian expression.
+        The default is [1, 0, 1] corresponding to the Gaussian form:
+        (1 * X^2 + 0 * X * Y + 1 * Y^2).
+
+    Raises
+    ------
+    ValueError
+        If the dimensions in `size` are not positive integers.
+
+    Notes
+    -----
+    The kernel is generated over a grid that spans twice the size of
+    each dimension, and the resulting array is normalized.
+    """
+    _separable = True
+    _is_bool = False
+
+    def __init__(self, stddev, size, coeffs=None):
+        if not coeffs:
+            coeffs = [1, 0, 1]
+        x_dim, y_dim = size
+        x = np.linspace(-x_dim, x_dim, int(x_dim) + 1)
+        y = np.linspace(-y_dim, y_dim, int(y_dim) + 1)
+        X, Y = np.meshgrid(x, y)
+        array = np.exp(-(coeffs[0] * X ** 2 +
+                         coeffs[1] * X * Y +
+                         coeffs[2] * Y ** 2) / (2 * stddev ** 2)
+                       )
+        self._default_size = _round_up_to_odd_integer(stddev)
+        super().__init__(array)
+        self.normalize()
+        self._truncation = np.abs(1. - self._array.sum())
 
 class Gaussian3DKernel(Kernel):
     """
