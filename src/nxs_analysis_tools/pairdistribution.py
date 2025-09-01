@@ -184,15 +184,22 @@ class Symmetrizer2D:
         q1 = data_padded[data.axes[0]]
         q2 = data_padded[data.axes[1]]
 
-        # Calculate the angle for each data point
+        # Calculate the angle in radians
         theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
-        # Create a boolean array for the range of angles
-        symmetrization_mask = np.logical_and(theta >= theta_min * np.pi / 180,
-                                             theta <= theta_max * np.pi / 180)
+        theta = np.mod(theta, 2 * np.pi)
+
+        # Convert min/max to radians and map to [0, 2pi)
+        theta_min_rad = np.deg2rad(theta_min % 360)
+        theta_max_rad = np.deg2rad(theta_max % 360)
+
+        # Handle wraparound cases
+        if theta_min_rad <= theta_max_rad:
+            symmetrization_mask = (theta >= theta_min_rad) & (theta <= theta_max_rad)
+        else:
+            symmetrization_mask = (theta >= theta_min_rad) | (theta <= theta_max_rad)
 
         # Bring mask from skewed basis to data array basis
         mask = array_to_nxdata(self.transformer.invert(symmetrization_mask), data_padded)
-
 
         # Save mask for user interaction
         self.symmetrization_mask = p.unpad(mask)
