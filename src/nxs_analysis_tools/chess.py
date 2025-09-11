@@ -433,7 +433,7 @@ class TempDependence:
 
         return self.linecuts
 
-    def plot_linecuts(self, ax=None, vertical_offset=0, **plot_kwargs):
+    def plot_linecuts(self, ax=None, vertical_offset=0, **kwargs):
         """
         Plot the linecuts obtained from data cutting.
 
