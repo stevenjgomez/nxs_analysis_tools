@@ -433,7 +433,7 @@ class TempDependence:
 
         return self.linecuts
 
-    def plot_linecuts(self, vertical_offset=0, **kwargs):
+    def plot_linecuts(self, ax=None, vertical_offset=0, **plot_kwargs):
         """
         Plot the linecuts obtained from data cutting.
 
@@ -441,10 +441,11 @@ class TempDependence:
         ----------
         vertical_offset : float, optional
             The vertical offset between linecuts on the plot. The default is 0.
-        **kwargs
+        **plot_kwargs
             Additional keyword arguments to be passed to the plot function.
         """
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
 
         # Get the Viridis colormap
         cmap = mpl.colormaps.get_cmap('viridis')
@@ -456,7 +457,7 @@ class TempDependence:
             
             x_data = linecut[linecut.axes].nxdata
             y_data = linecut[linecut.signal].nxdata + i * vertical_offset
-            ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i], 
+            p = ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i], 
                     zorder=zorder, **kwargs)
             zorder -= 1
 
@@ -472,8 +473,6 @@ class TempDependence:
 
         # Create a new legend with reversed order
         plt.legend(handles, labels)
-
-        return fig, ax
 
     def plot_linecuts_heatmap(self, ax=None, **kwargs):
         """
