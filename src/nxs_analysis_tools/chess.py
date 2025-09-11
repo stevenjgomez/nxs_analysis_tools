@@ -439,10 +439,13 @@ class TempDependence:
 
         Parameters
         ----------
+        ax : matplotlib.axes.Axes, optional
+            The matplotlib Axes object on which to plot. If None, a new figure 
+            and axes are created. Default None.
         vertical_offset : float, optional
             The vertical offset between linecuts on the plot. The default is 0.
-        **plot_kwargs
-            Additional keyword arguments to be passed to the plot function.
+        **kwargs
+            Additional keyword arguments passed to the matplotlib plot function.
         """
         if ax is None:
             fig, ax = plt.subplots()
