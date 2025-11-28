@@ -295,17 +295,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     ----------
     data : :class:`nexusformat.nexus.NXdata` or ndarray
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
-
-    X : ndarray or NXfield, optional
-        The values for the X axis. If `data` is an NXdata object and `X` is None, the X axis is
-        inherited from the NXdata object. If `data` is a NumPy ndarray and `X` is None, a default
-        range from 0 to the number of columns in `data` is used.
-
-    Y : ndarray or NXfield, optional
-        The values for the Y axis. If `data` is an NXdata object and `Y` is None, the Y axis is
-        inherited from the NXdata object. If `data` is a NumPy ndarray and `Y` is None, a default
-        range from 0 to the number of rows in `data` is used.
-
+        
     sum_axis : int, optional
         If the input data is 3D, this specifies the axis to sum over in order
         to reduce the data to 2D for plotting. Required if `data` has three dimensions.
@@ -723,14 +713,6 @@ def animate_slice_axis(data, axis, axis_values, X=None, Y=None, ax=None, interva
         The axis along which to animate (must be 0, 1, or 2).
     axis_values : iterable
         The values along the animation axis to use as animation frames.
-    X : ndarray or NXfield, optional
-        The values for the X axis. If `data` is an NXdata object and `X` is None, the X axis is
-        inherited from the NXdata object. If `data` is a NumPy ndarray and `X` is None, a default
-        range from 0 to the number of columns in `data` is used.
-    Y : ndarray or NXfield, optional
-        The values for the Y axis. If `data` is an NXdata object and `Y` is None, the Y axis is
-        inherited from the NXdata object. If `data` is a NumPy ndarray and `Y` is None, a default
-        range from 0 to the number of rows in `data` is used.
     ax : matplotlib.axes.Axes, optional
         The axes object to plot on. If None, a new figure and axes will be created.
     interval : int, optional
@@ -767,7 +749,6 @@ def animate_slice_axis(data, axis, axis_values, X=None, Y=None, ax=None, interva
     elif 'cbar' not in plot_slice_kwargs.keys():
         plot_slice_kwargs['cbar'] = False
 
-    
 
     def update(parameter):
         ax.clear()
@@ -783,6 +764,7 @@ def animate_slice_axis(data, axis, axis_values, X=None, Y=None, ax=None, interva
         if title:
             axis_label = data.axes[axis]
             ax.set(title=f'{axis_label}={parameter:{title_fmt}}')
+
 
     ani = animation.FuncAnimation(fig, update, frames=axis_values, interval=interval, repeat=False)
 
