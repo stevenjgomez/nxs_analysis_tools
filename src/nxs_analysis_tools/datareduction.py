@@ -603,7 +603,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     # Return the quadmesh object
     return p
 
-def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False, interval=500, 
+def animate_slice_temp(temp_dependence, slice_obj, X=None, Y=None, ax=None, reverse_temps=False, interval=500, 
                        save_gif=False, filename='animation',  title=True, title_fmt='d', 
                        plot_slice_kwargs=None, ax_kwargs=None):
     """
@@ -619,6 +619,12 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False,
         Object holding datasets at various temperatures.
     slice_obj : list of slice or None
         Slice object to apply to each dataset; None entries are treated as ':'.
+    X : ndarray or NXfield, optional
+        The values for the X axis. If `X` is None, the X axis is
+        inherited from the NXdata objects within `temp_dependence`. 
+    Y : ndarray or NXfield, optional
+        The values for the Y axis. If `Y` is None, the Y axis is
+        inherited from the NXdata objects within `temp_dependence`. 
     ax : matplotlib.axes.Axes, optional
         The axes object to plot on. If None, a new figure and axes will be created.
     reverse_temps : bool, optional
@@ -667,7 +673,7 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False,
     def update(temp):
         ax.clear()
         dataset = temp_dependence.datasets[temp]
-        plot_slice(dataset[tuple(normalized_slice)], ax=ax, **plot_slice_kwargs)
+        plot_slice(dataset[tuple(normalized_slice)], X=X, Y=Y, ax=ax, **plot_slice_kwargs)
         ax.set(**ax_kwargs)
 
         if title:
@@ -701,7 +707,7 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False,
 
     return ani
 
-def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=False, filename='animation', title=True, title_fmt='.2f', plot_slice_kwargs={}, ax_kwargs={}):
+def animate_slice_axis(data, axis, axis_values, X=None, Y=None, ax=None, interval=500, save_gif=False, filename='animation', title=True, title_fmt='.2f', plot_slice_kwargs={}, ax_kwargs={}):
     """
     Animate 2D slices of a 3D dataset along a given axis.
 
@@ -717,6 +723,14 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
         The axis along which to animate (must be 0, 1, or 2).
     axis_values : iterable
         The values along the animation axis to use as animation frames.
+    X : ndarray or NXfield, optional
+        The values for the X axis. If `data` is an NXdata object and `X` is None, the X axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `X` is None, a default
+        range from 0 to the number of columns in `data` is used.
+    Y : ndarray or NXfield, optional
+        The values for the Y axis. If `data` is an NXdata object and `Y` is None, the Y axis is
+        inherited from the NXdata object. If `data` is a NumPy ndarray and `Y` is None, a default
+        range from 0 to the number of rows in `data` is used.
     ax : matplotlib.axes.Axes, optional
         The axes object to plot on. If None, a new figure and axes will be created.
     interval : int, optional
@@ -763,7 +777,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
         slice_obj[axis] = parameter
 
         # Plot the 2D slice
-        plot_slice(data[tuple(slice_obj)], ax=ax, **plot_slice_kwargs)
+        plot_slice(data[tuple(slice_obj)], X=X, Y=Y, ax=ax, **plot_slice_kwargs)
         ax.set(**ax_kwargs)
 
         if title:
