@@ -177,12 +177,12 @@ class Symmetrizer2D:
         # Pad the dataset so that rotations don't get cutoff if they extend
         # past the extent of the dataset
         p = Padder(data)
-        padding = tuple(len(data[axis]) for axis in data.axes)
+        padding = tuple(len(axis) for axis in data.nxaxes)
         data_padded = p.pad(padding)
 
         # Define axes that span the plane to be transformed
-        q1 = data_padded[data.axes[0]]
-        q2 = data_padded[data.axes[1]]
+        q1 = data_padded.nxaxes[0]
+        q2 = data_padded.nxaxes[1]
 
         # Calculate the angle in radians
         theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
@@ -211,7 +211,7 @@ class Symmetrizer2D:
         self.wedge = p.unpad(wedge)
 
         # Convert wedge back to array for further transformations
-        wedge = wedge[data.signal].nxdata
+        wedge = wedge[data.nxsignal.nxname].nxdata
 
         # Bring wedge from data array basis to skewed basis for reconstruction
         wedge = self.transformer.apply(wedge)
@@ -255,9 +255,9 @@ class Symmetrizer2D:
         reconstructed[reconstructed > data.nxsignal.nxdata.max()] \
             = data.nxsignal.nxdata.max()
 
-        symmetrized = NXdata(NXfield(reconstructed, name=data.signal),
-                             (data[data.axes[0]],
-                              data[data.axes[1]]))
+        symmetrized = NXdata(NXfield(reconstructed, name=data.nxsignal.nxname),
+                             (data.nxaxes[0],
+                              data.nxaxes[1]))
 
         return symmetrized
 
@@ -356,9 +356,9 @@ class Symmetrizer3D:
         self.plane3symmetrizer = Symmetrizer2D()
 
         if data is not None:
-            self.q1 = data[data.axes[0]]
-            self.q2 = data[data.axes[1]]
-            self.q3 = data[data.axes[2]]
+            self.q1 = data.nxaxes[0]
+            self.q2 = data.nxaxes[1]
+            self.q3 = data.nxaxes[2]
             self.plane1 = self.q1.nxname + self.q2.nxname
             self.plane2 = self.q1.nxname + self.q3.nxname
             self.plane3 = self.q2.nxname + self.q3.nxname
@@ -377,9 +377,9 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
         """
         self.data = data
-        self.q1 = data[data.axes[0]]
-        self.q2 = data[data.axes[1]]
-        self.q3 = data[data.axes[2]]
+        self.q1 = data.nxaxes[0]
+        self.q2 = data.nxaxes[1]
+        self.q3 = data.nxaxes[2]
         self.plane1 = self.q1.nxname + self.q2.nxname
         self.plane2 = self.q1.nxname + self.q3.nxname
         self.plane3 = self.q2.nxname + self.q3.nxname
@@ -443,7 +443,7 @@ class Symmetrizer3D:
                 print(f'Symmetrizing {q3.nxname}={value:.02f}.'
                       f'..', end='\r')
                 data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k])
-                out_array[:, :, k] = data_symmetrized[data.signal].nxdata
+                out_array[:, :, k] = data_symmetrized[data.nxsignal.nxname].nxdata
             print('\nSymmetrized ' + self.plane1 + ' planes.')
 
         if self.plane2symmetrizer.theta_max is not None:
@@ -451,9 +451,9 @@ class Symmetrizer3D:
             for j, value in enumerate(q2):
                 print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
                 data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
-                    NXdata(NXfield(out_array[:, j, :], name=data.signal), (q1, q3))
+                    NXdata(NXfield(out_array[:, j, :], name=data.nxsignal.nxname), (q1, q3))
                 )
-                out_array[:, j, :] = data_symmetrized[data.signal].nxdata
+                out_array[:, j, :] = data_symmetrized[data.nxsignal.nxname].nxdata
             print('\nSymmetrized ' + self.plane2 + ' planes.')
 
         if self.plane3symmetrizer.theta_max is not None:
@@ -461,9 +461,9 @@ class Symmetrizer3D:
             for i, value in enumerate(q1):
                 print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
                 data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
-                    NXdata(NXfield(out_array[i, :, :], name=data.signal), (q2, q3))
+                    NXdata(NXfield(out_array[i, :, :], name=data.nxsignal.nxname), (q2, q3))
                 )
-                out_array[i, :, :] = data_symmetrized[data.signal].nxdata
+                out_array[i, :, :] = data_symmetrized[data.nxsignal.nxname].nxdata
             print('\nSymmetrized ' + self.plane3 + ' planes.')
 
         if positive_values:
@@ -472,8 +472,8 @@ class Symmetrizer3D:
         stoptime = time.time()
         print(f"\nSymmetrization finished in {((stoptime - starttime) / 60):.02f} minutes.")
 
-        self.symmetrized = NXdata(NXfield(out_array, name=data.signal),
-                                  tuple(data[axis] for axis in data.axes))
+        self.symmetrized = NXdata(NXfield(out_array, name=data.nxsignal.nxname),
+                                  tuple(axis for axis in data.nxaxes))
 
         return self.symmetrized
 
@@ -655,9 +655,9 @@ class Puncher:
         self.data = data
         if self.mask is None:
             self.mask = np.zeros(data.nxsignal.nxdata.shape)
-        self.HH, self.KK, self.LL = np.meshgrid(data[data.axes[0]],
-                                                data[data.axes[1]],
-                                                data[data.axes[2]],
+        self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0],
+                                                data.nxaxes[1],
+                                                data.nxaxes[2],
                                                 indexing='ij')
 
     def set_lattice_params(self, lattice_params):
@@ -828,8 +828,8 @@ class Puncher:
         data = self.data
         self.punched = NXdata(NXfield(
             np.where(self.mask, np.nan, data.nxsignal.nxdata),
-            name=data.signal),
-            (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
+            name=data.nxsignal.nxname),
+            (data.nxaxes[0], data.nxaxes[1], data.nxaxes[2])
         )
 
 
@@ -1080,7 +1080,7 @@ class Interpolator:
 
         print("Running interpolation...") if verbose else None
         result = np.real(
-            convolve_fft(self.data[self.data.signal].nxdata,
+            convolve_fft(self.data.nxsignal.nxdata,
                          self.kernel, allow_huge=True, return_fft=False))
         print("Interpolation finished.") if verbose else None
 
@@ -1109,12 +1109,12 @@ class Interpolator:
         """
         data = self.data
         tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
+            scipy.signal.windows.tukey(len(data.nxaxes[0]), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(data.nxaxes[1]), len(data.nxaxes[2]))
         )
         tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
-            (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
+            scipy.signal.windows.tukey(len(data.nxaxes[1]), alpha=tukey_alphas[1])[None, :, None],
+            (len(data.nxaxes[0]), 1, len(data.nxaxes[2]))
         )
         window = tukey_H * tukey_K
 
@@ -1122,8 +1122,8 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[2])[None, None, :],
-            (len(data[data.axes[0]]), len(data[data.axes[1]]), 1))
+            scipy.signal.windows.tukey(len(data.nxaxes[2]), alpha=tukey_alphas[2])[None, None, :],
+            (len(data.nxaxes[0]), len(data.nxaxes[1]), 1))
         window = window * tukey_L
 
         self.window = window
@@ -1146,17 +1146,17 @@ class Interpolator:
 
         """
         data = self.data
-        H_ = data[data.axes[0]]
-        K_ = data[data.axes[1]]
-        L_ = data[data.axes[2]]
+        H_ = data.nxaxes[0]
+        K_ = data.nxaxes[1]
+        L_ = data.nxaxes[2]
 
         tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[0]]), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(data[data.axes[1]]), len(data[data.axes[2]]))
+            scipy.signal.windows.tukey(len(data.nxaxes[0]), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(data.nxaxes[1]), len(data.nxaxes[2]))
         )
         tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[1]]), alpha=tukey_alphas[1])[None, :, None],
-            (len(data[data.axes[0]]), 1, len(data[data.axes[2]]))
+            scipy.signal.windows.tukey(len(data.nxaxes[1]), alpha=tukey_alphas[1])[None, :, None],
+            (len(data.nxaxes[0]), 1, len(data.nxaxes[2]))
         )
         window = tukey_H * tukey_K
 
@@ -1183,8 +1183,8 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(data[data.axes[2]]), alpha=tukey_alphas[3])[None, None, :],
-            (len(data[data.axes[0]]), len(data[data.axes[1]]), 1)
+            scipy.signal.windows.tukey(len(data.nxaxes[2]), alpha=tukey_alphas[3])[None, None, :],
+            (len(data.nxaxes[0]), len(data.nxaxes[1]), 1)
         )
         window = window * tukey_L
 
@@ -1364,9 +1364,9 @@ def fourier_transform_nxdata(data, is_2d=False):
     print("FFT complete.")
     print('FFT took ' + str(end - start) + ' seconds.')
 
-    H_step = data[data.axes[0]].nxdata[1] - data[data.axes[0]].nxdata[0]
-    K_step = data[data.axes[1]].nxdata[1] - data[data.axes[1]].nxdata[0]
-    L_step = data[data.axes[2]].nxdata[1] - data[data.axes[2]].nxdata[0]
+    H_step = data.nxaxes[0].nxdata[1] - data.nxaxes[0].nxdata[0]
+    K_step = data.nxaxes[1].nxdata[1] - data.nxaxes[1].nxdata[0]
+    L_step = data.nxaxes[2].nxdata[1] - data.nxaxes[2].nxdata[0]
 
     fft = NXdata(NXfield(fft_array, name='dPDF'),
                  (NXfield(np.linspace(-0.5 / H_step, 0.5 / H_step, padded.shape[0]), name='x'),
