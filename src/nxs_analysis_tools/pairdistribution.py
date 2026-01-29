@@ -252,8 +252,8 @@ class Symmetrizer2D:
         reconstructed = p.unpad(reconstructed)
 
         # Fix any overlapping pixels by truncating counts to max
-        reconstructed[reconstructed > data[data.signal].nxdata.max()] \
-            = data[data.signal].nxdata.max()
+        reconstructed[reconstructed > data.nxsignal.nxdata.max()] \
+            = data.nxsignal.nxdata.max()
 
         symmetrized = NXdata(NXfield(reconstructed, name=data.signal),
                              (data[data.axes[0]],
@@ -435,7 +435,7 @@ class Symmetrizer3D:
         starttime = time.time()
         data = self.data
         q1, q2, q3 = self.q1, self.q2, self.q3
-        out_array = np.zeros(data[data.signal].shape)
+        out_array = np.zeros(data.nxsignal.shape)
 
         if self.plane1symmetrizer.theta_max is not None:
             print('Symmetrizing ' + self.plane1 + ' planes...')
@@ -654,7 +654,7 @@ class Puncher:
         """
         self.data = data
         if self.mask is None:
-            self.mask = np.zeros(data[data.signal].nxdata.shape)
+            self.mask = np.zeros(data.nxsignal.nxdata.shape)
         self.HH, self.KK, self.LL = np.meshgrid(data[data.axes[0]],
                                                 data[data.axes[1]],
                                                 data[data.axes[2]],
@@ -732,7 +732,7 @@ class Puncher:
                < punch_radius ** 2
 
         if thresh:
-            mask = np.logical_and(mask, data[data.signal] > thresh)
+            mask = np.logical_and(mask, data.nxsignal > thresh)
 
         return mask
 
@@ -755,7 +755,7 @@ class Puncher:
             Boolean mask highlighting regions with high intensity.
         """
         data = self.data
-        counts = data[data.signal].nxdata
+        counts = data.nxsignal.nxdata
         mask = np.zeros(counts.shape)
 
         print(f"Shape of data is {counts.shape}") if verbose else None
@@ -814,7 +814,7 @@ class Puncher:
                < punch_radius ** 2
 
         if thresh:
-            mask = np.logical_and(mask, data[data.signal] > thresh)
+            mask = np.logical_and(mask, data.nxsignal > thresh)
 
         return mask
 
@@ -827,7 +827,7 @@ class Puncher:
         """
         data = self.data
         self.punched = NXdata(NXfield(
-            np.where(self.mask, np.nan, data[data.signal].nxdata),
+            np.where(self.mask, np.nan, data.nxsignal.nxdata),
             name=data.signal),
             (data[data.axes[0]], data[data.axes[1]], data[data.axes[2]])
         )
@@ -1333,7 +1333,7 @@ def fourier_transform_nxdata(data, is_2d=False):
     start = time.time()
     print("Starting FFT.")
 
-    padded = data[data.signal].nxdata
+    padded = data.nxsignal.nxdata
 
     fft_array = np.zeros(padded.shape)
 
