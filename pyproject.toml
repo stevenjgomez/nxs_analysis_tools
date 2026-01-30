@@ -36,7 +36,7 @@ dependencies = [
     'numpy>=2.2.4',
     'ipython>=1.0.0',
     'pandas>=2.2.3',
-    'nexusformat>=1.0.8',
+    'nexusformat>=1.0.8,<2.0.0,!=2.0.0.*',
     'lmfit>=1.2.1',
     'astropy>=6.1.7',
     'pyfftw>=0.13.1',
