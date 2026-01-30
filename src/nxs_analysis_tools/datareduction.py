@@ -15,7 +15,7 @@ from matplotlib import colors
 from matplotlib import patches
 from IPython.display import display, Markdown, HTML, Image
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
-from scipy.ndimage import rotate
+from scipy.ndimage import rotate, zoom
 
 from .lineartransformations import ShearTransformer
 
@@ -1217,7 +1217,7 @@ def convert_to_inverse_angstroms(data, lattice_params):
     return NXdata(new_data, (a_star, b_star, c_star))
 
 
-def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printout=False):
+def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=None, printout=False):
     """
     Rotates slices of data around the normal axis.
 
@@ -1231,6 +1231,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
         Angle of rotation in degrees.
     rotation_axis : int, optional
         Axis of rotation (0, 1, or 2). Only necessary when data is three-dimensional.
+    aspect : float, optional
+        True aspect ratio between the lengths of the basis vectors of the two principal axes of the plane to be rotated. Calculated as aspect = (length of y) / (length of x). Defaults to 1.
     printout : bool, optional
         Enables printout of rotation progress for three-dimensional data. If set to True,
         information about each rotation slice will be printed to the console, indicating
@@ -1283,8 +1285,14 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
         t = ShearTransformer(lattice_angle)
         counts = t.apply(counts)
 
+        # Apply aspect ratio correction
+        counts = zoom(counts, zoom=(1, aspect), order=0)
+
         # Perform rotation
         counts = rotate(counts, rotation_angle, reshape=False, order=0)
+
+        # Undo aspect ratio correction
+        counts = zoom(counts, zoom=(1, 1 / aspect), order=0)
 
         # Undo skew transformation
         counts = t.invert(counts)
