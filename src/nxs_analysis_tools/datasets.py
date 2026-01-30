@@ -86,6 +86,35 @@ def hexagonal(temperatures=None):
     dirname = os.path.dirname(fnames[0])
     return dirname
 
+LARGEBOI = pooch.create(
+    path=pooch.os_cache("nxs_analysis_tools/orthorhombic"),
+    base_url="https://raw.githubusercontent.com/stevenjgomez/dataset-orthorhombic/main/data/",
+    registry={
+        "orthorhombic_15.nxs": None,
+        "15/transform.nxs": None,
+        "orthorhombic_100.nxs": None,
+        "100/transform.nxs": None,
+        "orthorhombic_300.nxs": None,
+        "300/transform.nxs": None,
+    }
+)
+
+def fetch_orthorhombic(temperatures=None):
+    """
+    Load the orthorhombic dataset.
+    """
+    fnames = []
+    temperatures = [15, 100, 300] if temperatures is None else temperatures
+    for T in temperatures:
+        fnames.append(LARGEBOI.fetch(f"orthorhombic_{T}.nxs"))
+        fnames.append(LARGEBOI.fetch(f"{T}/transform.nxs"))
+    return fnames
+
+def orthorhombic(temperatures=None):
+    fnames = fetch_orthorhombic(temperatures)
+    dirname = os.path.dirname(fnames[0])
+    return dirname
+
 BONES = pooch.create(
     path=pooch.os_cache("nxs_analysis_tools/vacancies"),
     base_url="https://raw.githubusercontent.com/stevenjgomez/dataset-vacancies/main/",
