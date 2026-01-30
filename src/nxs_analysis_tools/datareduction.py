@@ -119,7 +119,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
     """
     d = data_template
     if signal_name is None:
-        signal_name = d.signal
+        signal_name = d.nxsignal.nxname
     return NXdata(NXfield(array, name=signal_name), d.nxaxes)
 
 
@@ -244,14 +244,14 @@ def rebin_nxdata(data):
             new_axes.append(
                 NXfield(
                     rebin_1d(data.nxaxes[i].nxdata[:-1]),
-                    name=data.axes[i]
+                    name=data.nxaxes[i].nxname
                 )
             )
         else:
             new_axes.append(
                 NXfield(
                     rebin_1d(data.nxaxes[i].nxdata[:]),
-                    name=data.axes[i]
+                    name=data.nxaxes[i].nxname
                 )
             )
 
@@ -276,7 +276,7 @@ def rebin_nxdata(data):
     elif data.ndim == 1:
         data_arr = rebin_1d(data_arr)
 
-    return NXdata(NXfield(data_arr, name=data.signal),
+    return NXdata(NXfield(data_arr, name=data.nxsignal.nxname),
                   tuple([axis for axis in new_axes])
                   )
 
@@ -580,7 +580,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     if cbar:
         colorbar = fig.colorbar(p)
         if cbartitle is None:
-            colorbar.set_label(data.signal)
+            colorbar.set_label(data.nxsignal.nxname)
 
     ax.set(
         xlabel=X.nxname,
@@ -756,7 +756,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
         ax.set(**ax_kwargs)
 
         if title:
-            axis_label = data.axes[axis]
+            axis_label = data.nxaxes[axis].nxname
             ax.set(title=f'{axis_label}={parameter:{title_fmt}}')
 
 
@@ -902,8 +902,8 @@ class Scissors:
         self.integrated_axes = tuple(i for i in range(self.data.ndim) if i != self.axis)
 
         if verbose:
-            print("Linecut axis: " + str(self.data.axes[self.axis]))
-            print("Integrated axes: " + str([self.data.axes[axis]
+            print("Linecut axis: " + str(self.data.nxaxes[self.axis].nxname))
+            print("Integrated axes: " + str([self.data.nxaxes[axis].nxname
                                              for axis in self.integrated_axes]))
 
     def get_window(self):
@@ -964,12 +964,12 @@ class Scissors:
         self.integration_volume.nxname = data.nxname
 
         # Perform integration along the integrated axes
-        integrated_data = np.sum(self.integration_volume[self.integration_volume.signal].nxdata,
+        integrated_data = np.sum(self.integration_volume.nxsignal.nxdata,
                                  axis=self.integrated_axes)
 
         # Create an NXdata object for the linecut data
-        self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.signal),
-                              self.integration_volume[self.integration_volume.axes[self.axis]])
+        self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.nxsignal.nxname),
+                              self.integration_volume[self.integration_volume.nxaxes[self.axis].nxname])
         self.linecut.nxname = self.integration_volume.nxname
 
         return self.linecut
@@ -1263,7 +1263,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
         if data.ndim == 3:
             # Print progress
             if printout:
-                print(f'\rRotating {data.axes[rotation_axis]}'
+                print(f'\rRotating {data.nxaxes[rotation_axis].nxname}'
                 f'={data.nxaxes[rotation_axis][i]}...                      ',
                 end='', flush=True)
             index = [slice(None)] * 3
@@ -1275,9 +1275,9 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
 
         # Add padding to avoid data cutoff during rotation
         p = Padder(sliced_data)
-        padding = tuple(len(sliced_data[axis]) for axis in sliced_data.axes)
+        padding = tuple(len(axis) for axis in sliced_data.nxaxes)
         counts = p.pad(padding)
-        counts = p.padded[p.padded.signal]
+        counts = p.padded.nxsignal
 
         # Skew data to match lattice angle
         t = ShearTransformer(lattice_angle)
@@ -1302,7 +1302,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, printou
 
     print('\nRotation completed.')
 
-    return NXdata(NXfield(output_array, name=p.padded.signal),
+    return NXdata(NXfield(output_array, name=p.padded.nxsignal.nxname),
                   ([axis for axis in data.nxaxes]))
 
 
@@ -1396,12 +1396,12 @@ class Padder:
         """
         self.data = data
 
-        self.steps = tuple((data[axis].nxdata[1] - data[axis].nxdata[0])
-                           for axis in data.axes)
+        self.steps = tuple((axis.nxdata[1] - axis.nxdata[0])
+                           for axis in data.nxaxes)
 
         # Absolute value of the maximum value; assumes the domain of the input
         # is symmetric (eg, -H_min = H_max)
-        self.maxes = tuple(data[axis].nxdata.max() for axis in data.axes)
+        self.maxes = tuple(axis.nxdata.max() for axis in data.nxaxes)
 
     def pad(self, padding):
         """
@@ -1435,9 +1435,9 @@ class Padder:
         padmaxes = tuple(self.maxes[i] + self.padding[i] * self.steps[i]
                          for i in range(data.ndim))
 
-        padded = NXdata(NXfield(padded, name=data.signal),
+        padded = NXdata(NXfield(padded, name=data.nxsignal.nxname),
                         tuple(NXfield(np.linspace(-padmaxes[i], padmaxes[i], padded_shape[i]),
-                                      name=data.axes[i])
+                                      name=data.nxaxes[i].nxname)
                               for i in range(data.ndim)))
 
         self.padded = padded
