@@ -1244,6 +1244,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=
     rotated_data : :class:`nexusformat.nexus.NXdata`
         Rotated data as an NXdata object.
     """
+    if aspect is None:
+        aspect = 1
 
     if data.ndim == 3 and rotation_axis is None:
         raise ValueError('rotation_axis must be specified for three-dimensional datasets.')
