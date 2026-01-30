@@ -103,6 +103,6 @@ def vacancies():
 
 def vacanciesfft():
     """
-    Load the vacancies dataset.
+    Load the vacancies fft dataset.
     """
     return BONES.fetch(f"fft.nxs")
