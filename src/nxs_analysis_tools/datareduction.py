@@ -1287,11 +1287,17 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=
         t = ShearTransformer(lattice_angle)
         counts = t.apply(counts)
 
-        # Apply aspect ratio correction
+        # Apply coordinate aspect ratio correction
         counts = zoom(counts, zoom=(1, aspect), order=0)
+
+        # Apply array aspect ratio correction
+        counts = zoom(counts, zoom=(1, len(sliced_data.nxaxes[0]) / len(sliced_data.nxaxes[1])), order=0)
 
         # Perform rotation
         counts = rotate(counts, rotation_angle, reshape=False, order=0)
+
+        # Undo array aspect ratio correction
+        counts = zoom(counts, zoom=(1, len(sliced_data.nxaxes[1]) / len(sliced_data.nxaxes[0])), order=0)
 
         # Undo aspect ratio correction
         counts = zoom(counts, zoom=(1, 1 / aspect), order=0)
