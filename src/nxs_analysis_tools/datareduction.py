@@ -1217,7 +1217,7 @@ def convert_to_inverse_angstroms(data, lattice_params):
     return NXdata(new_data, (a_star, b_star, c_star))
 
 
-def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=None, printout=False):
+def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotation_order=None, aspect=None, aspect_order=None, printout=False):
     """
     Rotates slices of data around the normal axis.
 
@@ -1231,8 +1231,18 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=
         Angle of rotation in degrees.
     rotation_axis : int, optional
         Axis of rotation (0, 1, or 2). Only necessary when data is three-dimensional.
+    rotation_order : int, optional
+        Interpolation order passed to :func:`scipy.ndimage.rotate`. 
+        Determines the spline interpolation used during rotation.
+        Valid values are integers from 0 (nearest-neighbor) to 5 (higher-order splines).
+        Defaults to 0 if not specified.
     aspect : float, optional
         True aspect ratio between the lengths of the basis vectors of the two principal axes of the plane to be rotated. Calculated as aspect = (length of y) / (length of x). Defaults to 1.
+    aspect_order : int, optional
+        Interpolation order passed to :func:`scipy.ndimage.zoom` when applying and undoing
+        the coordinate aspect ratio correction. Determines the spline interpolation used
+        during resampling. Valid values are integers from 0 (nearest-neighbor) to 5.
+        Defaults to 0 if not specified.
     printout : bool, optional
         Enables printout of rotation progress for three-dimensional data. If set to True,
         information about each rotation slice will be printed to the console, indicating
@@ -1246,6 +1256,10 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=
     """
     if aspect is None:
         aspect = 1
+    if aspect_order is None:
+        aspect_order = 0
+    if rotation_order is None:
+        rotation_order = 0
 
     if data.ndim == 3 and rotation_axis is None:
         raise ValueError('rotation_axis must be specified for three-dimensional datasets.')
@@ -1288,19 +1302,13 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, aspect=
         counts = t.apply(counts)
 
         # Apply coordinate aspect ratio correction
-        counts = zoom(counts, zoom=(1, aspect), order=0)
-
-        # Apply array aspect ratio correction
-        counts = zoom(counts, zoom=(1, len(sliced_data.nxaxes[0]) / len(sliced_data.nxaxes[1])), order=0)
+        counts = zoom(counts, zoom=(1, aspect), order=aspect_order)
 
         # Perform rotation
-        counts = rotate(counts, rotation_angle, reshape=False, order=0)
-
-        # Undo array aspect ratio correction
-        counts = zoom(counts, zoom=(1, len(sliced_data.nxaxes[1]) / len(sliced_data.nxaxes[0])), order=0)
+        counts = rotate(counts, rotation_angle, reshape=False, order=rotation_order)
 
         # Undo aspect ratio correction
-        counts = zoom(counts, zoom=(1, 1 / aspect), order=0)
+        counts = zoom(counts, zoom=(1, 1 / aspect), order=aspect_order)
 
         # Undo skew transformation
         counts = t.invert(counts)
