@@ -1302,17 +1302,21 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
         counts = t.apply(counts)
 
         # Apply coordinate aspect ratio correction
-        counts = zoom(counts, zoom=(1, aspect), order=aspect_order)
+        # More resolution along y = more squeezing needed along y
+        # More resolution along x = less squeezing needed along y
+        y_res = sliced_data.shape[1] / (sliced_data.nxaxes[1].max() - sliced_data.nxaxes[1].min())
+        x_res = sliced_data.shape[0] / (sliced_data.nxaxes[0].max() - sliced_data.nxaxes[0].min())
+        counts = zoom(counts, zoom=(1, aspect * x_res / y_res), order=aspect_order)
 
         # Perform rotation
         counts = rotate(counts, rotation_angle, reshape=False, order=rotation_order)
 
         # Undo aspect ratio correction
-        counts = zoom(counts, zoom=(1, 1 / aspect), order=aspect_order)
+        counts = zoom(counts, zoom=(1, 1 / (aspect * x_res / y_res)), order=aspect_order)
 
         # Undo skew transformation
         counts = t.invert(counts)
-        
+
         # Remove padding
         counts = p.unpad(counts)
 
