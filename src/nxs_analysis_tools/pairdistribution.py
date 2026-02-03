@@ -377,9 +377,17 @@ class Symmetrizer3D:
             The input 3D dataset to be symmetrized.
         """
         self.data = data
-        self.q1 = data.nxaxes[0]
-        self.q2 = data.nxaxes[1]
-        self.q3 = data.nxaxes[2]
+        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
+            self.q1 = data.nxaxes[0]
+            self.q2 = data.nxaxes[1]
+            self.q3 = data.nxaxes[2]
+        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
+            self.q1 = data.nxaxes[0][:-1]
+            self.q2 = data.nxaxes[1][:-1]
+            self.q3 = data.nxaxes[2][:-1]
+        else:
+            raise ValueError("Data shape does not match axes lengths.")
+
         self.plane1 = self.q1.nxname + self.q2.nxname
         self.plane2 = self.q1.nxname + self.q3.nxname
         self.plane3 = self.q2.nxname + self.q3.nxname
@@ -655,10 +663,19 @@ class Puncher:
         self.data = data
         if self.mask is None:
             self.mask = np.zeros(data.nxsignal.nxdata.shape)
-        self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0],
+        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
+            self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0],
                                                 data.nxaxes[1],
                                                 data.nxaxes[2],
                                                 indexing='ij')
+        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
+            self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0][:-1],
+                                                data.nxaxes[1][:-1],
+                                                data.nxaxes[2][:-1],
+                                                indexing='ij')
+        else:
+            raise ValueError("Data shape does not match axes lengths.")
+        
 
     def set_lattice_params(self, lattice_params):
         """
@@ -1034,6 +1051,16 @@ class Interpolator:
         self.data = data
         self.interpolated = data
         self.tapered = data
+        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
+            self.q1 = data.nxaxes[0]
+            self.q2 = data.nxaxes[1]
+            self.q3 = data.nxaxes[2]
+        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
+            self.q1 = data.nxaxes[0][:-1]
+            self.q2 = data.nxaxes[1][:-1]
+            self.q3 = data.nxaxes[2][:-1]
+        else:
+            raise ValueError("Data shape does not match axes lengths.")
 
     def set_kernel(self, kernel):
         """
@@ -1108,13 +1135,14 @@ class Interpolator:
         The window function is generated based on the size of the dataset in each dimension.
         """
         data = self.data
+        q1,q2,q3 = self.q1, self.q2, self.q3
         tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[0]), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(data.nxaxes[1]), len(data.nxaxes[2]))
+            scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(q2), len(q3))
         )
         tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[1]), alpha=tukey_alphas[1])[None, :, None],
-            (len(data.nxaxes[0]), 1, len(data.nxaxes[2]))
+            scipy.signal.windows.tukey(len(q2), alpha=tukey_alphas[1])[None, :, None],
+            (len(q1), 1, len(q3))
         )
         window = tukey_H * tukey_K
 
@@ -1122,8 +1150,8 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[2]), alpha=tukey_alphas[2])[None, None, :],
-            (len(data.nxaxes[0]), len(data.nxaxes[1]), 1))
+            scipy.signal.windows.tukey(len(q3), alpha=tukey_alphas[2])[None, None, :],
+            (len(q1), len(q2), 1))
         window = window * tukey_L
 
         self.window = window
@@ -1146,36 +1174,34 @@ class Interpolator:
 
         """
         data = self.data
-        H_ = data.nxaxes[0]
-        K_ = data.nxaxes[1]
-        L_ = data.nxaxes[2]
+        q1,q2,q3 = self.q1, self.q2, self.q3
 
         tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[0]), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(data.nxaxes[1]), len(data.nxaxes[2]))
+            scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
+            (1, len(q2), len(q3))
         )
         tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[1]), alpha=tukey_alphas[1])[None, :, None],
-            (len(data.nxaxes[0]), 1, len(data.nxaxes[2]))
+            scipy.signal.windows.tukey(len(q2), alpha=tukey_alphas[1])[None, :, None],
+            (len(q1), 1, len(q3))
         )
         window = tukey_H * tukey_K
 
         del tukey_H, tukey_K
         gc.collect()
 
-        truncation = int((len(H_) - int(len(H_) * np.sqrt(2) / 2)) / 2)
+        truncation = int((len(q1) - int(len(q1) * np.sqrt(2) / 2)) / 2)
 
         tukey_HK = scipy.ndimage.rotate(
             np.tile(
                 np.concatenate(
                     (np.zeros(truncation)[:, None, None],
-                     scipy.signal.windows.tukey(len(H_) - 2 * truncation,
+                     scipy.signal.windows.tukey(len(q1) - 2 * truncation,
                                         alpha=tukey_alphas[2])[:, None, None],
                      np.zeros(truncation)[:, None, None])),
-                (1, len(K_), len(L_))
+                (1, len(q2), len(q3))
             ),
             angle=45, reshape=False, mode='nearest',
-        )[0:len(H_), 0:len(K_), :]
+        )[0:len(q1), 0:len(q2), :]
         tukey_HK = np.nan_to_num(tukey_HK)
         window = window * tukey_HK
 
@@ -1183,8 +1209,8 @@ class Interpolator:
         gc.collect()
 
         tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(data.nxaxes[2]), alpha=tukey_alphas[3])[None, None, :],
-            (len(data.nxaxes[0]), len(data.nxaxes[1]), 1)
+            scipy.signal.windows.tukey(len(q3), alpha=tukey_alphas[3])[None, None, :],
+            (len(q1), len(q2), 1)
         )
         window = window * tukey_L
 
@@ -1232,20 +1258,20 @@ class Interpolator:
         """
 
         # Initialize axes
-        H,K,L = [axis for axis in self.data.nxaxes]
+        q1,q2,q3 = self.q1, self.q2, self.q3
 
         # Initialize coeffs (default to window reaching edge of array)
-        smallest_extent = np.min([H.max(), K.max(), L.max()])
-        c = coeffs if coeffs is not None else ((smallest_extent / H.max()) ** 2,
+        smallest_extent = np.min([q1.max(), q2.max(), q3.max()])
+        c = coeffs if coeffs is not None else ((smallest_extent / q1.max()) ** 2,
                                                0,
-                                               (smallest_extent / K.max()) ** 2,
+                                               (smallest_extent / q2.max()) ** 2,
                                                0,
-                                               (smallest_extent / L.max()) ** 2,
+                                               (smallest_extent / q3.max()) ** 2,
                                                0
                                                )
 
         # Create meshgrid
-        HH, KK, LL = np.meshgrid(H,K,L, indexing='ij')
+        HH, KK, LL = np.meshgrid(q1,q2,q3, indexing='ij')
 
         # Create radius array
         RR = np.sqrt(
@@ -1259,7 +1285,7 @@ class Interpolator:
 
         # Check the edges of reciprocal space to verify Qmax
         # Create list of pixels where H = H.max() or K = K.max() or L = L.max()
-        edges = np.where(np.logical_or(np.logical_or(HH == H.max(), KK == K.max()), LL == L.max()), RR, RR.max())
+        edges = np.where(np.logical_or(np.logical_or(HH == q1.max(), KK == q2.max()), LL == q3.max()), RR, RR.max())
         Qmax = edges.min()
         alpha = tukey_alpha
         period = (Qmax * alpha) / np.pi
@@ -1455,6 +1481,17 @@ class DeltaPDF:
         self.padded = data
         self.interpolated = data
         self.punched = data
+        
+        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
+            self.q1 = data.nxaxes[0]
+            self.q2 = data.nxaxes[1]
+            self.q3 = data.nxaxes[2]
+        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
+            self.q1 = data.nxaxes[0][:-1]
+            self.q2 = data.nxaxes[1][:-1]
+            self.q3 = data.nxaxes[2][:-1]
+        else:
+            raise ValueError("Data shape does not match axes lengths.")
 
     def set_lattice_params(self, lattice_params):
         """
