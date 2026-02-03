@@ -977,7 +977,7 @@ class Gaussian3DKernel(Kernel):
         x = np.linspace(-x_dim, x_dim, int(x_dim) + 1)
         y = np.linspace(-y_dim, y_dim, int(y_dim) + 1)
         z = np.linspace(-z_dim, z_dim, int(z_dim) + 1)
-        X, Y, Z = np.meshgrid(x, y, z)
+        X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
         array = np.exp(-(coeffs[0] * X ** 2 +
                          coeffs[1] * X * Y +
                          coeffs[2] * Y ** 2 +
