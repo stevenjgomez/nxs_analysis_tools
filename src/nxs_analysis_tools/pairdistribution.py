@@ -1156,7 +1156,7 @@ class Interpolator:
 
         self.window = window
 
-    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0)):
+    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0), reverse_axes=False):
         """
         Set a hexagonal Tukey window function for data tapering.
 
@@ -1166,6 +1166,9 @@ class Interpolator:
             The alpha parameters for the Tukey window in each dimension and
             for the hexagonal truncation (H, HK, K, L).
             Default is (1.0, 1.0, 1.0, 1.0).
+        reverse_axes : bool, optional
+            If True, uses the first axis of the dataset as the out-of-plane axis. 
+            Default False, which uses the third axis as the out-of-plane axis.
 
         Notes
         -----
@@ -1173,8 +1176,11 @@ class Interpolator:
         preserves hexagonal symmetry.
 
         """
-        data = self.data
+        
         q1,q2,q3 = self.q1, self.q2, self.q3
+
+        if reverse_axes:
+            q1, q2, q3 = q3, q2, q1
 
         tukey_H = np.tile(
             scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
@@ -1195,9 +1201,9 @@ class Interpolator:
             np.tile(
                 np.concatenate(
                     (np.zeros(truncation)[:, None, None],
-                     scipy.signal.windows.tukey(len(q1) - 2 * truncation,
+                        scipy.signal.windows.tukey(len(q1) - 2 * truncation,
                                         alpha=tukey_alphas[2])[:, None, None],
-                     np.zeros(truncation)[:, None, None])),
+                        np.zeros(truncation)[:, None, None])),
                 (1, len(q2), len(q3))
             ),
             angle=45, reshape=False, mode='nearest',
@@ -1217,7 +1223,10 @@ class Interpolator:
         del tukey_L
         gc.collect()
 
-        self.window = window
+        if reverse_axes:
+            self.window = window.transpose(2,1,0)
+        else:
+            self.window = window
 
     def set_ellipsoidal_tukey_window(self, tukey_alpha=1.0, coeffs=None):
         """
@@ -1668,7 +1677,7 @@ class DeltaPDF:
         self.interpolator.set_tukey_window(tukey_alphas)
         self.window = self.interpolator.window
 
-    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0)):
+    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0), reverse_axes=False):
         """
         Set a hexagonal Tukey window function for data tapering.
 
@@ -1677,13 +1686,16 @@ class DeltaPDF:
         tukey_alphas : tuple of floats, optional
             The alpha parameters for the Tukey window in each dimension and
              for the hexagonal truncation (H, HK, K, L). Default is (1.0, 1.0, 1.0, 1.0).
+        reverse_axes : bool, optional
+            If True, uses the first axis of the dataset as the out-of-plane axis. 
+            Default False, which uses the third axis as the out-of-plane axis.
 
         Notes
         -----
         The hexagonal Tukey window is applied to the dataset in a manner that
          preserves hexagonal symmetry.
         """
-        self.interpolator.set_hexagonal_tukey_window(tukey_alphas)
+        self.interpolator.set_hexagonal_tukey_window(tukey_alphas, reverse_axes)
         self.window = self.interpolator.window
 
     def set_ellipsoidal_tukey_window(self, tukey_alpha=1.0, coeffs=None):
