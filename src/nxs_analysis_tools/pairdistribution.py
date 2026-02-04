@@ -1341,9 +1341,7 @@ def fourier_transform_nxdata(data, is_2d=False):
     Parameters
     ----------
     data : NXdata
-        An NXdata object containing the data to be transformed. It should
-        include the `signal` field for the data and `axes` fields
-        specifying the coordinate axes.
+        An NXdata object containing the data to be transformed.
 
     is_2d : bool
         If true, skip FFT on out-of-plane direction and only do FFT
