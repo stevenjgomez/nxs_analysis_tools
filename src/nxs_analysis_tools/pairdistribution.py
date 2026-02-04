@@ -1331,7 +1331,7 @@ class Interpolator:
 
 def fourier_transform_nxdata(data, is_2d=False):
     """
-    Perform a 3D Fourier Transform on the given NXdata object.
+    Perform a Fourier Transform on the given NXdata object.
 
     This function applies an inverse Fourier Transform to the input data
     using the `pyfftw` library to optimize performance. The result is a
