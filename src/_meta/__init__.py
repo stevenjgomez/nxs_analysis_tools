@@ -7,5 +7,5 @@ __author__ = 'Steven J. Gomez Alvarado'
 __email__ = 'stevenjgomez@ucsb.edu'
 __copyright__ = f"2023-2025, {__author__}"
 __license__ = 'MIT'
-__version__ = get_version(root='..', relative_to=__file__)
+__version__ = get_version(root='..', relative_to=__file__, fallback_version="0.1.14a0")
 __repo_url__ = 'https://github.com/stevenjgomez/nxs_analysis_tools'
