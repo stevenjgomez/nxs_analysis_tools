@@ -3,9 +3,10 @@ Reduce and transform nexus format (.nxs) scattering data.
 '''
 
 import numpy as np
-from _meta import __author__, __copyright__, __license__, __version__
+from _meta import __author__, __copyright__, __license__
 from .datareduction import *
 from .chess import TempDependence
+from ._version import version as __version__
 
 # What to import when running "from nxs_analysis_tools import *"
 __all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',

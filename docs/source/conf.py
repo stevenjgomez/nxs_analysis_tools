@@ -16,7 +16,7 @@ author = _meta.__author__
 release = _meta.__version__
 
 # major.minor
-version = release.rpartition('.')[0]
+version = ".".join(_meta.__version__.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 

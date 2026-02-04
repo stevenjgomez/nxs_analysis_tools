@@ -6,6 +6,7 @@
 docs/build/
 pylint_out.rst
 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -24,3 +25,4 @@ var/
 *.egg-info/
 *.egg
 scratch/
+src/nxs_analysis_tools/_version.py
