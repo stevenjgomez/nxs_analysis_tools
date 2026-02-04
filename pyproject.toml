@@ -1,12 +1,12 @@
 # keep consistent with _meta/__init__.py
 
 [build-system]
-requires = ['setuptools>=61.2.0', 'wheel']
+requires = ['setuptools>=61.2.0', 'wheel', 'setuptools_scm[toml]']
 build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'nxs-analysis-tools'
-version = '0.1.14-alpha'
+dynamic = ["version"]
 description = 'Reduce and transform nexus format (.nxs) scattering data.'
 readme = 'README.md'
 requires-python = '>=3.10'
@@ -70,24 +70,7 @@ dev = [
 'Source Code' = 'https://github.com/stevenjgomez/nxs_analysis_tools'
 'DOI' = 'https://doi.org/10.5281/zenodo.15186359'
 
-[tool.bumpver]
-current_version = "0.1.14-alpha"
-version_pattern = "MAJOR.MINOR.PATCH[-TAG]"
-tag_pattern = "vMAJOR.MINOR.PATCH[-TAG]"
-commit_message = "Bump version {old_version} -> {new_version}"
-tag_message = "{new_version}"
-tag_scope = "default"
-pre_commit_hook = ""
-post_commit_hook = ""
-commit = true
-tag = false
-push = true
-
-[tool.bumpver.file_patterns]
-"pyproject.toml" = [
-    'current_version = "{version}"',
-    "version = '{version}'"
-]
-"src/_meta/__init__.py" = [
-    "__version__ = '{version}'",
-]
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+fallback_version = "0.1.0"
