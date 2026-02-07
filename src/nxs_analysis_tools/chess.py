@@ -425,10 +425,11 @@ class TempDependence:
             self.linecuts[T] = self.scissors[T].linecut
             self.linecutmodels[T].set_data(self.linecuts[T])
 
-        xlabel_components = [self.linecuts[self.temperatures[0]].axes
+        xlabel_components = [self.linecuts[self.temperatures[0]].nxaxes[0].nxname
                              if i == self.scissors[self.temperatures[0]].axis
                              else str(c) for i, c in
-                             enumerate(self.scissors[self.temperatures[0]].center)]
+                             enumerate(self.scissors[self.temperatures[0]].center)
+                            ]
         self.xlabel = ' '.join(xlabel_components)
 
         return self.linecuts
@@ -458,14 +459,14 @@ class TempDependence:
 
         for i, linecut in enumerate(self.linecuts.values()):
             
-            x_data = linecut[linecut.axes].nxdata
-            y_data = linecut[linecut.signal].nxdata + i * vertical_offset
+            x_data = linecut.nxaxes[0].nxdata
+            y_data = linecut.nxsignal.nxdata + i * vertical_offset
             p = ax.plot(x_data, y_data, color=cmap(i / len(self.linecuts)), label=self.temperatures[i], 
                     zorder=zorder, **kwargs)
             zorder -= 1
 
         ax.set(xlabel=self.xlabel,
-               ylabel=self.linecuts[self.temperatures[0]].signal)
+               ylabel=self.linecuts[self.temperatures[0]].nxsignal.nxname)
 
         # Get the current legend handles and labels
         handles, labels = plt.gca().get_legend_handles_labels()
@@ -497,7 +498,7 @@ class TempDependence:
 
         # Retrieve linecut data for the first temperature and extract x-axis data
         cut = self.linecuts[self.temperatures[0]]
-        x = cut[cut.axes].nxdata
+        x = cut.nxaxes[0].nxdata
 
         # Convert the list of temperatures to a NumPy array for the y-axis
         y = np.array([int(t) for t in self.temperatures])
@@ -719,7 +720,7 @@ class TempDependence:
                 display(Markdown(f"### {T} K Fit Results"))
             # Plot fit
             linecutmodel.plot_fit(xlabel=self.xlabel,
-                                  ylabel=self.datasets[self.temperatures[0]].signal,
+                                  ylabel=self.datasets[self.temperatures[0]].nxsignal.nxname,
                                   title=f"{T} K",
                                   **kwargs)
 
