@@ -132,12 +132,12 @@ def rebin_3d(array):
 
     Parameters
     ----------
-    array : np.ndarray
+    array : :class:`numpy.ndarray`
         A 3-dimensional NumPy array to be rebinned.
 
     Returns
     -------
-    np.ndarray
+    :class:`numpy.ndarray`
         A rebinned array with shape (N//2, M//2, L//2) if the original shape was (N, M, L).
     """
 
@@ -163,12 +163,12 @@ def rebin_2d(array):
 
     Parameters
     ----------
-    array : np.ndarray
+    array : :class:`numpy.ndarray`
         A 2-dimensional NumPy array to be rebinned.
 
     Returns
     -------
-    np.ndarray
+    :class:`numpy.ndarray`
         A rebinned array with shape (N//2, M//2) if the original shape was (N, M).
     """
 
@@ -194,12 +194,12 @@ def rebin_1d(array):
 
     Parameters
     ----------
-    array : np.ndarray
+    array : :class:`numpy.ndarray`
         A 1-dimensional NumPy array to be rebinned.
 
     Returns
     -------
-    np.ndarray
+    :class:`numpy.ndarray`
         A rebinned array with length N//2 if the original length was N.
     """
 
@@ -293,7 +293,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     Parameters
     ----------
-    data :  or numpy.ndarray
+    data : :class:`nexusformat.nexus.tree.NXdata` or :class:`numpy.ndarray`
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
     sum_axis : int, optional
@@ -315,7 +315,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
     skew_angle : float, optional
         The angle in degrees to shear the plot. Default is 90 degrees (no skew).
 
-    ax : matplotlib.axes.Axes, optional
+    ax : :class:`matplotlib.axes.Axes`, optional
         The `matplotlib` axis to plot on. If None, a new figure and axis will
          be created.
 
@@ -386,7 +386,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         is_nxdata = True
     else:
         raise TypeError(f"Unexpected data type: {type(data)}. "
-                        f"Supported types are np.ndarray and NXdata.")
+                        f"Supported types are numpy.ndarray and NXdata.")
 
     # If three-dimensional, demand sum_axis to reduce to two dimensions.
     if data.ndim == 3:
@@ -419,7 +419,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         elif isinstance(X, NXfield):
             pass
         else:
-            raise TypeError("X must be of type np.ndarray or NXdata")
+            raise TypeError("X must be of type numpy.ndarray or NXdata")
 
         # Convert Y to NXfield if it is not already
         if Y is None:
@@ -429,7 +429,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         elif isinstance(Y, NXfield):
             pass
         else:
-            raise TypeError("Y must be of type np.ndarray or NXdata")
+            raise TypeError("Y must be of type numpy.ndarray or NXdata")
 
         if transpose:
             X, Y = Y, X
@@ -707,7 +707,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
         The axis along which to animate (must be 0, 1, or 2).
     axis_values : iterable
         The values along the animation axis to use as animation frames.
-    ax : matplotlib.axes.Axes, optional
+    ax : :class:`matplotlib.axes.Axes`, optional
         The axes object to plot on. If None, a new figure and axes will be created.
     interval : int, optional
         Delay between frames in milliseconds. Default is 500.
@@ -726,7 +726,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
 
     Returns
     -------
-    ani : matplotlib.animation.FuncAnimation
+    ani : :class:`matplotlib.animation.FuncAnimation`
         The animation object.
     """
     if ax is None:
@@ -862,7 +862,7 @@ class Scissors:
 
         Returns
         -------
-        ndarray or None
+        :class:`nexusformat.nexus.tree.NXdata`
             Input data array.
         """
         return self.data
@@ -996,7 +996,7 @@ class Scissors:
 
         Returns
         -------
-        p1, p2, p3 : matplotlib.collections.QuadMesh
+        p1, p2, p3 : :class:`matplotlib.collections.QuadMesh`
             The plotted QuadMesh objects for the three cross-sections:
             XY at fixed Z, XZ at fixed Y, and YZ at fixed X.
 
@@ -1501,12 +1501,12 @@ class Padder:
 
         Parameters
         ----------
-        data : ndarray or NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata` or :class:`numpy.ndarray`
             The padded data from which to remove the padding.
 
         Returns
         -------
-        ndarray or NXdata
+        :class:`nexusformat.nexus.tree.NXdata` or :class:`numpy.ndarray`
             The unpadded data, with the symmetric padding region removed.
         """
         slice_obj = [slice(None)] * data.ndim

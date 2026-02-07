@@ -268,7 +268,7 @@ class Symmetrizer2D:
 
         Parameters
         ----------
-        data : ndarray
+        data : :class:`numpy.ndarray`
             The input 2D dataset to be used for the test visualization.
         **kwargs : dict
             Additional keyword arguments to be passed to the plot_slice function.
@@ -277,7 +277,7 @@ class Symmetrizer2D:
         -------
         fig : Figure
             The matplotlib Figure object that contains the test visualization plot.
-        axesarr : ndarray
+        axesarr : :class:`numpy.ndarray`
             The numpy array of Axes objects representing the subplots in the test
              visualization.
 
@@ -516,7 +516,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
 
     Parameters
     ----------
-    H, K, L : ndarray or :class:`nexusformat.nexus.tree.NXfield`
+    H, K, L : :class:`numpy.ndarray` or :class:`nexusformat.nexus.tree.NXfield`
         The three principal axes of the reciprocal space grid. These should be provided in the 
         order corresponding to the axes of the relevant dataset.
     amp : float
@@ -535,7 +535,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
 
     Returns
     -------
-    gaussian : ndarray
+    gaussian : :class:`numpy.ndarray`
         3D Gaussian distribution array.
     """
     if coeffs is None:
@@ -583,9 +583,9 @@ class Puncher:
         The dataset with regions modified (punched) based on the mask.
     data : :class:`nexusformat.nexus.tree.NXdata`, optional
         The input dataset to be processed.
-    HH, KK, LL : ndarray
+    HH, KK, LL : :class:`numpy.ndarray`
         Meshgrid arrays representing the H, K, and L coordinates in reciprocal space.
-    mask : ndarray, optional
+    mask : :class:`numpy.ndarray`, optional
         The mask used for identifying and modifying specific regions in the dataset.
     reciprocal_lattice_params : tuple, optional
         The reciprocal lattice parameters derived from the lattice parameters.
@@ -633,10 +633,10 @@ class Puncher:
             The dataset with modified (punched) regions, initialized as None.
         data : :class:`nexusformat.nexus.tree.NXdata`, optional
             The input dataset to be processed, initialized as None.
-        HH, KK, LL : ndarray, optional
+        HH, KK, LL : :class:`numpy.ndarray`, optional
             Arrays representing the H, K, and L coordinates in reciprocal space,
              initialized as None.
-        mask : ndarray, optional
+        mask : :class:`numpy.ndarray`, optional
             The mask for identifying and modifying specific regions in the dataset,
              initialized as None.
         reciprocal_lattice_params : tuple, optional
@@ -711,7 +711,7 @@ class Puncher:
 
         Parameters
         ----------
-        maskaddition : ndarray
+        maskaddition : :class:`numpy.ndarray`
             The mask to be added.
         """
         self.mask = np.logical_or(self.mask, maskaddition)
@@ -722,7 +722,7 @@ class Puncher:
 
         Parameters
         ----------
-        masksubtraction : ndarray
+        masksubtraction : :class:`numpy.ndarray`
             The mask to be subtracted.
         """
         self.mask = np.logical_and(self.mask, np.logical_not(masksubtraction))
@@ -744,7 +744,7 @@ class Puncher:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask identifying the Bragg peaks.
         """
         if coeffs is None:
@@ -781,7 +781,7 @@ class Puncher:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask highlighting regions with high intensity.
         """
         data = self.data
@@ -826,7 +826,7 @@ class Puncher:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask for the specified coordinate.
         """
         if coeffs is None:
@@ -1014,19 +1014,19 @@ class Interpolator:
     interp_time : float or None
         Time taken for the last interpolation operation. Defaults to None.
 
-    window : ndarray or None
+    window : :class:`numpy.ndarray` or None
         Window function to be applied to the interpolated data. Defaults to None.
 
-    interpolated : ndarray or None
+    interpolated : :class:`numpy.ndarray` or None
         The result of the interpolation operation. Defaults to None.
 
     data : :class:`nexusformat.nexus.tree.NXdata` or None
         The dataset to be interpolated. Defaults to None.
 
-    kernel : ndarray or None
+    kernel : :class:`numpy.ndarray` or None
         The kernel used for convolution during interpolation. Defaults to None.
 
-    tapered : ndarray or None
+    tapered : :class:`numpy.ndarray` or None
         The interpolated data after applying the window function. Defaults to None.
     """
 
@@ -1081,7 +1081,7 @@ class Interpolator:
 
         Parameters
         ----------
-        kernel : ndarray
+        kernel : :class:`numpy.ndarray`
             The kernel to be used for convolution during interpolation.
         """
         self.kernel = kernel
@@ -1147,7 +1147,7 @@ class Interpolator:
         -----
         The window function is generated based on the size of the dataset in each dimension.
         """
-        data = self.data
+        
         q1,q2,q3 = self.q1, self.q2, self.q3
         tukey_H = np.tile(
             scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
@@ -1274,7 +1274,7 @@ class Interpolator:
 
         Sets
         ----
-        self.window : ndarray
+        self.window : :class:`numpy.ndarray`
             A 3D array of the same shape as the data, containing the Tukey window
             values between 0 and 1.
         """
@@ -1323,7 +1323,7 @@ class Interpolator:
 
         Parameters
         ----------
-        window : ndarray
+        window : :class:`numpy.ndarray`
             A custom window function to be applied to the interpolated data.
         """
         self.window = window
@@ -1448,15 +1448,15 @@ class DeltaPDF:
             windows to the data.
         padder : Padder
             An instance of the Padder class for padding the data.
-        mask : ndarray or None
+        mask : :class:`numpy.ndarray` or None
             The mask used for data processing.
         kernel : Kernel or None
             The kernel used for interpolation.
-        window : ndarray or None
+        window : :class:`numpy.ndarray` or None
             The window applied to the interpolated data.
-        padded : ndarray or None
+        padded : :class:`numpy.ndarray` or None
             The padded data.
-        tapered : ndarray or None
+        tapered : :class:`numpy.ndarray` or None
             The data after applying the window.
         interpolated : :class:`nexusformat.nexus.tree.NXdata` or None
             The interpolated data.
@@ -1535,7 +1535,7 @@ class DeltaPDF:
 
          Parameters
          ----------
-         maskaddition : ndarray
+         maskaddition : :class:`numpy.ndarray`
              The mask to be added.
          """
         self.puncher.add_mask(maskaddition)
@@ -1547,7 +1547,7 @@ class DeltaPDF:
 
         Parameters
         ----------
-        masksubtraction : ndarray
+        masksubtraction : :class:`numpy.ndarray`
             The mask to be subtracted.
         """
         self.puncher.subtract_mask(masksubtraction)
@@ -1570,7 +1570,7 @@ class DeltaPDF:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask identifying the Bragg peaks.
         """
         return self.puncher.generate_bragg_mask(punch_radius, coeffs, thresh)
@@ -1590,7 +1590,7 @@ class DeltaPDF:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask highlighting regions with high intensity.
         """
         return self.puncher.generate_intensity_mask(thresh, radius, verbose)
@@ -1614,7 +1614,7 @@ class DeltaPDF:
 
         Returns
         -------
-        mask : ndarray
+        mask : :class:`numpy.ndarray`
             Boolean mask for the specified coordinate.
         """
         return self.puncher.generate_mask_at_coord(coordinate, punch_radius, coeffs, thresh)
@@ -1636,7 +1636,7 @@ class DeltaPDF:
 
         Parameters
         ----------
-        kernel : ndarray
+        kernel : :class:`numpy.ndarray`
             The kernel to be used for convolution during interpolation.
         """
         self.interpolator.set_kernel(kernel)
@@ -1752,7 +1752,7 @@ class DeltaPDF:
 
         Parameters
         ----------
-        window : ndarray
+        window : :class:`numpy.ndarray`
             A custom window function to be applied to the interpolated data.
         """
         self.interpolator.set_window(window)

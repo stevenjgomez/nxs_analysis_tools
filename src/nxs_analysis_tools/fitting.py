@@ -263,7 +263,7 @@ class LinecutModel:
 
         Returns
         -------
-        ax : matplotlib.axes.Axes
+        ax : :class:`matplotlib.axes.Axes`
             The Axes object containing the plot.
 
         """
