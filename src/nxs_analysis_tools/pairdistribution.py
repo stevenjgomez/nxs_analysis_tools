@@ -536,27 +536,36 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
     gaussian : ndarray
         3D Gaussian distribution array.
     """
-    if center is None:
-        center=(0,0,0)
     if coeffs is None:
-        coeffs = [1, 0, 1, 0, 1, 0]
-    a, b, c, al, be, ga = lattice_params
-    a_, b_, c_, _, _, _ = reciprocal_lattice_params((a, b, c, al, be, ga))
-    H = H-center[0]
-    K = K-center[1]
-    L = L-center[2]
-    H, K, L = np.meshgrid(H, K, L, indexing='ij')
-    gaussian = amp * np.exp(-(coeffs[0] * H ** 2 +
-                              coeffs[1] * (b_ * a_ / (a_ ** 2)) * H * K +
-                              coeffs[2] * (b_ / a_) ** 2 * K ** 2 +
-                              coeffs[3] * (b_ * c_ / (a_ ** 2)) * K * L +
-                              coeffs[4] * (c_ / a_) ** 2 * L ** 2 +
-                              coeffs[5] * (c_ * a_ / (a_ ** 2)) * L * H) / (2 * stddev ** 2))
-    if gaussian.ndim == 3:
-        gaussian = gaussian.transpose(1, 0, 2)
-    elif gaussian.ndim == 2:
-        gaussian = gaussian.transpose()
-    return gaussian.transpose(1, 0, 2)
+        coeffs = (1, 0, 1, 0, 1, 0)
+
+    # Reciprocal lattice parameters
+    a, b, c, alpha, beta, gamma = lattice_params
+    a_, b_, c_, *_ = reciprocal_lattice_params((a, b, c, alpha, beta, gamma))
+
+    # Shift coordinates
+    H = H - center[0]
+    K = K - center[1]
+    L = L - center[2]
+
+    # Build coordinate grid
+    H, K, L = np.meshgrid(H, K, L, indexing="ij")
+
+    A, B, C, D, E, F = coeffs
+
+    # Quadratic form in reciprocal space
+    quad = (
+        A * H**2
+        + B * (b_ / a_) * H * K
+        + C * (b_ / a_)**2 * K**2
+        + D * (b_ * c_ / a_**2) * K * L
+        + E * (c_ / a_)**2 * L**2
+        + F * (c_ / a_) * L * H
+    )
+
+    gaussian = amp * np.exp(-quad / (2 * stddev**2))
+
+    return gaussian
 
 class Puncher:
     """
