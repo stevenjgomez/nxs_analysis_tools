@@ -293,7 +293,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata` or ndarray
+    data : nexusformat.nexus.NXdata or numpy.ndarray
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
     sum_axis : int, optional
