@@ -439,7 +439,7 @@ class TempDependence:
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes, optional
+        ax : :class:`matplotlib.axes.Axes`, optional
             The matplotlib Axes object on which to plot. If None, a new figure 
             and axes are created. Default None.
         vertical_offset : float, optional

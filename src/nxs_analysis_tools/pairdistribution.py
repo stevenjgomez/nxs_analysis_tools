@@ -36,7 +36,7 @@ class Symmetrizer2D:
     mirror_axis : int or None
         The axis along which mirroring is performed. Default is None, meaning
         no mirroring is applied.
-    symmetrized : NXdata or None
+    symmetrized : :class:`nexusformat.nexus.tree.NXdata` or None
         The symmetrized dataset after applying the symmetrization operations.
         Default is None until symmetrization is performed.
     rotations : int or None
@@ -57,10 +57,10 @@ class Symmetrizer2D:
     theta_min : float or None
         The minimum angle (in degrees) for symmetrization. Default is None
          until parameters are set.
-    wedge : NXdata or None
+    wedge : :class:`nexusformat.nexus.tree.NXdata` or None
         The dataset wedge used in the symmetrization process. Default is
          None until symmetrization is performed.
-    symmetrization_mask : NXdata or None
+    symmetrization_mask : :class:`nexusformat.nexus.tree.NXdata` or None
         The mask used for selecting the region of the dataset to be symmetrized.
          Default is None until symmetrization is performed.
 
@@ -160,12 +160,12 @@ class Symmetrizer2D:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The input 2D dataset to be symmetrized.
 
         Returns
         -------
-        symmetrized : NXdata
+        symmetrized : :class:`nexusformat.nexus.tree.NXdata`
             The symmetrized 2D dataset.
         """
         theta_min = self.theta_min
@@ -338,7 +338,7 @@ class Symmetrizer3D:
 
         Parameters
         ----------
-        data : NXdata, optional
+        data : :class:`nexusformat.nexus.tree.NXdata`, optional
             The input 3D dataset to be symmetrized.
         """
 
@@ -373,7 +373,7 @@ class Symmetrizer3D:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The input 3D dataset to be symmetrized.
         """
         self.data = data
@@ -429,7 +429,7 @@ class Symmetrizer3D:
 
         Returns
         -------
-        NXdata
+        :class:`nexusformat.nexus.tree.NXdata`
             The symmetrized 3D dataset stored in the `symmetrized` attribute.
 
         Notes
@@ -516,7 +516,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
 
     Parameters
     ----------
-    H, K, L : ndarray or :class:`nexusformat.nexus.NXfield`
+    H, K, L : ndarray or :class:`nexusformat.nexus.tree.NXfield`
         The three principal axes of the reciprocal space grid. These should be provided in the 
         order corresponding to the axes of the relevant dataset.
     amp : float
@@ -579,9 +579,9 @@ class Puncher:
 
     Attributes
     ----------
-    punched : NXdata, optional
+    punched : :class:`nexusformat.nexus.tree.NXdata`, optional
         The dataset with regions modified (punched) based on the mask.
-    data : NXdata, optional
+    data : :class:`nexusformat.nexus.tree.NXdata`, optional
         The input dataset to be processed.
     HH, KK, LL : ndarray
         Meshgrid arrays representing the H, K, and L coordinates in reciprocal space.
@@ -629,9 +629,9 @@ class Puncher:
 
         Attributes
         ----------
-        punched : NXdata, optional
+        punched : :class:`nexusformat.nexus.tree.NXdata`, optional
             The dataset with modified (punched) regions, initialized as None.
-        data : NXdata, optional
+        data : :class:`nexusformat.nexus.tree.NXdata`, optional
             The input dataset to be processed, initialized as None.
         HH, KK, LL : ndarray, optional
             Arrays representing the H, K, and L coordinates in reciprocal space,
@@ -664,7 +664,7 @@ class Puncher:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The dataset to be processed.
 
         Notes
@@ -1020,7 +1020,7 @@ class Interpolator:
     interpolated : ndarray or None
         The result of the interpolation operation. Defaults to None.
 
-    data : NXdata or None
+    data : :class:`nexusformat.nexus.tree.NXdata` or None
         The dataset to be interpolated. Defaults to None.
 
     kernel : ndarray or None
@@ -1058,7 +1058,7 @@ class Interpolator:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The dataset containing the data to be interpolated.
         """
         self.data = data
@@ -1353,7 +1353,7 @@ def fourier_transform_nxdata(data, is_2d=False):
 
     Parameters
     ----------
-    data : NXdata
+    data : :class:`nexusformat.nexus.tree.NXdata`
         An NXdata object containing the data to be transformed.
 
     is_2d : bool
@@ -1362,7 +1362,7 @@ def fourier_transform_nxdata(data, is_2d=False):
 
     Returns
     -------
-    NXdata
+    :class:`nexusformat.nexus.tree.NXdata`
         A new NXdata object containing the Fourier Transformed data. The
         result includes:
 
@@ -1431,9 +1431,9 @@ class DeltaPDF:
 
         Attributes
         ----------
-        fft : NXdata or None
+        fft : :class:`nexusformat.nexus.tree.NXdata` or None
             The Fourier transformed data.
-        data : NXdata or None
+        data : :class:`nexusformat.nexus.tree.NXdata` or None
             The input diffraction data.
         lattice_params : tuple or None
             Lattice parameters [e.g., (a, b, c, alpha, beta, gamma)]. These should be provided
@@ -1458,9 +1458,9 @@ class DeltaPDF:
             The padded data.
         tapered : ndarray or None
             The data after applying the window.
-        interpolated : NXdata or None
+        interpolated : :class:`nexusformat.nexus.tree.NXdata` or None
             The interpolated data.
-        punched : NXdata or None
+        punched : :class:`nexusformat.nexus.tree.NXdata` or None
             The punched data.
 
         """
@@ -1491,7 +1491,7 @@ class DeltaPDF:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The diffraction data to be processed.
         """
         self.data = data
@@ -1783,7 +1783,7 @@ class DeltaPDF:
 
         Returns
         -------
-        NXdata
+        :class:`nexusformat.nexus.tree.NXdata`
             The padded data with symmetric zero padding.
         """
         self.padded = self.padder.pad(padding)

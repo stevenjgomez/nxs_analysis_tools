@@ -43,8 +43,8 @@ def load_data(path, print_tree=True):
 
     Returns
     -------
-    data : nxdata object
-        The loaded data stored in a nxdata object.
+    data : :class:`nexusformat.nexus.tree.NXdata`
+        The loaded data stored in a NXdata object.
 
     """
 
@@ -76,7 +76,7 @@ def load_transform(path, print_tree=True, use_nxlink=False):
 
     Returns
     -------
-    data : NXdata
+    data : :class:`nexusformat.nexus.tree.NXdata`
         The loaded transform data as an NXdata object.
     """
 
@@ -103,7 +103,7 @@ def array_to_nxdata(array, data_template, signal_name=None):
     array : array-like
         The data array to be included in the NXdata object.
 
-    data_template : NXdata
+    data_template : :class:`nexusformat.nexus.tree.NXdata`
         An NXdata object serving as a template, which provides information
         about axes and other metadata.
 
@@ -229,7 +229,7 @@ def rebin_nxdata(data):
 
     Parameters
     ----------
-    data : NXdata
+    data : :class:`nexusformat.nexus.tree.NXdata`
         The NeXus data group containing the signal and axes to be rebinned.
 
     Returns
@@ -293,7 +293,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
 
     Parameters
     ----------
-    data : nexusformat.nexus.NXdata or numpy.ndarray
+    data :  or numpy.ndarray
         The dataset to plot. Can be an `NXdata` object or a `numpy` array.
 
     sum_axis : int, optional
@@ -605,11 +605,11 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False,
 
     Parameters
     ----------
-    temp_dependence : nxs_analysis_tools.chess.TempDependence
+    temp_dependence : :class:`nxs_analysis_tools.chess.TempDependence`
         Object holding datasets at various temperatures.
     slice_obj : list of slice or None
         Slice object to apply to each dataset; None entries are treated as ':'.
-    ax : matplotlib.axes.Axes, optional
+    ax : :class:`matplotlib.axes.Axes`, optional
         The axes object to plot on. If None, a new figure and axes will be created.
     reverse_temps : bool, optional
         If True, animates datasets with increasing temperature. Default is False.
@@ -630,7 +630,7 @@ def animate_slice_temp(temp_dependence, slice_obj, ax=None, reverse_temps=False,
 
     Returns
     -------
-    ani : matplotlib.animation.FuncAnimation
+    ani : :class:`matplotlib.animation.FuncAnimation`
         The resulting animation object.
     """
     if ax is None:
@@ -701,7 +701,7 @@ def animate_slice_axis(data, axis, axis_values, ax=None, interval=500, save_gif=
 
     Parameters
     ----------
-    data : nexusformat.nexus.NXdata
+    data : :class:`nexusformat.nexus.tree.NXdata`
         The 3D dataset to visualize.
     axis : int
         The axis along which to animate (must be 0, 1, or 2).
@@ -782,7 +782,7 @@ class Scissors:
 
     Attributes
     ----------
-    data : :class:`nexusformat.nexus.NXdata` or None
+    data : :class:`nexusformat.nexus.tree.NXdata` or None
         The data to be cut.
     center : tuple or None
         Central coordinate around which to perform the linecut.
@@ -790,11 +790,11 @@ class Scissors:
         Extents of the window for integration along each axis.
     axis : int or None
         Axis along which to perform the integration.
-    integration_volume : :class:`nexusformat.nexus.NXdata` or None
+    integration_volume : :class:`nexusformat.nexus.tree.NXdata` or None
         Data array after applying the integration window.
     integrated_axes : tuple or None
         Indices of axes that were integrated.
-    linecut : :class:`nexusformat.nexus.NXdata` or None
+    linecut : :class:`nexusformat.nexus.tree.NXdata` or None
         1D linecut data after integration.
     integration_window : tuple or None
         Slice object representing the integration window in the data array.
@@ -802,9 +802,9 @@ class Scissors:
     Methods
     -------
     set_data(data)
-        Set the input :class:`nexusformat.nexus.NXdata`.
+        Set the input :class:`nexusformat.nexus.tree.NXdata`.
     get_data()
-        Get the input :class:`nexusformat.nexus.NXdata`.
+        Get the input :class:`nexusformat.nexus.tree.NXdata`.
     set_center(center)
         Set the central coordinate for the linecut.
     set_window(window, axis=None, verbose=False)
@@ -825,7 +825,7 @@ class Scissors:
 
         Parameters
         ----------
-        data : :class:`nexusformat.nexus.NXdata` or None, optional
+        data : :class:`nexusformat.nexus.tree.NXdata` or None, optional
             Input NXdata. Default is None.
         center : tuple or None, optional
             Central coordinate around which to perform the linecut. Default is None.
@@ -851,7 +851,7 @@ class Scissors:
 
         Parameters
         ----------
-        data : :class:`nexusformat.nexus.NXdata`
+        data : :class:`nexusformat.nexus.tree.NXdata`
             Input data array.
         """
         self.data = data
@@ -938,7 +938,7 @@ class Scissors:
 
         Returns
         -------
-        integrated_data : :class:`nexusformat.nexus.NXdata`
+        integrated_data : :class:`nexusformat.nexus.tree.NXdata`
             1D linecut data after integration.
 
         """
@@ -1197,7 +1197,7 @@ def convert_to_inverse_angstroms(data, lattice_params):
 
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata`
+    data : :class:`nexusformat.nexus.tree.NXdata`
         A 3D NXdata object with axes in reciprocal lattice units.
 
     lattice_params : tuple of float
@@ -1206,7 +1206,7 @@ def convert_to_inverse_angstroms(data, lattice_params):
 
     Returns
     -------
-    NXdata
+    :class:`nexusformat.nexus.tree.NXdata`
         A new NXdata object with axes scaled to inverse angstroms.
     """
 
@@ -1226,7 +1226,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
 
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata`
+    data : :class:`nexusformat.nexus.tree.NXdata`
         Input data.
     lattice_angle : float
         Angle between the two in-plane lattice axes in degrees.
@@ -1254,7 +1254,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
 
     Returns
     -------
-    rotated_data : :class:`nexusformat.nexus.NXdata`
+    rotated_data : :class:`nexusformat.nexus.tree.NXdata`
         Rotated data as an NXdata object.
     """
     if aspect is None:
@@ -1346,7 +1346,7 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
 
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.NXdata`
+    data : :class:`nexusformat.nexus.tree.NXdata`
         Input data.
     lattice_angle : float
         Angle between the two in-plane lattice axes in degrees.
@@ -1355,7 +1355,7 @@ def rotate_data_2D(data, lattice_angle, rotation_angle):
 
     Returns
     -------
-    rotated_data : :class:`nexusformat.nexus.NXdata`
+    rotated_data : :class:`nexusformat.nexus.tree.NXdata`
         Rotated data as an NXdata object.
     """
     warnings.warn(
@@ -1375,9 +1375,9 @@ class Padder:
 
     Attributes
     ----------
-    data : NXdata or None
+    data : :class:`nexusformat.nexus.tree.NXdata` or None
         The input data to be padded.
-    padded : NXdata or None
+    padded : :class:`nexusformat.nexus.tree.NXdata` or None
         The padded data with symmetric zero padding.
     padding : tuple or None
         The number of zero-value pixels added along each edge of the array.
@@ -1404,7 +1404,7 @@ class Padder:
 
         Parameters
         ----------
-        data : NXdata, optional
+        data : :class:`nexusformat.nexus.tree.NXdata`, optional
             The input data to be padded. If provided, the `set_data` method
             is called to set the data.
         """
@@ -1422,7 +1422,7 @@ class Padder:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The input data to be padded.
         """
         self.data = data

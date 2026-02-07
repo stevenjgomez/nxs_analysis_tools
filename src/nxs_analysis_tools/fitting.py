@@ -42,7 +42,7 @@ class LinecutModel:
         The composite model used for fitting.
     modelresult : ModelResult or None
         The result of the model fitting.
-    data : NXdata or None
+    data : :class:`nexusformat.nexus.tree.NXdata` or None
         The 1D linecut data used for analysis.
 
     Methods
@@ -100,7 +100,7 @@ class LinecutModel:
 
         Parameters
         ----------
-        data : NXdata
+        data : :class:`nexusformat.nexus.tree.NXdata`
             The 1D linecut data to be used for analysis.
         """
         self.data = data
