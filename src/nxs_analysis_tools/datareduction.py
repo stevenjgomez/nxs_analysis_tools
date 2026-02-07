@@ -783,7 +783,7 @@ class Scissors:
     Attributes
     ----------
     data : :class:`nexusformat.nexus.NXdata` or None
-        Input :class:`nexusformat.nexus.NXdata`.
+        The data to be cut.
     center : tuple or None
         Central coordinate around which to perform the linecut.
     window : tuple or None
@@ -1150,16 +1150,19 @@ def reciprocal_lattice_params(lattice_params):
     Parameters
     ----------
     lattice_params : tuple
-        A tuple containing the direct lattice parameters (a, b, c, alpha, beta, gamma), where
-        a, b, and c are the magnitudes of the lattice vectors, and alpha, beta, and gamma are the
-        angles between them in degrees.
+        A tuple containing the real space lattice parameters [e.g., (a, b, c, alpha, beta, gamma)],
+        where a, b, and c are the magnitudes of the lattice vectors, and alpha, beta, and gamma are
+        the angles between them in degrees. These should be provided in the order corresponding to
+        the axes of the dataset.
+
 
     Returns
     -------
     tuple
-        A tuple containing the reciprocal lattice parameters (a*, b*, c*, alpha*, beta*, gamma*),
-        where a*, b*, and c* are the magnitudes of the reciprocal lattice vectors, and alpha*,
-        beta*, and gamma* are the angles between them in degrees.
+        A tuple containing the reciprocal lattice parameters.
+        [e.g., (a*, b*, c*, alpha*, beta*, gamma*), where a*, b*, and c* are the magnitudes of the
+        reciprocal lattice vectors, and alpha*, beta*, and gamma* are the angles between them in
+        degrees]
     """
     a_mag, b_mag, c_mag, alpha, beta, gamma = lattice_params
     # Convert angles to radians
@@ -1198,8 +1201,8 @@ def convert_to_inverse_angstroms(data, lattice_params):
         A 3D NXdata object with axes in reciprocal lattice units.
 
     lattice_params : tuple of float
-        A tuple containing the real-space lattice parameters
-        (a, b, c, alpha, beta, gamma) in angstroms and degrees.
+        A tuple containing the real-space lattice parameters [e.g., (a, b, c, alpha, beta, gamma)]
+        in Angstroms and degrees.
 
     Returns
     -------

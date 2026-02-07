@@ -403,7 +403,8 @@ class Symmetrizer3D:
         Parameters
         ----------
         lattice_params : tuple of float
-            The lattice parameters (a, b, c, alpha, beta, gamma) in real space.
+            The lattice parameters (a, b, c, alpha, beta, gamma) in real space. These should be
+            provided in the order corresponding to the axes of the relevant dataset.
         """
         self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
         self.lattice_params = lattice_params
@@ -515,15 +516,16 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
 
     Parameters
     ----------
-    H, K, L : ndarray
-        Arrays specifying the values of H, K, and L coordinates in reciprocal space.
+    H, K, L : ndarray or :class:`nexusformat.nexus.NXfield`
+        The three principal axes of the reciprocal space grid. These should be provided in the 
+        order corresponding to the axes of the relevant dataset.
     amp : float
         Amplitude of the Gaussian distribution.
     stddev : float
         Standard deviation of the Gaussian distribution.
     lattice_params : tuple
-        Tuple of lattice parameters (a, b, c, alpha, beta, gamma) for the
-         reciprocal lattice.
+        Lattice parameters [e.g., (a, b, c, alpha, beta, gamma)]. These should be provided in
+        the order corresponding to the axes of the relevant dataset.
     coeffs : list, optional
         Coefficients for the Gaussian expression, including cross-terms between axes.
          Default is [1, 0, 1, 0, 1, 0],
@@ -588,7 +590,7 @@ class Puncher:
     reciprocal_lattice_params : tuple, optional
         The reciprocal lattice parameters derived from the lattice parameters.
     lattice_params : tuple, optional
-        The lattice parameters (a, b, c, alpha, beta, gamma).
+        The lattice parameters [e.g., (a, b, c, alpha, beta, gamma)].
     a, b, c, al, be, ga : float
         Individual lattice parameters.
     a_star, b_star, c_star, al_star, be_star, ga_star : float
@@ -688,7 +690,9 @@ class Puncher:
 
     def set_lattice_params(self, lattice_params):
         """
-        Set the lattice parameters and compute the reciprocal lattice parameters.
+        Set the lattice parameters [e.g., (a, b, c, alpha, beta, gamma)] and compute the reciprocal
+        lattice parameters. These should be provided in the order corresponding to the axes of the
+        relevant dataset.
 
         Parameters
         ----------
@@ -1432,9 +1436,10 @@ class DeltaPDF:
         data : NXdata or None
             The input diffraction data.
         lattice_params : tuple or None
-            Lattice parameters (a, b, c, al, be, ga).
+            Lattice parameters [e.g., (a, b, c, alpha, beta, gamma)]. These should be provided
+            in the order corresponding to the axes of the relevant dataset.
         reciprocal_lattice_params : tuple or None
-            Reciprocal lattice parameters (a*, b*, c*, al*, be*, ga*).
+            Reciprocal lattice parameters [e.g., (a*, b*, c*, al*, be*, ga*)].
         puncher : Puncher
             An instance of the Puncher class for generating masks and punching
             the data.
@@ -1517,7 +1522,8 @@ class DeltaPDF:
         Parameters
         ----------
         lattice_params : tuple of float
-            The lattice parameters (a, b, c, alpha, beta, gamma) in real space.
+            The lattice parameters [e.g., (a, b, c, alpha, beta, gamma)] in real space. These 
+            should be provided in the order corresponding to the axes of the relevant dataset.
         """
         self.lattice_params = lattice_params
         self.puncher.set_lattice_params(lattice_params)
