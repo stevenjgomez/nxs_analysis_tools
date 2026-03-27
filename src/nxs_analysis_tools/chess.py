@@ -136,6 +136,11 @@ class TempDependence:
         self.a, self.b, self.c, self.al, self.be, self.ga, \
             self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star \
             = [None] * 12
+        
+        if sample_directory is None:
+            self.sample_directory = None
+        else:
+            self.set_sample_directory(sample_directory)
 
     def set_temperatures(self, temperatures):
         """
