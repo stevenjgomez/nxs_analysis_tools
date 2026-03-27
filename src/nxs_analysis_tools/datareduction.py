@@ -1384,7 +1384,7 @@ class Padder:
     steps : tuple or None
         The step sizes along each axis of the dataset.
     maxes : tuple or None
-        The maximum values along each axis of the dataset.
+        The maximum values along each axis of the unpadded dataset.
 
     Methods
     -------
