@@ -155,7 +155,7 @@ class TempDependence:
 
     def find_temperatures(self):
         """
-        Set the list of temperatures by automatically scanning the sample directory for .nxs files from nxrefine.
+        Set the list of temperatures by automatically scanning the sample directory for .nxs files from NXRefine.
         """
 
         # Assert that self.sample_directory must exist
@@ -167,16 +167,13 @@ class TempDependence:
 
         # Search for nxrefine .nxs files
         for item in os.listdir(self.sample_directory):
-            pattern = r'_(\d+)\.nxs'
+            pattern = r'_(\d+(?:p\d+)?)\.nxs'
             match = re.search(pattern, item)
             if match:
-                # Identify temperature
-                temperature = match.group(1)
-                self.temperatures.append(temperature)
-        # Convert all temperatures to int temporarily to sort temperatures list
-        self.temperatures = [int(t) for t in self.temperatures]
-        self.temperatures.sort()
-        self.temperatures = [str(t) for t in self.temperatures]
+                self.temperatures.append(match.group(1))
+
+        # Sort the temperatures
+        self.temperatures.sort(key=lambda t: float(t.replace('p', '.')))    
 
     def set_sample_directory(self, path):
         """
