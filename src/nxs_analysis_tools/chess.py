@@ -136,6 +136,11 @@ class TempDependence:
         self.a, self.b, self.c, self.al, self.be, self.ga, \
             self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star \
             = [None] * 12
+        
+        if sample_directory is None:
+            self.sample_directory = None
+        else:
+            self.set_sample_directory(sample_directory)
 
     def set_temperatures(self, temperatures):
         """
@@ -150,7 +155,7 @@ class TempDependence:
 
     def find_temperatures(self):
         """
-        Set the list of temperatures by automatically scanning the sample directory for .nxs files from nxrefine.
+        Set the list of temperatures by automatically scanning the sample directory for .nxs files from NXRefine.
         """
 
         # Assert that self.sample_directory must exist
@@ -162,16 +167,13 @@ class TempDependence:
 
         # Search for nxrefine .nxs files
         for item in os.listdir(self.sample_directory):
-            pattern = r'_(\d+)\.nxs'
+            pattern = r'_(\d+(?:p\d+)?)\.nxs'
             match = re.search(pattern, item)
             if match:
-                # Identify temperature
-                temperature = match.group(1)
-                self.temperatures.append(temperature)
-        # Convert all temperatures to int temporarily to sort temperatures list
-        self.temperatures = [int(t) for t in self.temperatures]
-        self.temperatures.sort()
-        self.temperatures = [str(t) for t in self.temperatures]
+                self.temperatures.append(match.group(1))
+
+        # Sort the temperatures
+        self.temperatures.sort(key=lambda t: float(t.replace('p', '.')))    
 
     def set_sample_directory(self, path):
         """
@@ -209,14 +211,14 @@ class TempDependence:
 
     def load_transforms(self, temperatures_list=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
         """
-        Load transform datasets (from nxrefine) based on temperature.
+        Load transform datasets (from NXRefine) based on temperature.
 
         Parameters
         ----------
-        temperatures_list : list of int or None, optional
+        temperatures_list : list of int, float, or None, optional
             List of temperatures to load. If None, all available temperatures are loaded.
 
-        exclude_temperatures : int, str, optional
+        exclude_temperatures : int, float, str, or list, optional
             Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
         
         print_tree : bool, optional
@@ -227,69 +229,47 @@ class TempDependence:
             the raw data in the transform.nxs file. This saves memory when working with
             many datasets. In this case, the axes are in reverse order. Default is False.
         """
-        # Convert all temperatures to strings
-        if temperatures_list:
-            temperatures_list = [str(t) for t in temperatures_list]
-        if exclude_temperatures:
-            if isinstance(exclude_temperatures, str):
+        # Normalize filter inputs to p-format strings (e.g. 15.5 -> '15p5')
+        def to_p_format(t):
+            return str(t).replace('.', 'p')
+
+        if temperatures_list is not None:
+            temperatures_list = {to_p_format(t) for t in temperatures_list}
+        if exclude_temperatures is not None:
+            if not isinstance(exclude_temperatures, list):
                 exclude_temperatures = [exclude_temperatures]
-            exclude_temperatures = [str(t) for t in list(exclude_temperatures)]
+            exclude_temperatures = {to_p_format(t) for t in exclude_temperatures}
 
-        # Clear existing temperatures before loading files
-        self.temperatures = []
+        # Discover all available temperatures
+        self.find_temperatures()
 
-        # Identify files to load
-        items_to_load = []
-        # Search for nxrefine .nxs files
-        for item in os.listdir(self.sample_directory):
-            pattern = r'_(\d+)\.nxs'
-            match = re.search(pattern, item)
-            if match:
-                # Identify temperature
-                temperature = match.group(1)
-                # print(f'Temperature = {temperature}')
-                if temperatures_list is not None:
-                    incl_temp = temperature in temperatures_list
-                else:
-                    incl_temp = True
-                if exclude_temperatures is not None:
-                    not_excl_temp = temperature not in exclude_temperatures
-                else:
-                    not_excl_temp = True
-                if incl_temp and not_excl_temp:
-                    # Prepare file to be loaded
-                    self.temperatures.append(temperature)
-                    items_to_load.append(item)
-                    # print(f'Preparing to load {temperature} K data: {item}')
+        # Filter temperatures
+        filtered = [
+            t for t in self.temperatures
+            if (temperatures_list is None or t in temperatures_list)
+            and (exclude_temperatures is None or t not in exclude_temperatures)
+        ]
+        self.temperatures = filtered
 
-        # Convert all temperatures to int temporarily to sort temperatures list before loading
-        self.temperatures = [int(t) for t in self.temperatures]
+        # Load files
+        pattern = r'_(\d+(?:p\d+)?)\.nxs'
+        filename_map = {
+            re.search(pattern, item).group(1): item
+            for item in os.listdir(self.sample_directory)
+            if re.search(pattern, item)
+        }
 
-        loading_template = pd.DataFrame({'temperature': self.temperatures,
-                                         'filename': items_to_load})
-        loading_template = loading_template.sort_values(by='temperature')
-        self.temperatures = loading_template['temperature']
-        self.temperatures = [str(t) for t in self.temperatures]
-        items_to_load = loading_template['filename'].to_list()
-
-        for i, item in enumerate(items_to_load):
-            path = os.path.join(self.sample_directory, item)
-
-            # Ensure path is a string before using it
-            path = str(path)
-
-            # Save dataset
+        for temperature in self.temperatures:
+            item = filename_map[temperature]
+            path = str(os.path.join(self.sample_directory, item))
             try:
-                self.datasets[self.temperatures[i]] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
+                self.datasets[temperature] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
             except Exception as e:
-                # Report temperature that was unable to load, then raise exception.
-                temp_failed = self.temperatures[i]
-                print(f"Failed to load data for temperature {temp_failed} K from file {item}."
-                      f" Error: {e}")
-                raise  # Re-raise the exception
+                print(f"Failed to load data for temperature {temperature} K from file {item}. Error: {e}")
+                raise
 
         self.initialize()
-
+        
     def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None, exclude_temperatures=None, print_tree=True):
         """
         Load datasets (CHESS format) from the specified folder.
