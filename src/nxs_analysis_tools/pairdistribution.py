@@ -1342,84 +1342,140 @@ class Interpolator:
         self.tapered = self.interpolated * self.window
 
 
-def fourier_transform_nxdata(data, is_2d=False):
+def fourier_transform_nxdata(data, method='complete', verbose=True):
     """
-    Perform a Fourier Transform on the given NXdata object.
-
-    This function applies an inverse Fourier Transform to the input data
-    using the `pyfftw` library to optimize performance. The result is a
-    transformed array with spatial frequency components calculated along
-    each axis.
+    Perform a Fourier Transform on an NXdata object.
 
     Parameters
     ----------
     data : :class:`nexusformat.nexus.tree.NXdata`
         An NXdata object containing the data to be transformed.
 
-    is_2d : bool
-        If true, skip FFT on out-of-plane direction and only do FFT
-        on axes 0 and 1. Default False.
+    method : {'complete', 'staged'}, optional
+        The FFT method to use:
+        - 'complete' (default): performs a full n-dimensional FFT using pyfftw.
+        - 'staged': performs a 2+1D FFT in two stages—first within the planes defined by the
+          first two axes, then along the third axis. Requires 3D data and the third axis
+          must be normal to the plane of the first two axes.
+
+    verbose : bool, optional
+        If True, prints progress messages during computation.
 
     Returns
     -------
     :class:`nexusformat.nexus.tree.NXdata`
-        A new NXdata object containing the Fourier Transformed data. The
-        result includes:
-
-        - `dPDF`: The transformed data array.
-        - `x`, `y`, `z`: Arrays representing the real-space components along each axis.
+        A new NXdata object containing the Fourier-transformed data (real part).
 
     Notes
     -----
-    - The FFT is performed in two stages: first along the last dimension of the input array and then along the first two dimensions.
-    - The function uses `pyfftw` for efficient computation of the Fourier Transform.
-    - The output frequency components are computed based on the step sizes of the original data axes.
-
+    - Uses `pyfftw` for efficient Fourier Transform computation.
+    - Only the real part of the FFT is returned.
+    - In version v0.1.15 and beyond, the default method was changed from 
+      `method='staged'` to `method='complete'`. Previous behavior can be restored
+      by explicitly setting `method='staged'`.
+    - `method='staged'` may produce incorrect results if the third coordinate axis
+      is not perpendicular to the plane of the first two axes; a warning is issued
+      in this case.
     """
+
+    fft_object = None
+    fft_array = None
+
     start = time.time()
-    print("Starting FFT.")
+    print("FFT started.")
 
-    padded = data.nxsignal.nxdata
+    if method == 'complete':
 
-    fft_array = np.zeros(padded.shape)
+        warnings.warn(
+            "In version v0.1.15 and beyond, the default method was changed from method='staged' "
+            "to method='complete' to avoid issues with data containing a non-orthogonal third "
+            "coordinate axis. Previous behavior can be restored by using method='staged'."
+            )
 
-    print("FFT on axes 1,2")
+        print("Performing FFT...") if verbose else None
 
-    for k in range(0, padded.shape[2]):
-        fft_array[:, :, k] = np.real(
-            np.fft.fftshift(
-                pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(padded[:, :, k]),
-                                                  planner_effort='FFTW_MEASURE'))
+        # Allocate aligned complex array
+        fft_array = pyfftw.empty_aligned(data.shape, dtype='complex128')
+
+        # if axes is None:
+        if data.ndim == 3:
+            axes = (0,1,2)
+        elif data.ndim == 2:
+            axes = (0,1)
+
+        # Build FFTW plan
+        fft_object = pyfftw.FFTW(
+            fft_array,          # input
+            fft_array,          # output (in-place)
+            axes=axes,
+            direction='FFTW_BACKWARD',   # inverse FFT
+            flags=('FFTW_MEASURE',),
         )
-        print(f'k={k}                  ', end='\r')
 
-    if not is_2d:
-        print("FFT on axis 3")
-        for i in range(0, padded.shape[0]):
-            for j in range(0, padded.shape[1]):
-                f_slice = fft_array[i, j, :]
-                print(f'i={i}                  ', end='\r')
-                fft_array[i, j, :] = np.real(
+        # Copy real data into complex array
+        fft_array[:] = np.fft.ifftshift(data.nxsignal.nxdata)
+
+        # Execute FFT in-place
+        fft_object()
+
+        # Shift once at the end
+        fft_array = np.fft.fftshift(fft_array)
+
+        fft_real = fft_array.real
+
+    elif method == 'staged':
+
+        if data.ndim != 3:
+            raise ValueError("Staged FFT only implemented for 3D data.")
+        
+        warnings.warn(
+            "method='staged' is only valid when the third coordinate axis is normal to the "
+            "plane spanned by the first two axes. Use method=='complete' for general cases.")
+
+        input = data.nxsignal.nxdata
+
+        fft_real = np.zeros(input.shape)
+
+        print(f"Performing FFT on {data.nxaxes[0].nxname}{data.nxaxes[1].nxname} plane...")
+        for k in range(0, input.shape[2]):
+            fft_real[:, :, k] = np.real(
+                np.fft.fftshift(
+                    pyfftw.interfaces.numpy_fft.ifftn(np.fft.ifftshift(input[:, :, k]),
+                                                    planner_effort='FFTW_MEASURE'))
+            )
+            print(f'k={k}/{input.shape[2]}                  ', end='\r')
+
+        print(f"Performing FFT on {data.nxaxes[2].nxname} axis...")
+        for i in range(0, input.shape[0]):
+            for j in range(0, input.shape[1]):
+                f_slice = fft_real[i, j, :]
+                fft_real[i, j, :] = np.real(
                     np.fft.fftshift(
                         pyfftw.interfaces.numpy_fft.ifftn(np.fft.fftshift(f_slice),
-                                                          planner_effort='FFTW_MEASURE')
+                                                        planner_effort='FFTW_MEASURE')
                     )
                 )
+                print(f'i={i}/{input.shape[0]}                  ', end='\r')
 
     end = time.time()
-    print("FFT complete.")
-    print('FFT took ' + str(end - start) + ' seconds.')
+    print(f'FFT completed in {(end - start):.3f} seconds.')
 
-    H_step = data.nxaxes[0].nxdata[1] - data.nxaxes[0].nxdata[0]
-    K_step = data.nxaxes[1].nxdata[1] - data.nxaxes[1].nxdata[0]
-    L_step = data.nxaxes[2].nxdata[1] - data.nxaxes[2].nxdata[0]
+    coords = []
+    for i in range(data.ndim):
+        step = data.nxaxes[i].nxdata[1] - data.nxaxes[i].nxdata[0]
+        axis = NXfield(np.linspace(-0.5 / step, 0.5 / step, data.shape[i]))
+        coords.append(axis)
 
-    fft = NXdata(NXfield(fft_array, name='dPDF'),
-                 (NXfield(np.linspace(-0.5 / H_step, 0.5 / H_step, padded.shape[0]), name='x'),
-                  NXfield(np.linspace(-0.5 / K_step, 0.5 / K_step, padded.shape[1]), name='y'),
-                  NXfield(np.linspace(-0.5 / L_step, 0.5 / L_step, padded.shape[2]), name='z'),
-                  )
-                 )
+    fft = NXdata(
+        NXfield(fft_real),
+        tuple(coords)
+    )
+
+    # Clean up
+    del fft_real, fft_array, fft_object
+
+    gc.collect()
+
     return fft
 
 
@@ -1788,20 +1844,21 @@ class DeltaPDF:
         """
         self.padded = self.padder.pad(padding)
 
-    def perform_fft(self, is_2d=False):
+    def perform_fft(self, is_2d=None, **kwargs):
         """
         Perform a 3D Fourier Transform on the padded data.
 
-        This method applies an inverse Fourier Transform to the padded data
-        using `pyfftw` for optimized performance. The result is stored in
-        the `fft` attribute as an NXdata object containing the transformed
-        spatial frequency components.
-
         Parameters
         ----------
-        is_2d : bool, optional
-           If True, performs the FFT only along the first two axes,
-           skipping the out-of-plane direction (default is False).
+        method : {'complete', 'staged'}, optional
+            The FFT method to use:
+            - 'complete' (default): performs a full n-dimensional FFT using pyfftw.
+            - 'staged': performs a 2+1D FFT in two stages—first within the planes defined by the
+            first two axes, then along the third axis. Requires 3D data and the third axis
+            must be normal to the plane of the first two axes.
+
+        verbose : bool, optional
+            If True, prints progress messages during computation.
 
         Returns
         -------
@@ -1810,11 +1867,18 @@ class DeltaPDF:
         Notes
         -----
         - Calls `fourier_transform_nxdata` to perform the transformation.
-        - The FFT is computed in two stages: first along the last dimension,
-         then along the first two dimensions.
         - The output includes frequency components computed from the step
          sizes of the original data axes.
 
         """
 
-        self.fft = fourier_transform_nxdata(self.padded, is_2d=is_2d)
+        if is_2d is not None:
+            warnings.warn(
+                "The 'is_2d' argument is deprecated and has no effect. "
+                "All FFTs now match the input dimensionality.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # self.fft = fourier_transform_nxdata(self.padded, staged=staged, is_2d=is_2d)
+        self.fft = fourier_transform_nxdata(self.padded, **kwargs)
