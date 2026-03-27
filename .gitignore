@@ -5,6 +5,7 @@
 .idea/
 docs/build/
 pylint_out.rst
+_build/
 
 
 # Byte-compiled / optimized / DLL files

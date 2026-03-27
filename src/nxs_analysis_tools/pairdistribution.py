@@ -1353,10 +1353,11 @@ def fourier_transform_nxdata(data, method='complete', verbose=True):
 
     method : {'complete', 'staged'}, optional
         The FFT method to use:
+
         - 'complete' (default): performs a full n-dimensional FFT using pyfftw.
-        - 'staged': performs a 2+1D FFT in two stages—first within the planes defined by the
-        first two axes, then along the third axis. Requires 3D data and the third axis
-        must be normal to the plane of the first two axes.
+        - 'staged': performs a 2+1D FFT in two stages - first within the planes defined by the
+          first two axes, then along the third axis. Requires 3D data and the third axis
+          must be normal to the plane of the first two axes.
 
     verbose : bool, optional
         If True, prints progress messages during computation.
