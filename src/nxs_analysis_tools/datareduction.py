@@ -1331,7 +1331,8 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
         elif data.ndim == 2:
             output_array = counts
 
-    print('\nRotation completed.')
+    if printout:
+        print('\nRotation completed.')
 
     return NXdata(NXfield(output_array, name=p.padded.nxsignal.nxname),
                   ([axis for axis in data.nxaxes]))
