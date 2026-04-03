@@ -188,10 +188,11 @@ class LinecutModel:
         """
         
         components_params = []
-        
+    
         for model_component in self.model.components:
-            self.params.update(model_component.guess(self.y, x=self.x))
-            components_params.append(model_component.guess(self.y, x=self.x))
+            guessed = model_component.guess(self.y, x=self.x, params=self.params)
+            self.params.update(guessed)
+            components_params.append(guessed)   # reuse the same result
         
         return components_params
 
@@ -283,15 +284,38 @@ class LinecutModel:
             print(self.modelresult.fit_report())
         return ax
     
-    def fit_peak_simple(self):
+    def fit_peak_simple(self, positive_amp=True, constraints=None):
         """
         Fit all linecuts in the temperature series using a pseudo-Voigt peak shape and linear
-        background, with no constraints.
+        background, with no default constraints except a positive peak amplitude.
+
+        Parameters
+        ----------
+        positive_amp : bool, optional
+            If False, negative peak amplitude is allowed. Default True.
+        constraints : dict or None
+            Optional parameter constraints, e.g.:
+            {'peakamplitude': {'value': 500, 'max': 1000},
+            'peaksigma':     {'min': 0.01, 'max': 0.5}}
+            Accepts any keyword recognised by lmfit's Parameter.set():
+            value, min, max, vary, expr.
         """
         self.set_model_components([PseudoVoigtModel(prefix='peak'),
-                                            LinearModel(prefix='background')])
+                                    LinearModel(prefix='background')])
         self.make_params()
         self.guess()
+
+        if positive_amp:
+            self.params['peakamplitude'].set(min=0)
+
+        if constraints:
+            for param_name, settings in constraints.items():
+                if param_name in self.params:
+                    self.params[param_name].set(**settings)
+                else:
+                    raise KeyError(f"Parameter '{param_name}' not found in model. "
+                                f"Available parameters: {list(self.params.keys())}")
+
         self.fit()
 
     def print_fit_report(self):
