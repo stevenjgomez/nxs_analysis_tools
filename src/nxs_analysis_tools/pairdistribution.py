@@ -6,7 +6,7 @@ import os
 import gc
 import math
 import warnings
-from scipy.ndimage import rotate, affine_transform
+from scipy.ndimage import rotate, affine_transform, binary_dilation
 import scipy
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
@@ -571,7 +571,7 @@ def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=
 
 class Puncher:
     """
-    A class for applying masks to 3D datasets, typically for data processing in reciprocal space.
+    A class for applying masks to datasets, typically for data processing in reciprocal space.
 
     This class provides methods for setting data, applying masks, and generating
      masks based on various criteria. It can be used to "punch" or modify datasets
@@ -579,22 +579,22 @@ class Puncher:
 
     Attributes
     ----------
-    punched : :class:`nexusformat.nexus.tree.NXdata`, optional
-        The dataset with regions modified (punched) based on the mask.
-    data : :class:`nexusformat.nexus.tree.NXdata`, optional
+    data : :class:`nexusformat.nexus.tree.NXdata`
         The input dataset to be processed.
-    HH, KK, LL : :class:`numpy.ndarray`
-        Meshgrid arrays representing the H, K, and L coordinates in reciprocal space.
-    mask : :class:`numpy.ndarray`, optional
-        The mask used for identifying and modifying specific regions in the dataset.
-    reciprocal_lattice_params : tuple, optional
-        The reciprocal lattice parameters derived from the lattice parameters.
-    lattice_params : tuple, optional
+    meshgrid : tuple of :class:`numpy.ndarray`
+        Meshgrid arrays for the coordinates of the dataset.
+    mask : :class:`numpy.ndarray`
+        The mask used for removing regions of the dataset.
+    lattice_params : tuple
         The lattice parameters [e.g., (a, b, c, alpha, beta, gamma)].
+    reciprocal_lattice_params : tuple
+        The reciprocal lattice parameters derived from the lattice parameters.
     a, b, c, al, be, ga : float
         Individual lattice parameters.
     a_star, b_star, c_star, al_star, be_star, ga_star : float
         Individual reciprocal lattice parameters.
+    punched : :class:`nexusformat.nexus.tree.NXdata`
+        The dataset with regions modified (punched) based on the mask.
 
     Methods
     -------
@@ -607,13 +607,12 @@ class Puncher:
     subtract_mask(masksubtraction)
         Removes regions from the current mask using a logical AND NOT operation.
     generate_bragg_mask(punch_radius, coeffs=None, thresh=None)
-        Generates a mask for Bragg peaks based on a Gaussian distribution in
-         reciprocal space.
+        Generates an ellipsoidal mask at integer coordinates.
     generate_intensity_mask(thresh, radius, verbose=True)
-        Generates a mask based on intensity thresholds, including a spherical
+        Generates a mask based on intensity thresholds, including a pixel-spherical
          region around high-intensity points.
     generate_mask_at_coord(coordinate, punch_radius, coeffs=None, thresh=None)
-        Generates a mask centered at a specific coordinate in reciprocal space
+        Generates an ellipsoidal mask centered at a specific coordinate in reciprocal space
          with a specified radius.
     punch()
         Applies the mask to the dataset, setting masked regions to NaN.
@@ -629,16 +628,12 @@ class Puncher:
 
         Attributes
         ----------
-        punched : :class:`nexusformat.nexus.tree.NXdata`, optional
-            The dataset with modified (punched) regions, initialized as None.
         data : :class:`nexusformat.nexus.tree.NXdata`, optional
             The input dataset to be processed, initialized as None.
-        HH, KK, LL : :class:`numpy.ndarray`, optional
-            Arrays representing the H, K, and L coordinates in reciprocal space,
-             initialized as None.
+        meshgrid : tuple of :class:`numpy.ndarray`
+            Meshgrid arrays for the coordinates of the dataset. Initialized as None.
         mask : :class:`numpy.ndarray`, optional
-            The mask for identifying and modifying specific regions in the dataset,
-             initialized as None.
+            The mask used for removing regions of the dataset, initialized as None.
         reciprocal_lattice_params : tuple, optional
             The reciprocal lattice parameters, initialized as None.
         lattice_params : tuple, optional
@@ -648,10 +643,12 @@ class Puncher:
             Individual lattice parameters, initialized as None.
         a_star, b_star, c_star, al_star, be_star, ga_star : float
             Individual reciprocal lattice parameters, initialized as None.
+        punched : :class:`nexusformat.nexus.tree.NXdata`, optional
+            The dataset with modified (punched) regions, initialized as None.
         """
         self.punched = None
         self.data = None
-        self.HH, self.KK, self.LL = [None] * 3
+        self.meshgrid = None
         self.mask = None
         self.reciprocal_lattice_params = None
         self.lattice_params = None
@@ -660,7 +657,7 @@ class Puncher:
 
     def set_data(self, data):
         """
-        Set the 3D dataset and initialize the mask if not already set.
+        Set the dataset and initialize the mask if not already set.
 
         Parameters
         ----------
@@ -669,23 +666,29 @@ class Puncher:
 
         Notes
         -----
-        This method also sets up the H, K, and L coordinate grids for the dataset.
+        This method also sets up coordinate meshgrids for the dataset.
         """
+        
         self.data = data
+
+        # Initialize mask to zeros of same shape
         if self.mask is None:
             self.mask = np.zeros(data.nxsignal.nxdata.shape)
-        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
-            self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0],
-                                                data.nxaxes[1],
-                                                data.nxaxes[2],
-                                                indexing='ij')
-        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
-            self.HH, self.KK, self.LL = np.meshgrid(data.nxaxes[0][:-1],
-                                                data.nxaxes[1][:-1],
-                                                data.nxaxes[2][:-1],
-                                                indexing='ij')
+
+        # Check if shapes match exactly
+        if data.shape == tuple(ax.shape[0] for ax in data.nxaxes):
+            axes_inputs = data.nxaxes
+
+        # Check if shapes are 1 less than axes
+        elif data.shape == tuple(ax.shape[0] - 1 for ax in data.nxaxes):
+            axes_inputs = [ax[:-1] for ax in data.nxaxes]
+
+        # Handle shape mismatch
         else:
-            raise ValueError("Data shape does not match axes lengths.")
+            raise ValueError(f"Data shape {data.shape} does not match axes lengths.")
+
+        # Dynamically unpack the axes into np.meshgrid
+        self.meshgrid = np.meshgrid(*axes_inputs, indexing='ij')
         
 
     def set_lattice_params(self, lattice_params):
@@ -699,8 +702,10 @@ class Puncher:
         lattice_params : tuple
             Tuple of lattice parameters (a, b, c, alpha, beta, gamma).
         """
-        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+        
         self.lattice_params = lattice_params
+        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
+
         self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
         self.a_star, self.b_star, self.c_star, \
             self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
@@ -729,39 +734,64 @@ class Puncher:
 
     def generate_bragg_mask(self, punch_radius, coeffs=None, thresh=None):
         """
-        Generate a mask for Bragg peaks.
+        Generate an ellipsoidal mask at integer coordinates.
 
         Parameters
         ----------
         punch_radius : float
-            Radius for the Bragg peak mask.
+            Radius for the mask around each integer coordinate.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around
-            each Bragg position, corresponding to coefficients for H, HK, K, KL, L, and LH terms.
-            Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the ellipse/ellipsoid to be removed 
+            around each integer coordinate (Bragg position). 
+            For 3D: [H, HK, K, KL, L, LH] terms. Default is [1, 0, 1, 0, 1, 0].
+            For 2D: [H, HK, K] terms. Default is [1, 0, 1].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
         Returns
         -------
         mask : :class:`numpy.ndarray`
-            Boolean mask identifying the Bragg peaks.
+            Boolean mask identifying ellipsoidal regions to be removed around each integer coordinate.
         """
-        if coeffs is None:
-            coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
-        H, K, L = self.HH, self.KK, self.LL
-        a_, b_, c_, _, _, _ = self.reciprocal_lattice_params
+        ndim = len(data.nxaxes)
+        
+        # Extract base parameters
+        a_ = self.reciprocal_lattice_params[0]
+        b_ = self.reciprocal_lattice_params[1]
 
-        mask = (coeffs[0] * (H - np.rint(H)) ** 2 +
-                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - np.rint(H)) * (K - np.rint(K)) +
-                coeffs[2] * (b_ / a_) ** 2 * (K - np.rint(K)) ** 2 +
-                coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - np.rint(K)) * (L - np.rint(L)) +
-                coeffs[4] * (c_ / a_) ** 2 * (L - np.rint(L)) ** 2 +
-                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - np.rint(L)) * (H - np.rint(H))) \
-               < punch_radius ** 2
+        if ndim == 2:
+            if coeffs is None:
+                coeffs = [1, 0, 1]
+                
+            HH, KK = self.meshgrid
+            dH, dK = HH - np.rint(HH), KK - np.rint(KK)
+            
+            # 2D Ellipse calculation
+            mask = (coeffs[0] * dH ** 2 +
+                    coeffs[1] * (b_ / a_) * dH * dK +
+                    coeffs[2] * (b_ / a_) ** 2 * dK ** 2) < punch_radius ** 2
 
-        if thresh:
+        elif ndim == 3:
+            if coeffs is None:
+                coeffs = [1, 0, 1, 0, 1, 0]
+                
+            HH, KK, LL = self.meshgrid
+            c_ = self.reciprocal_lattice_params[2]
+            dH, dK, dL = HH - np.rint(HH), KK - np.rint(KK), LL - np.rint(LL)
+            
+            # 3D Ellipsoid calculation
+            mask = (coeffs[0] * dH ** 2 +
+                    coeffs[1] * (b_ / a_) * dH * dK +
+                    coeffs[2] * (b_ / a_) ** 2 * dK ** 2 +
+                    coeffs[3] * (b_ * c_ / a_ ** 2) * dK * dL +
+                    coeffs[4] * (c_ / a_) ** 2 * dL ** 2 +
+                    coeffs[5] * (c_ / a_) * dL * dH) < punch_radius ** 2
+                    
+        else:
+            raise ValueError(f"Bragg mask generation is only supported for 2D or 3D data. Found {ndim}D.")
+
+        if thresh is not None:
             mask = np.logical_and(mask, data.nxsignal > thresh)
 
         return mask
@@ -786,25 +816,29 @@ class Puncher:
         """
         data = self.data
         counts = data.nxsignal.nxdata
-        mask = np.zeros(counts.shape)
 
-        print(f"Shape of data is {counts.shape}") if verbose else None
-        for i in range(counts.shape[0]):
-            for j in range(counts.shape[1]):
-                for k in range(counts.shape[2]):
-                    if counts[i, j, k] > thresh:
-                        # Set the pixels within the sphere to NaN
-                        for x in range(max(i - radius, 0),
-                                       min(i + radius + 1, counts.shape[0])):
-                            for y in range(max(j - radius, 0),
-                                           min(j + radius + 1, counts.shape[1])):
-                                for z in range(max(k - radius, 0),
-                                               min(k + radius + 1, counts.shape[2])):
-                                    mask[x, y, z] = 1
-                        print(f"Found high intensity at ({i}, {j}, {k}).\t\t", end='\r') \
-                            if verbose else None
-        print("\nDone.")
-        return mask
+        if verbose:
+            print(f"Shape of data is {counts.shape}")
+
+        # Identify all points that exceed the threshold
+        base_mask = counts > thresh
+        
+        if verbose:
+            num_peaks = np.sum(base_mask)
+            print(f"Found high intensity at {num_peaks} individual points.")
+
+        # Create an N-dimensional cube of 1s with a width of (2 * radius + 1) in every dimension
+        structure_size = 2 * radius + 1
+        cube_structure = np.ones((structure_size,) * counts.ndim, dtype=bool)
+
+        # Dilate the mask
+        expanded_mask = binary_dilation(base_mask, structure=cube_structure)
+
+        if verbose:
+            print("Done.")
+
+        # Convert back to 1s and 0s
+        return expanded_mask.astype(int)
 
     def generate_mask_at_coord(self, coordinate, punch_radius, coeffs=None, thresh=None):
         """
@@ -813,14 +847,14 @@ class Puncher:
         Parameters
         ----------
         coordinate : tuple of float
-            Center coordinate (H, K, L) for the mask.
+            Center coordinate for the mask.
         punch_radius : float
             Radius for the mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around
-            each Bragg position,
-            corresponding to coefficients for H, HK, K, KL, L, and LH terms.
-            Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the ellipse/ellipsoid to be removed
+            around the specific coordinate.
+            For 3D: [H, HK, K, KL, L, LH] terms. Default is [1, 0, 1, 0, 1, 0].
+            For 2D: [H, HK, K] terms. Default is [1, 0, 1].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -829,21 +863,50 @@ class Puncher:
         mask : :class:`numpy.ndarray`
             Boolean mask for the specified coordinate.
         """
-        if coeffs is None:
-            coeffs = [1, 0, 1, 0, 1, 0]
         data = self.data
-        H, K, L = self.HH, self.KK, self.LL
-        a_, b_, c_, _, _, _ = self.reciprocal_lattice_params
-        centerH, centerK, centerL = coordinate
-        mask = (coeffs[0] * (H - centerH) ** 2 +
-                coeffs[1] * (b_ * a_ / (a_ ** 2)) * (H - centerH) * (K - centerK) +
-                coeffs[2] * (b_ / a_) ** 2 * (K - centerK) ** 2 +
-                coeffs[3] * (b_ * c_ / (a_ ** 2)) * (K - centerK) * (L - centerL) +
-                coeffs[4] * (c_ / a_) ** 2 * (L - centerL) ** 2 +
-                coeffs[5] * (c_ * a_ / (a_ ** 2)) * (L - centerL) * (H - centerH)) \
-               < punch_radius ** 2
+        ndim = len(self.meshgrid)
+        
+        if len(coordinate) != ndim:
+            raise ValueError(f"Coordinate length ({len(coordinate)}) must match data dimensions ({ndim}).")
+            
+        # Extract base parameters
+        a_ = self.reciprocal_lattice_params[0]
+        b_ = self.reciprocal_lattice_params[1]
 
-        if thresh:
+        if ndim == 2:
+            if coeffs is None:
+                coeffs = [1, 0, 1]
+                
+            HH, KK = self.meshgrid
+            centerH, centerK = coordinate
+            dH, dK = HH - centerH, KK - centerK
+            
+            # 2D Ellipse calculation
+            mask = (coeffs[0] * dH ** 2 +
+                    coeffs[1] * (b_ / a_) * dH * dK +
+                    coeffs[2] * (b_ / a_) ** 2 * dK ** 2) < punch_radius ** 2
+
+        elif ndim == 3:
+            if coeffs is None:
+                coeffs = [1, 0, 1, 0, 1, 0]
+                
+            HH, KK, LL = self.meshgrid
+            centerH, centerK, centerL = coordinate
+            c_ = self.reciprocal_lattice_params[2]
+            dH, dK, dL = HH - centerH, KK - centerK, LL - centerL
+            
+            # 3D Ellipsoid calculation
+            mask = (coeffs[0] * dH ** 2 +
+                    coeffs[1] * (b_ / a_) * dH * dK +
+                    coeffs[2] * (b_ / a_) ** 2 * dK ** 2 +
+                    coeffs[3] * (b_ * c_ / a_ ** 2) * dK * dL +
+                    coeffs[4] * (c_ / a_) ** 2 * dL ** 2 +
+                    coeffs[5] * (c_ / a_) * dL * dH) < punch_radius ** 2
+                    
+        else:
+            raise ValueError(f"Coordinate mask generation is only supported for 2D or 3D data. Found {ndim}D.")
+
+        if thresh is not None:
             mask = np.logical_and(mask, data.nxsignal > thresh)
 
         return mask
@@ -852,14 +915,20 @@ class Puncher:
         """
         Apply the mask to the dataset, setting masked regions to NaN.
 
-        This method creates a new dataset where the masked regions are set to
-         NaN, effectively "punching" those regions.
+        This method creates a new dataset where the masked 
+        regions are set to NaN, effectively "punching" those regions.
         """
         data = self.data
-        self.punched = NXdata(NXfield(
-            np.where(self.mask, np.nan, data.nxsignal.nxdata),
-            name=data.nxsignal.nxname),
-            (data.nxaxes[0], data.nxaxes[1], data.nxaxes[2])
+        
+        # Dynamically pack all available axes into a single tuple
+        axes_tuple = tuple(data.nxaxes)
+        
+        self.punched = NXdata(
+            NXfield(
+                np.where(self.mask, np.nan, data.nxsignal.nxdata),
+                name=data.nxsignal.nxname
+            ),
+            axes_tuple
         )
 
 
@@ -1064,16 +1133,22 @@ class Interpolator:
         self.data = data
         self.interpolated = data
         self.tapered = data
-        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
-            self.q1 = data.nxaxes[0]
-            self.q2 = data.nxaxes[1]
-            self.q3 = data.nxaxes[2]
-        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
-            self.q1 = data.nxaxes[0][:-1]
-            self.q2 = data.nxaxes[1][:-1]
-            self.q3 = data.nxaxes[2][:-1]
+
+        # Check if shapes match exactly
+        if data.shape == tuple(ax.shape[0] for ax in data.nxaxes):
+            axes_inputs = data.nxaxes
+
+        # Check if shapes are 1 less than axes
+        elif data.shape == tuple(ax.shape[0] - 1 for ax in data.nxaxes):
+            axes_inputs = [ax[:-1] for ax in data.nxaxes]
+
+        # Handle shape mismatch
         else:
-            raise ValueError("Data shape does not match axes lengths.")
+            raise ValueError(f"Data shape {data.shape} does not match axes lengths.")
+
+        # Dynamically assign self.q0, self.q1, self.q2, etc.
+        for i, ax in enumerate(axes_inputs):
+            setattr(self, f"q{i}", ax)
 
     def set_kernel(self, kernel):
         """
@@ -1133,188 +1208,236 @@ class Interpolator:
             result[result < 0] = 0
         self.interpolated = array_to_nxdata(result, self.data)
 
-    def set_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0)):
+    def set_tukey_window(self, tukey_alphas=None):
         """
         Set a Tukey window function for data tapering.
 
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each
-             dimension (H, K, L). Default is (1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window in each dimension.
+            Defaults to 1.0 for all dimensions.
 
-        Notes
-        -----
-        The window function is generated based on the size of the dataset in each dimension.
         """
-        
-        q1,q2,q3 = self.q1, self.q2, self.q3
-        tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(q2), len(q3))
-        )
-        tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(q2), alpha=tukey_alphas[1])[None, :, None],
-            (len(q1), 1, len(q3))
-        )
-        window = tukey_H * tukey_K
+        data = self.data
+        ndim = data.ndim
 
-        del tukey_H, tukey_K
-        gc.collect()
+        # Set defaults for tukey_alphas
+        if tukey_alphas is None:
+            tukey_alphas = (1.0,) * ndim
+        # Use provided tukey_alphas
+        elif len(tukey_alphas) != ndim:
+            raise ValueError(f"Length of tukey_alphas ({len(tukey_alphas)}) "
+                             f"must match data dimensions ({ndim}).")
 
-        tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(q3), alpha=tukey_alphas[2])[None, None, :],
-            (len(q1), len(q2), 1))
-        window = window * tukey_L
+        # Initialize window accumulator
+        window = 1.0
+
+        for i in range(ndim):
+            # Fetch axes
+            q_axis = getattr(self, f"q{i}")
+            axis_length = len(q_axis)
+
+            # Generate the 1D Tukey window for this axis
+            win_1d = scipy.signal.windows.tukey(axis_length, alpha=tukey_alphas[i])
+
+            # Create shape tuple with 1's everywhere except the current dimension
+            shape = [1] * ndim
+            shape[i] = axis_length
+
+            # Reshape the 1D window and multiply it into the main N-D window
+            window = window * win_1d.reshape(shape)
 
         self.window = window
 
-    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0), reverse_axes=False):
+    def set_hexagonal_tukey_window(self, tukey_alphas=None, reverse_axes=False):
         """
-        Set a hexagonal Tukey window function for data tapering.
+        Set a hexagonal Tukey window function.
 
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension and
-            for the hexagonal truncation (H, HK, K, L).
-            Default is (1.0, 1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window.
+            For 3D: (H, K, HK, L). Default is (1.0, 1.0, 1.0, 1.0).
+            For 2D: (H, K, HK). Default is (1.0, 1.0, 1.0).
         reverse_axes : bool, optional
-            If True, uses the first axis of the dataset as the out-of-plane axis. 
-            Default False, which uses the third axis as the out-of-plane axis.
-
-        Notes
-        -----
-        The hexagonal Tukey window is applied to the dataset in a manner that
-        preserves hexagonal symmetry.
-
-        """
+            If True in 3D, uses the first axis (q0) as the out-of-plane axis. 
+            Default False, which uses the third axis (q2) as the out-of-plane axis.
+            If True in 2D, transposes the applied hexagonal window.
         
-        q1,q2,q3 = self.q1, self.q2, self.q3
+        """
 
-        if reverse_axes:
-            q1, q2, q3 = q3, q2, q1
+        data = self.data
+        ndim = len(data.nxaxes)
+        
+        if ndim not in (2, 3):
+            raise ValueError(f"Hexagonal window only supports 2D or 3D data. Found {ndim}D.")
 
-        tukey_H = np.tile(
-            scipy.signal.windows.tukey(len(q1), alpha=tukey_alphas[0])[:, None, None],
-            (1, len(q2), len(q3))
-        )
-        tukey_K = np.tile(
-            scipy.signal.windows.tukey(len(q2), alpha=tukey_alphas[1])[None, :, None],
-            (len(q1), 1, len(q3))
-        )
-        window = tukey_H * tukey_K
+        # Set defaults based on data dimensions
+        if tukey_alphas is None:
+            tukey_alphas = (1.0, 1.0, 1.0, 1.0) if ndim == 3 else (1.0, 1.0, 1.0)
 
-        del tukey_H, tukey_K
-        gc.collect()
-
-        truncation = int((len(q1) - int(len(q1) * np.sqrt(2) / 2)) / 2)
-
-        tukey_HK = scipy.ndimage.rotate(
-            np.tile(
-                np.concatenate(
-                    (np.zeros(truncation)[:, None, None],
-                        scipy.signal.windows.tukey(len(q1) - 2 * truncation,
-                                        alpha=tukey_alphas[2])[:, None, None],
-                        np.zeros(truncation)[:, None, None])),
-                (1, len(q2), len(q3))
-            ),
-            angle=45, reshape=False, mode='nearest',
-        )[0:len(q1), 0:len(q2), :]
-        tukey_HK = np.nan_to_num(tukey_HK)
-        window = window * tukey_HK
-
-        del tukey_HK
-        gc.collect()
-
-        tukey_L = np.tile(
-            scipy.signal.windows.tukey(len(q3), alpha=tukey_alphas[3])[None, None, :],
-            (len(q1), len(q2), 1)
-        )
-        window = window * tukey_L
-
-        del tukey_L
-        gc.collect()
-
-        if reverse_axes:
-            self.window = window.transpose(2,1,0)
+        # Map axes dynamically depending on geometry and axes reversal
+        if ndim == 3:
+            if reverse_axes:
+                q_H, q_K = getattr(self, "q1"), getattr(self, "q2") # In-plane
+                q_L = getattr(self, "q0")                           # Out-of-plane
+                shape_2d = (1, len(q_H), len(q_K))                  # Broadcast shape
+                shape_1d = (len(q_L), 1, 1)
+            else:
+                q_H, q_K = getattr(self, "q0"), getattr(self, "q1") # In-plane
+                q_L = getattr(self, "q2")                           # Out-of-plane
+                shape_2d = (len(q_H), len(q_K), 1)                  # Broadcast shape
+                shape_1d = (1, 1, len(q_L))
         else:
-            self.window = window
+            # 2D case
+            if reverse_axes:
+                q_H, q_K = getattr(self, "q1"), getattr(self, "q0")
+            else:
+                q_H, q_K = getattr(self, "q0"), getattr(self, "q1")
+
+        len_H, len_K = len(q_H), len(q_K)
+
+        # Taper H and K directions
+        win_H = scipy.signal.windows.tukey(len_H, alpha=tukey_alphas[0])[:, None]
+        win_K = scipy.signal.windows.tukey(len_K, alpha=tukey_alphas[1])[None, :]
+        win_2d = win_H * win_K
+
+        # Taper HK direction
+        truncation = int((len_H - int(len_H * np.sqrt(2) / 2)) / 2)
+        
+        # 1D truncated array padded with zeros
+        win_HK_1d = np.concatenate((
+            np.zeros(truncation),
+            scipy.signal.windows.tukey(len_H - 2 * truncation, alpha=tukey_alphas[2]),
+            np.zeros(truncation)
+        ))
+        
+        # Expand 1D array to 2D
+        win_HK_2d = np.tile(win_HK_1d[:, None], (1, len_K))
+        
+        # Rotate the 2D plane by 45 degrees
+        win_HK_rot = scipy.ndimage.rotate(
+            win_HK_2d, angle=45, reshape=False, mode='nearest'
+        )[:len_H, :len_K] # Slicing ensures exact bounds match
+        
+        win_HK_rot = np.nan_to_num(win_HK_rot)
+        
+        # Combine the rectangle and the rotated cuts to form the hexagon
+        hex_window_2d = win_2d * win_HK_rot
+
+        # Extrude along L axis if needed
+        if ndim == 2:
+            self.window = hex_window_2d.T if reverse_axes else hex_window_2d
+            
+        elif ndim == 3:
+            # Reshape the 2D hexagon to slot into the correct 3D orientation
+            hex_window_3d = hex_window_2d.reshape(shape_2d)
+            
+            # Generate the regular 1D Tukey for the out-of-plane axis
+            win_L = scipy.signal.windows.tukey(len(q_L), alpha=tukey_alphas[3]).reshape(shape_1d)
+            
+            # Broadcast them together
+            self.window = hex_window_3d * win_L
 
     def set_ellipsoidal_tukey_window(self, tukey_alpha=1.0, coeffs=None):
         """
-        Set an ellipsoidal Tukey window function for data tapering.
-
-        The Tukey window smoothly tapers the data to zero near the edges of the
-        elliptical region defined by quadratic form coefficients. This helps reduce
-        artifacts in Fourier transforms and other operations sensitive to boundary effects.
+        Set an ellipsoidal/elliptical Tukey window function.
 
         Parameters
         ----------
         tukey_alpha : float, optional
             Tapering parameter for the Tukey window, between 0 and 1.
-            - `tukey_alpha = 0` results in a ellipsoidal window (no tapering).
+            - `tukey_alpha = 0` results in an ellipsoidal window (no tapering).
             - `tukey_alpha = 1` results in a full cosine taper.
             Default is 1.0.
 
         coeffs : tuple of float, optional
-            Coefficients `(c0, c1, c2, c3, c4, c5)` defining the ellipsoidal
-            quadratic form:
+            Coefficients defining the ellipsoidal quadratic form.
+            For 3D (c0, c1, c2, c3, c4, c5):
                 R^2 = c0*H^2 + c1*H*K + c2*K^2 + c3*K*L + c4*L^2 + c5*L*H
+            For 2D (c0, c1, c2):
+                R^2 = c0*H^2 + c1*H*K + c2*K^2
             If None, coefficients are automatically set to match the edges of the
-            reciprocal space axes (H, K, L), which should be appropriate in cases
-            where H, K, and L are orthogonal.
-
-        Notes
-        -----
-        - The maximum allowed radius `Qmax` is determined from the minimum radius
-          value along the edges of reciprocal space.
-        - The Tukey window is applied radially as a function of the distance `R`
-          from the center, defined by the ellipsoidal quadratic form.
-
+            reciprocal space axes.
+            
         Sets
         ----
         self.window : :class:`numpy.ndarray`
-            A 3D array of the same shape as the data, containing the Tukey window
-            values between 0 and 1.
+            An N-dimensional array of the same shape as the data, containing 
+            the Tukey window values between 0 and 1.
         """
-
-        # Initialize axes
-        q1,q2,q3 = self.q1, self.q2, self.q3
-
-        # Initialize coeffs (default to window reaching edge of array)
-        smallest_extent = np.min([q1.max(), q2.max(), q3.max()])
-        c = coeffs if coeffs is not None else ((smallest_extent / q1.max()) ** 2,
-                                               0,
-                                               (smallest_extent / q2.max()) ** 2,
-                                               0,
-                                               (smallest_extent / q3.max()) ** 2,
-                                               0
-                                               )
-
-        # Create meshgrid
-        HH, KK, LL = np.meshgrid(q1,q2,q3, indexing='ij')
-
-        # Create radius array
-        RR = np.sqrt(
-            c[0] * HH ** 2 +
-            c[1] * HH * KK +
-            c[2] * KK ** 2 +
-            c[3] * KK * LL +
-            c[4] * LL ** 2 +
-            c[5] * LL * HH
-        )
-
-        # Check the edges of reciprocal space to verify Qmax
-        # Create list of pixels where H = H.max() or K = K.max() or L = L.max()
-        edges = np.where(np.logical_or(np.logical_or(HH == q1.max(), KK == q2.max()), LL == q3.max()), RR, RR.max())
+        data = self.data
+        ndim = len(data.nxaxes)
+        
+        if ndim not in (2, 3):
+            raise ValueError(f"Ellipsoidal window only supports 2D or 3D data. Found {ndim}D.")
+            
+        # Fetch axes
+        q_axes = [getattr(self, f"q{i}") for i in range(ndim)]
+        
+        # Calculate default coefficients if none are provided
+        q_maxes = [q.max() for q in q_axes]
+        smallest_extent = np.min(q_maxes)
+        
+        if coeffs is None:
+            if ndim == 2:
+                coeffs = ((smallest_extent / q_maxes[0]) ** 2, 0,
+                          (smallest_extent / q_maxes[1]) ** 2)
+            else:
+                coeffs = ((smallest_extent / q_maxes[0]) ** 2, 0,
+                          (smallest_extent / q_maxes[1]) ** 2, 0,
+                          (smallest_extent / q_maxes[2]) ** 2, 0)
+                          
+        # Create meshgrids
+        grids = np.meshgrid(*q_axes, indexing='ij', sparse=True)
+        
+        # Calculate the radial distance RR
+        if ndim == 2:
+            HH, KK = grids
+            RR = np.sqrt(
+                coeffs[0] * HH ** 2 +
+                coeffs[1] * HH * KK +
+                coeffs[2] * KK ** 2
+            )
+        elif ndim == 3:
+            HH, KK, LL = grids
+            RR = np.sqrt(
+                coeffs[0] * HH ** 2 +
+                coeffs[1] * HH * KK +
+                coeffs[2] * KK ** 2 +
+                coeffs[3] * KK * LL +
+                coeffs[4] * LL ** 2 +
+                coeffs[5] * LL * HH
+            )
+            
+        # Find edges to determine Qmax
+        edge_mask = np.zeros(RR.shape, dtype=bool)
+        for i, q in enumerate(q_axes):
+            # Logically OR the boundary conditions across all available axes
+            edge_mask = edge_mask | (grids[i] == q.max())
+            
+        # Filter for only the edge values to find the minimum Q boundary
+        edges = np.where(edge_mask, RR, RR.max())
         Qmax = edges.min()
+        
+        # Apply the Tukey taper
         alpha = tukey_alpha
-        period = (Qmax * alpha) / np.pi
-
-        window = np.where(RR > Qmax * (1 - alpha), (np.cos((RR - Qmax * (1 - alpha)) / period) + 1) / 2, 1)
-        window = np.where(RR > Qmax, 0, window)
-
+        
+        # Prevent ZeroDivisionError if alpha is set strictly to 0
+        if alpha == 0:
+            window = np.where(RR > Qmax, 0.0, 1.0)
+        else:
+            period = (Qmax * alpha) / np.pi
+            
+            # The inner taper region
+            window = np.where(RR > Qmax * (1 - alpha), 
+                              (np.cos((RR - Qmax * (1 - alpha)) / period) + 1) / 2, 
+                              1.0)
+                              
+            # The outer hard cutoff
+            window = np.where(RR > Qmax, 0.0, window)
+            
         self.window = window
 
     def set_window(self, window):
@@ -1560,16 +1683,21 @@ class DeltaPDF:
         self.interpolated = data
         self.punched = data
         
-        if data.shape == (data.nxaxes[0].shape[0], data.nxaxes[1].shape[0], data.nxaxes[2].shape[0]):
-            self.q1 = data.nxaxes[0]
-            self.q2 = data.nxaxes[1]
-            self.q3 = data.nxaxes[2]
-        elif data.shape == (data.nxaxes[0].shape[0]-1, data.nxaxes[1].shape[0]-1, data.nxaxes[2].shape[0]-1):
-            self.q1 = data.nxaxes[0][:-1]
-            self.q2 = data.nxaxes[1][:-1]
-            self.q3 = data.nxaxes[2][:-1]
+        # Check if shapes match exactly
+        if data.shape == tuple(ax.shape[0] for ax in data.nxaxes):
+            axes_inputs = data.nxaxes
+
+        # Check if shapes are 1 less than axes
+        elif data.shape == tuple(ax.shape[0] - 1 for ax in data.nxaxes):
+            axes_inputs = [ax[:-1] for ax in data.nxaxes]
+
+        # Handle shape mismatch
         else:
-            raise ValueError("Data shape does not match axes lengths.")
+            raise ValueError(f"Data shape {data.shape} does not match axes lengths.")
+
+        # Assign axes
+        for i, ax in enumerate(axes_inputs):
+            setattr(self, f"q{i}", ax)
 
     def set_lattice_params(self, lattice_params):
         """
@@ -1659,13 +1787,14 @@ class DeltaPDF:
         Parameters
         ----------
         coordinate : tuple of float
-            Center coordinate (H, K, L) for the mask.
+            Center coordinate for the mask.
         punch_radius : float
             Radius for the mask.
         coeffs : list, optional
-            Coefficients for the expression of the sphere to be removed around
-             each Bragg position, corresponding to coefficients for
-             H, HK, K, KL, L, and LH terms. Default is [1, 0, 1, 0, 1, 0].
+            Coefficients for the expression of the ellipse/ellipsoid to be removed
+            around the specific coordinate.
+            For 3D: [H, HK, K, KL, L, LH] terms. Default is [1, 0, 1, 0, 1, 0].
+            For 2D: [H, HK, K] terms. Default is [1, 0, 1].
         thresh : float, optional
             Intensity threshold for applying the mask.
 
@@ -1729,75 +1858,65 @@ class DeltaPDF:
         self.interpolator.interpolate(verbose, positive_values)
         self.interpolated = self.interpolator.interpolated
 
-    def set_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0)):
+    def set_tukey_window(self, tukey_alphas=None):
         """
         Set a Tukey window function for data tapering.
 
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension
-             (H, K, L). Default is (1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window in each dimension.
+            Defaults to 1.0 for all dimensions.
 
-        Notes
-        -----
-        The window function is generated based on the size of the dataset
-        in each dimension.
         """
         self.interpolator.set_tukey_window(tukey_alphas)
         self.window = self.interpolator.window
 
-    def set_hexagonal_tukey_window(self, tukey_alphas=(1.0, 1.0, 1.0, 1.0), reverse_axes=False):
+    def set_hexagonal_tukey_window(self, tukey_alphas=None, reverse_axes=False):
         """
-        Set a hexagonal Tukey window function for data tapering.
+        Set a hexagonal Tukey window function.
 
         Parameters
         ----------
         tukey_alphas : tuple of floats, optional
-            The alpha parameters for the Tukey window in each dimension and
-             for the hexagonal truncation (H, HK, K, L). Default is (1.0, 1.0, 1.0, 1.0).
+            The alpha parameters for the Tukey window.
+            For 3D: (H, K, HK, L). Default is (1.0, 1.0, 1.0, 1.0).
+            For 2D: (H, K, HK). Default is (1.0, 1.0, 1.0).
         reverse_axes : bool, optional
-            If True, uses the first axis of the dataset as the out-of-plane axis. 
-            Default False, which uses the third axis as the out-of-plane axis.
-
-        Notes
-        -----
-        The hexagonal Tukey window is applied to the dataset in a manner that
-         preserves hexagonal symmetry.
+            If True in 3D, uses the first axis (q0) as the out-of-plane axis. 
+            Default False, which uses the third axis (q2) as the out-of-plane axis.
+            If True in 2D, transposes the applied hexagonal window.
+        
         """
         self.interpolator.set_hexagonal_tukey_window(tukey_alphas, reverse_axes)
         self.window = self.interpolator.window
 
     def set_ellipsoidal_tukey_window(self, tukey_alpha=1.0, coeffs=None):
         """
-        Set an ellipsoidal Tukey window function for data tapering.
-
-        The Tukey window smoothly tapers the data to zero near the edges of the
-        elliptical region defined by quadratic form coefficients. This helps reduce
-        artifacts in Fourier transforms and other operations sensitive to boundary effects.
+        Set an ellipsoidal/elliptical Tukey window function.
 
         Parameters
         ----------
         tukey_alpha : float, optional
             Tapering parameter for the Tukey window, between 0 and 1.
-            - `tukey_alpha = 0` results in a ellipsoidal window (no tapering).
+            - `tukey_alpha = 0` results in an ellipsoidal window (no tapering).
             - `tukey_alpha = 1` results in a full cosine taper.
             Default is 1.0.
 
         coeffs : tuple of float, optional
-            Coefficients `(c0, c1, c2, c3, c4, c5)` defining the ellipsoidal
-            quadratic form:
+            Coefficients defining the ellipsoidal quadratic form.
+            For 3D (c0, c1, c2, c3, c4, c5):
                 R^2 = c0*H^2 + c1*H*K + c2*K^2 + c3*K*L + c4*L^2 + c5*L*H
+            For 2D (c0, c1, c2):
+                R^2 = c0*H^2 + c1*H*K + c2*K^2
             If None, coefficients are automatically set to match the edges of the
-            reciprocal space axes (H, K, L), which should be appropriate in cases
-            where H, K, and L are orthogonal.
-
-        Notes
-        -----
-        - The maximum allowed radius `Qmax` is determined from the minimum radius
-          value along the edges of reciprocal space.
-        - The Tukey window is applied radially as a function of the distance `R`
-          from the center, defined by the ellipsoidal quadratic form.
+            reciprocal space axes.
+            
+        Sets
+        ----
+        self.window : :class:`numpy.ndarray`
+            An N-dimensional array of the same shape as the data, containing 
+            the Tukey window values between 0 and 1.
         """
         self.interpolator.set_ellipsoidal_tukey_window(tukey_alpha=tukey_alpha, coeffs=coeffs)
         self.window = self.interpolator.window
