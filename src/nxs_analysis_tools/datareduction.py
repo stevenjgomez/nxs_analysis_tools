@@ -813,10 +813,8 @@ class Scissors:
         Get the extents of the integration window.
     cut_data(center=None, window=None, axis=None, verbose=False)
         Reduce data to a 1D linecut using the integration window.
-    highlight_integration_window(data=None, label=None, highlight_color='red', **kwargs)
-        Plot the integration window highlighted on a 2D heatmap of the full dataset.
     plot_integration_window(**kwargs)
-        Plot a 2D heatmap of the integration window data.
+        Plot the integration window on a 2D heatmap.
     """
 
     def __init__(self, data=None, center=None, window=None, axis=None):
@@ -876,6 +874,9 @@ class Scissors:
         center : tuple
             Central coordinate around which to perform the linecut.
         """
+        # Make sure center matches data dimensions
+        if len(center) != self.data.ndim:
+            raise ValueError(f"Center length ({len(center)}) must match dimensions of dataset ({self.data.ndim}).")
         self.center = tuple(float(i) for i in center) if center is not None else None
 
     def set_window(self, window, axis=None, verbose=False):
@@ -893,6 +894,9 @@ class Scissors:
             Enables printout of linecut axis and integrated axes. Default False.
 
         """
+        if len(window) != self.data.ndim:
+            raise ValueError(f"Window length ({len(window)}) must match dimensions of dataset ({self.data.ndim}).")
+        
         self.window = tuple(float(i) for i in window) if window is not None else None
 
         # Determine the axis for integration
@@ -974,174 +978,134 @@ class Scissors:
 
         return self.linecut
 
-    def highlight_integration_window(self, data=None, width=None, height=None,
-                                     label=None, highlight_color='red', **kwargs):
+    def plot_integration_window(self, data=None, show_highlight=True, width=None, height=None,
+                                label=None, highlight_color='red', **kwargs):
         """
-        Plots the integration window highlighted on the three principal 2D cross-sections of a 3D dataset.
+        Plots the principal 2D cross-sections of the dataset, centered around the linecut.
 
         Parameters
         ----------
         data : array-like, optional
-            The 3D dataset to visualize. If not provided, uses `self.data`.
+            The dataset to visualize. If not provided, defaults to `self.data`.
+        show_highlight : bool, optional
+            Whether to overlay a rectangle highlighting the integration window. Default is True.
         width : float, optional
-            Width of the visible x-axis range in each subplot. Used to zoom in on the integration region.
+            Width of the visible x-axis range to zoom in on the integration region.
         height : float, optional
-            Height of the visible y-axis range in each subplot. Used to zoom in on the integration region.
+            Height of the visible y-axis range to zoom in on the integration region.
         label : str, optional
-            Label for the rectangle patch marking the integration window, used in the legend.
+            Label for the rectangle patch used in the legend.
         highlight_color : str, optional
             Color of the rectangle edges highlighting the integration window. Default is 'red'.
         **kwargs : dict, optional
-            Additional keyword arguments passed to `plot_slice` for customizing the plot (e.g., cmap, vmin, vmax).
+            Additional keyword arguments passed to `plot_slice` (e.g., cmap, vmin, vmax).
 
         Returns
         -------
-        p1, p2, p3 : :class:`matplotlib.collections.QuadMesh`
-            The plotted QuadMesh objects for the three cross-sections:
-            XY at fixed Z, XZ at fixed Y, and YZ at fixed X.
-
+        plots : tuple of :class:`matplotlib.collections.QuadMesh`
+            The plotted QuadMesh objects. Returns a single object for 2D, or three for 3D.
         """
         data = self.data if data is None else data
         center = self.center
-        window = self.window
+        window = getattr(self, 'window', None)
+        ndim = len(data.nxaxes)
 
-        # Create a figure and subplots
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+        # Define the layout and views based on dimensions
+        if ndim == 2:
+            fig, axes = plt.subplots(1, 1, figsize=(6, 5))
+            axes = [axes]  # Make iterable for the loop
+            views = [{'slice_idx': None, 'x_idx': 0, 'y_idx': 1}]
+        elif ndim == 3:
+            fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+            views = [
+                {'slice_idx': 2, 'x_idx': 0, 'y_idx': 1},  # XY plane (slice Z)
+                {'slice_idx': 1, 'x_idx': 0, 'y_idx': 2},  # XZ plane (slice Y)
+                {'slice_idx': 0, 'x_idx': 1, 'y_idx': 2}   # YZ plane (slice X)
+            ]
+        else:
+            raise ValueError(f"Plotting is only supported for 2D or 3D data. Found {ndim}D.")
 
-        # Plot cross-section 1
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[2] = center[2]
+        plots = []
 
-        p1 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[0],
-                        Y=data.nxaxes[1],
-                        ax=axes[0],
-                        **kwargs)
-        ax = axes[0]
-        rect_diffuse = patches.Rectangle(
-            (center[0] - window[0],
-             center[1] - window[1]),
-            2 * window[0], 2 * window[1],
-            linewidth=1, edgecolor=highlight_color,
-            facecolor='none', transform=p1.get_transform(), label=label,
-        )
-        ax.add_patch(rect_diffuse)
+        # Loop through the necessary views and generate plots
+        for ax, view in zip(axes, views):
+            x_idx, y_idx = view['x_idx'], view['y_idx']
+            slice_idx = view['slice_idx']
 
-        if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[0] - width / 2, center[0] + width / 2))
-        if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[1] - height / 2, center[1] + height / 2))
+            # Prepare the slice for 3D data
+            if slice_idx is not None:
+                slice_obj = [slice(None)] * ndim
+                slice_obj[slice_idx] = center[slice_idx]
+                plot_data = data[slice_obj]
+            else:
+                plot_data = data
 
-        # Plot cross-section 2
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[1] = center[1]
+            X = data.nxaxes[x_idx]
+            Y = data.nxaxes[y_idx]
 
-        p2 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[0],
-                        Y=data.nxaxes[2],
-                        ax=axes[1],
-                        **kwargs)
-        ax = axes[1]
-        rect_diffuse = patches.Rectangle(
-            (center[0] - window[0],
-             center[2] - window[2]),
-            2 * window[0], 2 * window[2],
-            linewidth=1, edgecolor=highlight_color,
-            facecolor='none', transform=p2.get_transform(), label=label,
-        )
-        ax.add_patch(rect_diffuse)
+            # Generate the QuadMesh plot
+            p = plot_slice(plot_data, X=X, Y=Y, ax=ax, **kwargs)
+            plots.append(p)
 
-        if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[0] - width / 2, center[0] + width / 2))
-        if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[2] - height / 2, center[2] + height / 2))
+            # Apply aspect ratio logic
+            len_x = len(X.nxdata) if hasattr(X, 'nxdata') else len(X)
+            len_y = len(Y.nxdata) if hasattr(Y, 'nxdata') else len(Y)
+            ax.set_aspect(len_x / len_y)
 
-        # Plot cross-section 3
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[0] = center[0]
+            # Apply the highlight window if requested
+            if show_highlight and window is not None:
+                cx, cy = center[x_idx], center[y_idx]
+                wx, wy = window[x_idx], window[y_idx]
 
-        p3 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[1],
-                        Y=data.nxaxes[2],
-                        ax=axes[2],
-                        **kwargs)
-        ax = axes[2]
-        rect_diffuse = patches.Rectangle(
-            (center[1] - window[1],
-             center[2] - window[2]),
-            2 * window[1], 2 * window[2],
-            linewidth=1, edgecolor=highlight_color,
-            facecolor='none', transform=p3.get_transform(), label=label,
-        )
-        ax.add_patch(rect_diffuse)
+                rect = patches.Rectangle(
+                    (cx - wx, cy - wy), 2 * wx, 2 * wy,
+                    linewidth=1, edgecolor=highlight_color,
+                    facecolor='none', transform=p.get_transform(), label=label
+                )
+                ax.add_patch(rect)
 
-        # If width and height are provided, center the view on the linecut area
-        if 'xlim' not in kwargs and width is not None:
-            ax.set(xlim=(center[1] - width / 2, center[1] + width / 2))
-        if 'ylim' not in kwargs and height is not None:
-            ax.set(ylim=(center[2] - height / 2, center[2] + height / 2))
+                # Handle zooming
+                if 'xlim' not in kwargs and width is not None:
+                    ax.set_xlim((cx - width / 2, cx + width / 2))
+                if 'ylim' not in kwargs and height is not None:
+                    ax.set_ylim((cy - height / 2, cy + height / 2))
 
-        # Adjust subplot padding
-        fig.subplots_adjust(wspace=0.5)
+            if label is not None and show_highlight:
+                ax.legend()
 
-        if label is not None:
-            [ax.legend() for ax in axes]
-
+        fig.subplots_adjust(wspace=0.3 if ndim == 3 else 0.1)
         plt.show()
 
-        return p1, p2, p3
+        return tuple(plots)
+    
 
-    def plot_integration_window(self, **kwargs):
+    def highlight_integration_window(self, data=None, width=None, height=None,
+                                     label=None, highlight_color='red', **kwargs):
         """
-        Plots the three principal cross-sections of the integration volume on a single figure.
+        Plots the integration window highlighted on the principal cross-sections.
 
-        Parameters
-        ----------
-        **kwargs : keyword arguments, optional
-            Additional keyword arguments to customize the plot.
+        .. deprecated:: 
+           `highlight_integration_window` is deprecated and will be removed in a future version.
+           Please use `plot_integration_window(show_highlight=True)` instead.
         """
-        data = self.integration_volume
-        center = self.center
+        
+        warnings.warn(
+            "`highlight_integration_window` is deprecated and will be removed in a future release. "
+            "Please use `plot_integration_window(..., show_highlight=True)` instead.",
+            category=DeprecationWarning,
+            stacklevel=2
+        )
 
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-
-        # Plot cross-section 1
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[2] = center[2]
-        p1 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[0],
-                        Y=data.nxaxes[1],
-                        ax=axes[0],
-                        **kwargs)
-        axes[0].set_aspect(len(data.nxaxes[0].nxdata) / len(data.nxaxes[1].nxdata))
-
-        # Plot cross section 2
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[1] = center[1]
-        p3 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[0],
-                        Y=data.nxaxes[2],
-                        ax=axes[1],
-                        **kwargs)
-        axes[1].set_aspect(len(data.nxaxes[0].nxdata) / len(data.nxaxes[2].nxdata))
-
-        # Plot cross-section 3
-        slice_obj = [slice(None)] * data.ndim
-        slice_obj[0] = center[0]
-        p2 = plot_slice(data[slice_obj],
-                        X=data.nxaxes[1],
-                        Y=data.nxaxes[2],
-                        ax=axes[2],
-                        **kwargs)
-        axes[2].set_aspect(len(data.nxaxes[1].nxdata) / len(data.nxaxes[2].nxdata))
-
-        # Adjust subplot padding
-        fig.subplots_adjust(wspace=0.3)
-
-        plt.show()
-
-        return p1, p2, p3
-
+        # Pass all arguments forward to the new unified function
+        return self.plot_integration_window(
+            data=data,
+            show_highlight=True, 
+            width=width,
+            height=height,
+            label=label,
+            highlight_color=highlight_color,
+            **kwargs
+        )
 
 def reciprocal_lattice_params(lattice_params):
     """

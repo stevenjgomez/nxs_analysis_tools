@@ -5,6 +5,7 @@ performing operations on all datasets in the series at once (e.g., cutting, fitt
 """
 import os
 import re
+import warnings
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -80,8 +81,6 @@ class TempDependence:
         Plot the linecuts obtained from data cutting.
     plot_linecuts_heatmap(ax=None, **kwargs):
         Plot a heatmap of the linecuts obtained from data cutting.
-    highlight_integration_window(temperature=None, **kwargs):
-        Display the integration window plot for a specific temperature.
     plot_integration_window(temperature=None, **kwargs):
         Plot the integration window cross-sections for a specific temperature.
     set_model_components(model_components):
@@ -501,57 +500,56 @@ class TempDependence:
 
         return p
 
+    def plot_integration_window(self, temperature=None, show_highlight=False, **kwargs):
+        """
+        Plots the principal cross-sections of the dataset for a specific temperature.
+
+        Parameters
+        ----------
+        temperature : str, optional
+            The temperature at which to plot. If provided, the plot will be 
+            generated using the dataset corresponding to the specified temperature. 
+            If not provided, defaults to the first temperature.
+        show_highlight : bool, optional
+            Whether to overlay a rectangle highlighting the integration window. Default is False.
+        **kwargs : keyword arguments, optional
+            Additional keyword arguments passed to customize the plot.
+        """
+        # Default to the first temperature if none is provided
+        target_temp = temperature if temperature is not None else self.temperatures[0]
+        
+        # Fetch the appropriate dataset
+        target_data = self.datasets[target_temp]
+        
+        # Route to the reference scissor's unified plotting method
+        p = self.scissors[self.temperatures[0]].plot_integration_window(
+            data=target_data,
+            show_highlight=show_highlight,
+            **kwargs
+        )
+        
+        return p
+
     def highlight_integration_window(self, temperature=None, **kwargs):
         """
-        Displays the integration window plot for a specific temperature,
-        or for the first temperature if none is provided.
+        Displays the integration window plot for a specific temperature.
 
-        Parameters
-        ----------
-        temperature : str, optional
-            The temperature at which to display the integration window plot. If provided, the plot
-            will be generated using the dataset corresponding to the specified temperature. If not
-            provided, the integration window plots will be generated for the first temperature.
-        **kwargs : keyword arguments, optional
-            Additional keyword arguments to customize the plot.
+        .. deprecated:: 
+           `highlight_integration_window` is deprecated and will be removed in a future version.
+           Please use `plot_integration_window(show_highlight=True)` instead.
         """
+        warnings.warn(
+            "`highlight_integration_window` is deprecated and will be removed in a future release. "
+            "Please use `plot_integration_window(..., show_highlight=True)` instead.",
+            category=DeprecationWarning,
+            stacklevel=2
+        )
 
-        if temperature is not None:
-            p = self.scissors[
-                self.temperatures[0]].highlight_integration_window(
-                data=self.datasets[temperature], **kwargs
-            )
-        else:
-            p = self.scissors[self.temperatures[0]].highlight_integration_window(
-                data=self.datasets[self.temperatures[0]], **kwargs
-            )
-
-        return p
-
-    def plot_integration_window(self, temperature=None, **kwargs):
-        """
-        Plots the three principal cross-sections of the integration volume on
-        a single figure for a specific temperature, or for the first temperature
-        if none is provided.
-
-        Parameters
-        ----------
-        temperature : str, optional
-            The temperature at which to plot the integration volume. If provided,
-            the plot will be generated using the dataset corresponding to the
-            specified temperature. If not provided, the integration window plots
-            will be generated for the first temperature.
-
-        **kwargs : keyword arguments, optional
-            Additional keyword arguments to customize the plot.
-        """
-
-        if temperature is not None:
-            p = self.scissors[self.temperatures[0]].plot_integration_window(**kwargs)
-        else:
-            p = self.scissors[self.temperatures[0]].plot_integration_window(**kwargs)
-
-        return p
+        return self.plot_integration_window(
+            temperature=temperature,
+            show_highlight=True,
+            **kwargs
+        )
 
     def set_model_components(self, model_components):
         """
