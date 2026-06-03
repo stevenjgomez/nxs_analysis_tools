@@ -307,6 +307,7 @@ class LinecutModel:
 
         if positive_amp:
             self.params['peakamplitude'].set(min=0)
+            self.params['backgroundintercept'].set(min=0)
 
         if constraints:
             for param_name, settings in constraints.items():
