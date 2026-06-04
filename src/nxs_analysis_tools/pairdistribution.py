@@ -1076,7 +1076,7 @@ class Gaussian3DKernel(Kernel):
 class Interpolator:
     """
     A class to perform data interpolation using convolution with a specified
-     kernel.
+     kernel, and to apply a window function for tapering the data.
 
     Attributes
     ----------
