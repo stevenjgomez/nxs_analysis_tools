@@ -1268,9 +1268,10 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
         t = ShearTransformer(lattice_angle)
         counts = t.apply(counts)
 
+        # 1. Record shape beforehand
+        pre_zoom_shape = counts.shape
+
         # Apply coordinate aspect ratio correction
-        # More resolution along y = more squeezing needed along y
-        # More resolution along x = less squeezing needed along y
         y_res = sliced_data.shape[1] / (sliced_data.nxaxes[1].max() - sliced_data.nxaxes[1].min())
         x_res = sliced_data.shape[0] / (sliced_data.nxaxes[0].max() - sliced_data.nxaxes[0].min())
         counts = zoom(counts, zoom=(1, aspect * x_res / y_res), order=aspect_order)
@@ -1280,6 +1281,17 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
 
         # Undo aspect ratio correction
         counts = zoom(counts, zoom=(1, 1 / (aspect * x_res / y_res)), order=aspect_order)
+
+        # 2. Force shape recovery (Avoids off-by-one rounding error)
+        if counts.shape != pre_zoom_shape:
+            # Crop if the zoom made it too large
+            counts = counts[:pre_zoom_shape[0], :pre_zoom_shape[1]]
+            
+            # Pad if the zoom made it too small
+            pad_x = pre_zoom_shape[0] - counts.shape[0]
+            pad_y = pre_zoom_shape[1] - counts.shape[1]
+            if pad_x > 0 or pad_y > 0:
+                counts = np.pad(counts, ((0, pad_x), (0, pad_y)), mode='constant')
 
         # Undo skew transformation
         counts = t.invert(counts)
@@ -1293,8 +1305,9 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
             index[rotation_axis] = i
             output_array[tuple(index)] = counts
         elif data.ndim == 2:
-            output_array = counts
-
+            # 3. Assign into array
+            output_array[:] = counts
+            
     if printout:
         print('\nRotation completed.')
 
