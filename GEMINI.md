@@ -37,6 +37,7 @@
 - Documentation uses Sphinx with `myst-nb` (`nb_execution_mode = 'cache'`, `nb_execution_raise_on_error = True`).
 - All notebooks in `docs/source/examples/` must execute without errors.
 - Never edit `.ipynb` files with raw string replacement or regex. Always use `nbformat` in a script or helper to preserve notebook schema integrity.
+- **NXdata Slicing Rule**: `nexusformat.nexus.NXdata` interprets integer indices as array positions (e.g. `data[:, 0, :]` selects the 0-th bin) and float indices as physical coordinates (e.g. `data[:, 0.0, :]` selects coordinate $K=0.0$). Always use float literals when intending to slice by physical coordinates.
 - When adding a new notebook, register it in `docs/source/examples/index.md`.
 
 ## 5. Typing & Stubs
