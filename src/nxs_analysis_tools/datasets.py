@@ -135,3 +135,17 @@ def vacanciesfft():
     Load the vacancies fft dataset.
     """
     return BONES.fetch(f"fft.nxs")
+
+RODS = pooch.create(
+    path=pooch.os_cache("nxs_analysis_tools/cubic_l_rods"),
+    base_url="https://raw.githubusercontent.com/stevenjgomez/dataset-cubic-l-rods/main/data/",
+    registry={
+        "cubic_l_rods.nxs": "d7eb9c068d48ddadb7ca5f285a7c673627f5204cb3dec63653a11c2e03bc4946",
+    }
+)
+
+def cubic_l_rods():
+    """
+    Load the cubic L-rods dataset.
+    """
+    return RODS.fetch("cubic_l_rods.nxs")

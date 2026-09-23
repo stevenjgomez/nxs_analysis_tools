@@ -86,3 +86,14 @@ def test_temp_dependence_cut_data_propagation(sample_3d_uniform_volume):
     
     linecuts = td.cut_data(center=(0, 0, 0), window=(1.0, 0.2, 0.2), normalize=True)
     assert linecuts['15'].attrs.get('normalized') is True
+
+def test_cubic_l_rods_normalization():
+    from nxs_analysis_tools.datasets import cubic_l_rods
+    from nxs_analysis_tools.datareduction import load_data
+    data = load_data(cubic_l_rods(), print_tree=False)
+    sc = Scissors(data=data, center=(0, 0, 0))
+    # Cut across H (axis 0) with two different window sizes along L (axis 2)
+    cut_narrow = sc.cut_data(window=(1.5, 0.1, 0.2), normalize=True)
+    cut_wide = sc.cut_data(window=(1.5, 0.1, 0.8), normalize=True)
+    np.testing.assert_allclose(cut_narrow.nxsignal.nxdata, cut_wide.nxsignal.nxdata, rtol=1e-3)
+
