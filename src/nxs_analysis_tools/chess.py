@@ -81,7 +81,7 @@ class TempDependence:
         Plot the linecuts obtained from data cutting.
     plot_linecuts_heatmap(ax=None, **kwargs):
         Plot a heatmap of the linecuts obtained from data cutting.
-    plot_integration_window(temperature=None, **kwargs):
+    plot_integration_window(temperature=None, show_highlight=True, width=None, height=None, **kwargs):
         Plot the integration window cross-sections for a specific temperature.
     set_model_components(model_components):
         Set the model components for all line cut models.
@@ -500,7 +500,8 @@ class TempDependence:
 
         return p
 
-    def plot_integration_window(self, temperature=None, show_highlight=False, **kwargs):
+    def plot_integration_window(self, temperature=None, show_highlight=True, width=None, height=None,
+                                label=None, highlight_color='red', **kwargs):
         """
         Plots the principal cross-sections of the dataset for a specific temperature.
 
@@ -511,26 +512,53 @@ class TempDependence:
             generated using the dataset corresponding to the specified temperature. 
             If not provided, defaults to the first temperature.
         show_highlight : bool, optional
-            Whether to overlay a rectangle highlighting the integration window. Default is False.
+            Whether to overlay a rectangle highlighting the integration window. Default is True.
+        width : float, optional
+            Width of the visible x-axis range to zoom in on the integration region.
+        height : float, optional
+            Height of the visible y-axis range to zoom in on the integration region.
+        label : str, optional
+            Label for the rectangle patch used in the legend.
+        highlight_color : str, optional
+            Color of the rectangle edges highlighting the integration window. Default is 'red'.
         **kwargs : keyword arguments, optional
             Additional keyword arguments passed to customize the plot.
+
+        Returns
+        -------
+        plots : tuple of :class:`matplotlib.collections.QuadMesh`
+            The plotted QuadMesh objects.
         """
         # Default to the first temperature if none is provided
-        target_temp = temperature if temperature is not None else self.temperatures[0]
+        if temperature is None:
+            target_temp = self.temperatures[0]
+            warnings.warn(
+                f"No temperature specified. Defaulting to temperature {target_temp} K. "
+                "To specify a temperature, use the `temperature` argument.",
+                UserWarning,
+                stacklevel=2
+            )
+        else:
+            target_temp = str(temperature) if str(temperature) in self.datasets else temperature
         
         # Fetch the appropriate dataset
         target_data = self.datasets[target_temp]
         
-        # Route to the reference scissor's unified plotting method
-        p = self.scissors[self.temperatures[0]].plot_integration_window(
+        # Route to the scissor's unified plotting method
+        p = self.scissors[target_temp].plot_integration_window(
             data=target_data,
             show_highlight=show_highlight,
+            width=width,
+            height=height,
+            label=label,
+            highlight_color=highlight_color,
             **kwargs
         )
         
         return p
 
-    def highlight_integration_window(self, temperature=None, **kwargs):
+    def highlight_integration_window(self, temperature=None, width=None, height=None,
+                                     label=None, highlight_color='red', **kwargs):
         """
         Displays the integration window plot for a specific temperature.
 
@@ -548,6 +576,10 @@ class TempDependence:
         return self.plot_integration_window(
             temperature=temperature,
             show_highlight=True,
+            width=width,
+            height=height,
+            label=label,
+            highlight_color=highlight_color,
             **kwargs
         )
 

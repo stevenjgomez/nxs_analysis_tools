@@ -1053,7 +1053,7 @@ class Scissors:
             ax.set_aspect(len_x / len_y)
 
             # Apply the highlight window if requested
-            if show_highlight and window is not None:
+            if show_highlight and window is not None and center is not None:
                 cx, cy = center[x_idx], center[y_idx]
                 wx, wy = window[x_idx], window[y_idx]
 
@@ -1064,7 +1064,9 @@ class Scissors:
                 )
                 ax.add_patch(rect)
 
-                # Handle zooming
+            # Handle zooming
+            if center is not None:
+                cx, cy = center[x_idx], center[y_idx]
                 if 'xlim' not in kwargs and width is not None:
                     ax.set_xlim((cx - width / 2, cx + width / 2))
                 if 'ylim' not in kwargs and height is not None:
