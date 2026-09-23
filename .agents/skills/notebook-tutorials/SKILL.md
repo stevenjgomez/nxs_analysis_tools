@@ -57,9 +57,25 @@ Always use float literals (e.g., `0.0`, `1.5`) when intending to slice by physic
 
 ## 4. Verifying Notebooks Locally
 
-To ensure the notebook runs cleanly through Sphinx and `myst-nb`:
+### Option A: Pytest Suite (Fastest & Most Informative)
+Run the automated notebook test suite using `pytest`:
+```bash
+# Test all tutorial notebooks
+pytest tests/test_notebooks.py
+
+# Test a specific tutorial notebook
+pytest tests/test_notebooks.py -k using_scissors
+```
+If any cell fails, `pytest` will output the exact failing cell, traceback, and standard output.
+
+### Option B: Sphinx & myst-nb Build
+To ensure the notebook renders and builds cleanly in Sphinx documentation:
 ```bash
 sphinx-build -b html docs/source _build/html
+```
+To force Sphinx to re-execute all notebooks without using cache:
+```bash
+sphinx-build -E -b html docs/source _build/html
 ```
 If any cell raises an unhandled exception, `sphinx-build` will output the exact traceback and cell number. Fix the exception before committing.
 
