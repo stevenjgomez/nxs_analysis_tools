@@ -58,9 +58,30 @@ The package uses `setuptools_scm` to dynamically determine version numbers from 
    git tag -a v0.1.16 -m "Release v0.1.16"
    git push origin v0.1.16
    ```
-4. Draft the release notes:
-   - Include major highlights, "What's Changed" section with bullets, and full changelog link.
-   - Use `gh release create` with `--notes-file`:
+4. **Inspect Commits & Generate Release Notes File**:
+   - Query all commits since the previous stable release tag:
      ```bash
-     gh release create v0.1.16 --title "v0.1.16" --notes-file scratch/release_v0.1.16.md
+     PREV_TAG=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | sed -n 2p)
+     git log ${PREV_TAG}..HEAD --oneline
      ```
+   - Generate a markdown release notes file `scratch/release_notes_<tag>.md` using the project's standard structure:
+     ```bash
+     cat << 'EOF' > scratch/release_notes_v0.1.16.md
+     <High-level summary of the release>
+
+     ## What's Changed
+     * **Feature / Category**:
+       * Detail bullet points describing changes (#PR or commit reference)
+     * **Bugfixes & Maintenance**:
+       * Detail bullet points describing fixes
+
+     **Full Changelog**: https://github.com/stevenjgomez/nxs_analysis_tools/compare/<prev_tag>...<new_tag>
+     EOF
+     ```
+     *(Note: Alternatively, `gh release create <tag> --generate-notes` can be used to pull GitHub PR titles automatically).*
+
+5. **Publish the Official GitHub Release**:
+   ```bash
+   gh release create v0.1.16 --title "v0.1.16" --notes-file scratch/release_notes_v0.1.16.md
+   ```
+
