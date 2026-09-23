@@ -811,7 +811,7 @@ class Scissors:
         Set the extents of the integration window.
     get_window()
         Get the extents of the integration window.
-    cut_data(center=None, window=None, axis=None, verbose=False)
+    cut_data(center=None, window=None, axis=None, verbose=False, normalize=False, empty_bins='both')
         Reduce data to a 1D linecut using the integration window.
     plot_integration_window(**kwargs)
         Plot the integration window on a 2D heatmap.
@@ -921,7 +921,8 @@ class Scissors:
         """
         return self.window
 
-    def cut_data(self, center=None, window=None, axis=None, verbose=False):
+    def cut_data(self, center=None, window=None, axis=None, verbose=False,
+                 normalize=False, empty_bins='both'):
         """
         Reduces data to a 1D linecut with integration extents specified by the
         window about a central coordinate.
@@ -937,8 +938,16 @@ class Scissors:
         axis : int or None, optional
             The axis along which to perform the linecut. If not specified, the value from the
             object's attribute will be used.
-        verbose : bool
+        verbose : bool, optional
             Enables printout of linecut axis and integrated axes. Default False.
+        normalize : bool, optional
+            Whether to normalize the linecut by the number of non-empty bins along the
+            integrated directions. Default False.
+        empty_bins : {'both', 'nan', 'none'}, optional
+            Defines which bins are considered empty when counting valid bins for normalization:
+            - 'both': Ignore NaNs and zeros. (Default)
+            - 'nan': Ignore only NaNs.
+            - 'none': Count all voxels within the integration window.
 
         Returns
         -------
@@ -967,14 +976,37 @@ class Scissors:
         self.integration_volume = data[slice_obj]
         self.integration_volume.nxname = data.nxname
 
-        # Perform integration along the integrated axes
-        integrated_data = np.sum(self.integration_volume.nxsignal.nxdata,
-                                 axis=self.integrated_axes)
+        raw_data = self.integration_volume.nxsignal.nxdata
+
+        if normalize:
+            # Determine valid mask
+            if empty_bins == 'nan':
+                valid_mask = ~np.isnan(raw_data)
+            elif empty_bins == 'both':
+                valid_mask = ~np.isnan(raw_data) & (raw_data != 0)
+            elif empty_bins == 'none':
+                valid_mask = np.ones_like(raw_data, dtype=bool)
+            else:
+                raise ValueError(f"Unknown empty_bins option '{empty_bins}'. Expected 'both', 'nan', or 'none'.")
+
+            # Count valid bins along integrated axes
+            bin_counts = np.sum(valid_mask, axis=self.integrated_axes)
+
+            # Sum intensities ignoring invalid bins
+            data_sum = np.nansum(np.where(valid_mask, raw_data, 0), axis=self.integrated_axes)
+
+            # Avoid divide-by-zero where bin_counts == 0
+            with np.errstate(divide='ignore', invalid='ignore'):
+                integrated_data = np.where(bin_counts > 0, data_sum / bin_counts, 0.0)
+        else:
+            # Perform integration along the integrated axes
+            integrated_data = np.sum(raw_data, axis=self.integrated_axes)
 
         # Create an NXdata object for the linecut data
         self.linecut = NXdata(NXfield(integrated_data, name=self.integration_volume.nxsignal.nxname),
                               self.integration_volume[self.integration_volume.nxaxes[self.axis].nxname])
         self.linecut.nxname = self.integration_volume.nxname
+        self.linecut.attrs['normalized'] = normalize
 
         return self.linecut
 

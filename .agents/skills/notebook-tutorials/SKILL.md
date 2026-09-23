@@ -42,14 +42,40 @@ When asked to generate a new tutorial:
    - `hexagonal(temperatures=[15, 300])`
    - `cubic(temperatures=[15, 300])`
    - `orthorhombic(temperatures=[15, 100, 300])`
+   - `cubic_l_rods()`
 3. **Draft the Notebook**: Build standard v4 notebook structure with introductory markdown cells, step-by-step code blocks, and visual plots using `plot_slice`.
 4. **Register in Sphinx Index**:
    Add the tutorial filename (without `.ipynb` extension) to `docs/source/examples/index.md` under the `{toctree}` directive.
 
-## 3. Verifying Notebooks Locally
+## 3. NXdata Slicing: Integer vs. Float Indices
 
-To ensure the notebook runs cleanly through Sphinx and `myst-nb`:
+`nexusformat.nexus.NXdata` objects interpret integer and float indices differently:
+- **Integer index** (e.g. `data[:, 0, :]`): selects the **0th array index** along that axis (the first entry in the underlying array, which may correspond to the minimum coordinate such as $K = -2.0$).
+- **Float index** (e.g. `data[:, 0.0, :]`): selects by **physical coordinate value** along the axis (locating the bin closest to physical coordinate $K = 0.0$).
+
+Always use float literals (e.g., `0.0`, `1.5`) when intending to slice by physical reciprocal space coordinates.
+
+## 4. Verifying Notebooks Locally
+
+### Option A: Pytest Suite (Fastest & Most Informative)
+Run the automated notebook test suite using `pytest`:
+```bash
+# Test all tutorial notebooks
+pytest tests/test_notebooks.py
+
+# Test a specific tutorial notebook
+pytest tests/test_notebooks.py -k using_scissors
+```
+If any cell fails, `pytest` will output the exact failing cell, traceback, and standard output.
+
+### Option B: Sphinx & myst-nb Build
+To ensure the notebook renders and builds cleanly in Sphinx documentation:
 ```bash
 sphinx-build -b html docs/source _build/html
 ```
+To force Sphinx to re-execute all notebooks without using cache:
+```bash
+sphinx-build -E -b html docs/source _build/html
+```
 If any cell raises an unhandled exception, `sphinx-build` will output the exact traceback and cell number. Fix the exception before committing.
+
