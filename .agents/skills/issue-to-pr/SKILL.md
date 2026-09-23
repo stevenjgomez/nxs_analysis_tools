@@ -66,7 +66,9 @@ Co-authored-by: Antigravity <noreply@google.com>"
   git push -u origin <branch_name>
   ```
 - Create the Pull Request:
-  ```bash
-  gh pr create --title "<Type>: <Summary>" --body "Closes #<issue_number>. <Description of changes and verification steps>." --base main
-  ```
+  - **Note on LaTeX / `$$`**: Avoid passing raw LaTeX with `$$` inside `--body "..."` double-quotes in the shell, as `zsh`/`bash` expands `$$` into the current shell process ID (PID).
+  - Use `--body-file` with a markdown file (e.g. `scratch/pr_body.md`) or a quoted heredoc (`<< 'EOF'`):
+    ```bash
+    gh pr create --title "<Type>: <Summary>" --body-file scratch/pr_body.md --base main
+    ```
 - Report the PR URL and a concise summary back to the user.
