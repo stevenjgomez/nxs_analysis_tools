@@ -75,7 +75,7 @@ class TempDependence:
         Set the extents of the integration window for each temperature.
     set_center(center):
         Set the central coordinate for the linecut for each temperature.
-    cut_data(center=None, window=None, axis=None, verbose=False):
+    cut_data(center=None, window=None, axis=None, verbose=False, normalize=False, empty_bins='both'):
         Perform data cutting for each temperature dataset.
     plot_linecuts(vertical_offset=0, **kwargs):
         Plot the linecuts obtained from data cutting.
@@ -370,7 +370,8 @@ class TempDependence:
         for T in self.temperatures:
             self.scissors[T].set_center(center)
 
-    def cut_data(self, center=None, window=None, axis=None, verbose=False):
+    def cut_data(self, center=None, window=None, axis=None, verbose=False,
+                 normalize=False, empty_bins='both'):
         """
         Perform data cutting for each temperature dataset.
 
@@ -387,6 +388,14 @@ class TempDependence:
             Defaults to the longest axis in `window` if None.
         verbose : bool, optional
             Enables printout of linecut progress. Default is False.
+        normalize : bool, optional
+            Whether to normalize the linecut by the number of non-empty bins along the
+            integrated directions. Default False.
+        empty_bins : {'both', 'nan', 'none'}, optional
+            Defines which bins are considered empty when counting valid bins for normalization:
+            - 'both': Ignore NaNs and zeros. (Default)
+            - 'nan': Ignore only NaNs.
+            - 'none': Count all voxels within the integration window.
 
         Returns
         -------
@@ -400,7 +409,8 @@ class TempDependence:
                 print("Cutting T = " + T + " K data...")
             self.scissors[T].set_center(center)
             self.scissors[T].set_window(window)
-            self.scissors[T].cut_data(axis=axis, verbose=verbose)
+            self.scissors[T].cut_data(axis=axis, verbose=verbose,
+                                      normalize=normalize, empty_bins=empty_bins)
             self.linecuts[T] = self.scissors[T].linecut
             self.linecutmodels[T].set_data(self.linecuts[T])
 
