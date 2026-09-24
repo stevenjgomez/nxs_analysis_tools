@@ -243,3 +243,23 @@ class TestSymmetrizerFeatures:
         res2 = s2.symmetrize_2d(data_2d)
         assert res2.ndim == 2
         assert s2.symmetrization_mask is not None
+
+    def test_positive_values_warning_and_override(self):
+        # Create dataset with negative values
+        data_2d = make_synthetic_nxdata((25, 25), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
+        data_2d.nxsignal.nxdata[:, :] = -5.0
+        add_gaussian_peak(data_2d, (0.5, 0.5), sigma=0.2, intensity=20.0)
+
+        sym = Symmetrizer(data_2d, symmetry='tetragonal')
+
+        # positive_values=True (default) should warn and clip
+        with pytest.warns(UserWarning, match="Negative values found in symmetrized dataset and clipped to zero"):
+            res_clipped = sym.symmetrize(method='average', positive_values=True)
+        assert (res_clipped.nxsignal.nxdata >= 0.0).all()
+
+        # positive_values=False should not warn and should preserve negative values
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            res_raw = sym.symmetrize(method='average', positive_values=False)
+        assert (res_raw.nxsignal.nxdata < 0.0).any()

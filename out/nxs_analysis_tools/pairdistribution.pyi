@@ -1,7 +1,6 @@
 from .lineartransformations import mirror_plane_affine, rotate_plane_affine
 from _typeshed import Incomplete
 from astropy.convolution import Kernel
-from nexusformat.nexus import NXdata
 
 __all__ = ['Symmetrizer', 'Symmetrizer2D', 'Symmetrizer3D', 'Puncher', 'Interpolator', 'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF', 'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine']
 
@@ -24,6 +23,9 @@ class Symmetrizer:
     theta_min: Incomplete
     theta_max: Incomplete
     skew_angle: Incomplete
+    plane1symmetrizer: Incomplete
+    plane2symmetrizer: Incomplete
+    plane3symmetrizer: Incomplete
     symmetrization_mask: Incomplete
     wedge: Incomplete
     transform: Incomplete
@@ -32,7 +34,10 @@ class Symmetrizer:
     transformer: Incomplete
     def set_parameters(self, theta_min=None, theta_max=None, lattice_angle=None, mirror=None, mirror_axis=None, mirror_angle=None, n_fold=None, symmetry=None, tol=None, layer_axis=None, aspect=None, positive_values=None, **kwargs) -> None: ...
     def set_data(self, data) -> None: ...
-    def symmetrize(self, method=None, parallel: bool = False, num_workers=None, positive_values=None, **kwargs): ...
+    lattice_params: Incomplete
+    reciprocal_lattice_params: Incomplete
+    def set_lattice_params(self, lattice_params) -> None: ...
+    def symmetrize(self, data=None, method=None, parallel: bool = False, num_workers=None, positive_values=None, **kwargs): ...
     def symmetrize_2d(self, data=None, method=None, positive_values=None, **kwargs): ...
     def symmetrize_3d(self, data=None, method=None, parallel: bool = False, num_workers=None, positive_values=None, **kwargs): ...
     def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None): ...
@@ -40,42 +45,10 @@ class Symmetrizer:
     def save(self, fout_name=None) -> None: ...
 
 class Symmetrizer2D(Symmetrizer):
-    symmetrization_mask: NXdata
-    mirror_axis: Incomplete
-    symmetrized: Incomplete
-    rotations: Incomplete
-    transform: Incomplete
-    mirror: Incomplete
-    skew_angle: Incomplete
-    theta_max: Incomplete
-    theta_min: Incomplete
-    wedge: Incomplete
     def __init__(self, **kwargs) -> None: ...
-    transformer: Incomplete
-    wedges: Incomplete
-    def set_parameters(self, theta_min, theta_max, lattice_angle: int = 90, mirror: bool = True, mirror_axis=None) -> None: ...
-    def symmetrize_2d(self, data): ...
-    def test(self, data, **kwargs): ...
 
 class Symmetrizer3D(Symmetrizer):
-    lattice_params: Incomplete
-    reciprocal_lattice_params: Incomplete
-    symmetrized: Incomplete
-    data: Incomplete
-    plane1symmetrizer: Incomplete
-    plane2symmetrizer: Incomplete
-    plane3symmetrizer: Incomplete
-    q1: Incomplete
-    q2: Incomplete
-    q3: Incomplete
-    plane1: Incomplete
-    plane2: Incomplete
-    plane3: Incomplete
     def __init__(self, data=None) -> None: ...
-    def set_data(self, data) -> None: ...
-    def set_lattice_params(self, lattice_params) -> None: ...
-    def symmetrize(self, positive_values: bool = True, method: str = 'wedge', **kwargs): ...
-    def save(self, fout_name=None) -> None: ...
 
 def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=None): ...
 
