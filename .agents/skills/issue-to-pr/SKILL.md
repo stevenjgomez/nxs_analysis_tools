@@ -41,6 +41,7 @@ Follow this step-by-step procedure to resolve an issue or implement a feature an
   - For features: write unit tests checking expected return types, argument handling, and edge cases.
 - Use synthetic `NXdata` or `nxs_analysis_tools.datasets` data loaders.
 - Ensure Matplotlib is run headlessly (`builtins.display = lambda *args, **kwargs: None`).
+- **Dynamic Versioning**: Remember that `nxs-analysis-tools` uses `setuptools_scm` driven dynamically by git tags. Never hardcode version strings in tests or assumptions.
 - Run `pytest` to confirm test behavior.
 
 ## Step 5: Implement Fix or Feature
@@ -52,6 +53,10 @@ Follow this step-by-step procedure to resolve an issue or implement a feature an
   - Update `docs/source/api.rst` or docstrings if needed.
   - If a tutorial in `docs/source/examples/` uses the changed API, update it using `nbformat`.
   - Run `stubgen src/nxs_analysis_tools` to update typing stubs if applicable.
+- **Run Full Verification**:
+  - Run all tests: `pytest`
+  - Run all notebooks: `pytest tests/test_notebooks.py`
+  - Build Sphinx documentation: `sphinx-build -b html docs/source docs/build/html`
 
 ## Step 7: Push Branch and Open PR
 - Stage modified files and commit with a standard semantic commit message and the Co-authored-by trailer:

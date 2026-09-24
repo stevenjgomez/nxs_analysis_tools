@@ -128,11 +128,11 @@ class TempDependence:
         Initialize Scissors and LinecutModel objects for each temperature.
     set_data(temperature, data):
         Set the dataset for a specific temperature.
-    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True):
-        Load transform datasets (from nxrefine) based on temperature.
-    load_datasets(file_ending='hkli.nxs', temperatures=None, exclude_temperatures=None, 
-                  print_tree=True):
-        Load datasets (legacy CHESS format) from the specified folder.
+    load_datasets(temperatures=None, exclude_temperatures=None, file_ending='hkli.nxs',
+                  print_tree=True, use_nxlink=True):
+        Load datasets from the sample directory, automatically detecting NXRefine or legacy CHESS format.
+    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=True):
+        .. deprecated:: Use `load_datasets` instead.
     to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
         Export datasets as a combined NXdata object (and optional .nxs file) suitable for XTEC.
     get_sample_directory():
@@ -218,6 +218,41 @@ class TempDependence:
         """
         self.temperatures = [_normalize_temperature(t) for t in temperatures]
 
+    def _detect_format(self, file_ending='hkli.nxs'):
+        """
+        Detect whether sample_directory contains NXRefine transform files or legacy CHESS folders.
+
+        Parameters
+        ----------
+        file_ending : str, optional
+            File extension pattern for legacy CHESS datasets. Default is 'hkli.nxs'.
+
+        Returns
+        -------
+        str or None
+            'nxrefine', 'chess', or None if no valid data structure is found.
+        """
+        if self.sample_directory is None:
+            raise ValueError("Sample directory is not set. Use set_sample_directory(path) first.")
+
+        pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
+        for item in os.listdir(self.sample_directory):
+            item_path = os.path.join(self.sample_directory, item)
+            if os.path.isfile(item_path) and re.search(pattern, item):
+                return 'nxrefine'
+
+        for item in os.listdir(self.sample_directory):
+            item_path = os.path.join(self.sample_directory, item)
+            if os.path.isdir(item_path):
+                val = _normalize_temperature(item)
+                if isinstance(val, (int, float)):
+                    try:
+                        if any(f.endswith(file_ending) or f.endswith('.nxs') for f in os.listdir(item_path)):
+                            return 'chess'
+                    except OSError:
+                        pass
+        return None
+
     def find_temperatures(self):
         """
         Set the list of temperatures by automatically scanning the sample directory for .nxs files.
@@ -235,17 +270,16 @@ class TempDependence:
         self.temperatures = []
         temps = []
 
-        pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
-        for item in os.listdir(self.sample_directory):
-            item_path = os.path.join(self.sample_directory, item)
-            # NXRefine format: .nxs files in sample directory
-            if os.path.isfile(item_path):
-                match = re.search(pattern, item)
-                if match:
-                    temps.append(_normalize_temperature(match.group(1)))
-
-        # If no NXRefine files were found, check for legacy CHESS temperature subdirectories
-        if not temps:
+        format_type = self._detect_format()
+        if format_type == 'nxrefine':
+            pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
+            for item in os.listdir(self.sample_directory):
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isfile(item_path):
+                    match = re.search(pattern, item)
+                    if match:
+                        temps.append(_normalize_temperature(match.group(1)))
+        elif format_type == 'chess':
             for item in os.listdir(self.sample_directory):
                 item_path = os.path.join(self.sample_directory, item)
                 if os.path.isdir(item_path):
@@ -258,7 +292,8 @@ class TempDependence:
                             pass
 
         # Sort the temperatures numerically and deduplicate
-        self.temperatures = sorted(list(dict.fromkeys(temps)), key=float)
+        if temps:
+            self.temperatures = sorted(list(dict.fromkeys(temps)), key=float)
 
     def set_sample_directory(self, path):
         """
@@ -294,31 +329,72 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False, temperatures_list=None):
+    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=True, temperatures_list=None, **kwargs):
         """
         Load transform datasets (from NXRefine) based on temperature.
 
+        .. deprecated::
+           `load_transforms` is deprecated and will be removed in a future release.
+           Please use `load_datasets` instead, which automatically detects whether the files
+           are in NXRefine or legacy CHESS format.
+        """
+        warnings.warn(
+            "`load_transforms` is deprecated and will be removed in a future release. "
+            "Please use `load_datasets` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.load_datasets(
+            temperatures=temperatures,
+            exclude_temperatures=exclude_temperatures,
+            print_tree=print_tree,
+            use_nxlink=use_nxlink,
+            temperatures_list=temperatures_list,
+            **kwargs,
+        )
+        
+    def load_datasets(
+        self,
+        temperatures=None,
+        exclude_temperatures=None,
+        file_ending='hkli.nxs',
+        print_tree=True,
+        use_nxlink=True,
+        *,
+        temperatures_list=None,
+        **kwargs,
+    ):
+        """
+        Load datasets from the sample directory, automatically detecting the file structure format.
+
+        Supports both:
+        - NXRefine transform files matching `*_<temperature>.nxs` directly in `sample_directory`.
+        - Legacy CHESS format with subdirectories named `<temperature>` containing `*<file_ending>` files.
+
         Parameters
         ----------
-        temperatures : list of int, float, or str, optional
+        temperatures : int, float, str, or list of int, float, or str, optional
             List of temperatures to load. If None, all available temperatures are loaded.
-
         exclude_temperatures : int, float, str, or list, optional
             Temperatures to skip. Applied after filtering with `temperatures`, if provided.
-        
+        file_ending : str, optional
+            File extension pattern for legacy CHESS datasets. Default is 'hkli.nxs'.
         print_tree : bool, optional
-            Whether to print the data tree upon loading. Default True.
-        
+            If True, prints the NeXus tree structure for each file. Default is True.
         use_nxlink : bool, optional
-            If True, maintains the NXlink defined in the data file, which references
-            the raw data in the transform.nxs file. This saves memory when working with
-            many datasets. In this case, the axes are in reverse order. Default is False.
-
+            If True (default), maintains the NXlink defined in NXRefine transform data files,
+            referencing raw data in transform.nxs without eagerly loading 3D arrays into memory.
+            Default is True.
         temperatures_list : list of int, float, or str, optional
             .. deprecated::
                `temperatures_list` is deprecated and will be removed in a future release.
                Please use `temperatures` instead.
         """
+        # Backward compatibility for positional file_ending argument (e.g. load_datasets('hkli.nxs'))
+        if isinstance(temperatures, str) and (temperatures.endswith('.nxs') or temperatures.endswith('.h5')):
+            file_ending = temperatures
+            temperatures = None
+
         if temperatures_list is not None:
             warnings.warn(
                 "`temperatures_list` is deprecated and will be removed in a future release. "
@@ -338,99 +414,67 @@ class TempDependence:
                 exclude_temperatures = [exclude_temperatures]
             exclude_temperatures = {_normalize_temperature(t) for t in exclude_temperatures}
 
-        # Discover all available temperatures
-        self.find_temperatures()
-
-        # Filter temperatures
-        filtered = [
-            t for t in self.temperatures
-            if (temperatures is None or t in temperatures)
-            and (exclude_temperatures is None or t not in exclude_temperatures)
-        ]
-        self.temperatures = filtered
-
-        # Load files
-        pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
-        filename_map = {}
-        for item in os.listdir(self.sample_directory):
-            match = re.search(pattern, item)
-            if match:
-                filename_map[_normalize_temperature(match.group(1))] = item
-
-        for temperature in self.temperatures:
-            item = filename_map[temperature]
-            path = str(os.path.join(self.sample_directory, item))
-            try:
-                self.datasets[temperature] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
-            except Exception as e:
-                print(f"Failed to load data for temperature {temperature} K from file {item}. Error: {e}")
-                raise
-
-        self.initialize()
-        
-    def load_datasets(self, file_ending='hkli.nxs', temperatures=None, exclude_temperatures=None, print_tree=True, temperatures_list=None):
-        """
-        Load datasets (CHESS format) from the specified folder.
-
-        Parameters
-        ----------
-        file_ending : str, optional
-            File extension of datasets to load. Default is 'hkli.nxs'.
-        temperatures : list of int, float, or str, optional
-            Specific temperatures to load. If None, all temperatures are loaded.
-        exclude_temperatures : list of int, float, or str, optional
-            Temperatures to skip. Applied after filtering with `temperatures`, if provided.
-        print_tree : bool, optional
-            If True, prints the NeXus tree structure for each file. Default is True.
-        temperatures_list : list of int, float, or str, optional
-            .. deprecated::
-               `temperatures_list` is deprecated and will be removed in a future release.
-               Please use `temperatures` instead.
-        """
-        if temperatures_list is not None:
-            warnings.warn(
-                "`temperatures_list` is deprecated and will be removed in a future release. "
-                "Please use `temperatures` instead.",
-                DeprecationWarning,
-                stacklevel=2,
+        format_type = self._detect_format(file_ending=file_ending)
+        if format_type is None:
+            raise FileNotFoundError(
+                f"No valid NXRefine (*_<temperature>.nxs) or legacy CHESS (<temperature>/*{file_ending}) "
+                f"datasets found in sample directory: '{self.sample_directory}'"
             )
-            if temperatures is None:
-                temperatures = temperatures_list
 
-        folder_map = {}
-        for item in os.listdir(self.sample_directory):
-            try:
-                val = _normalize_temperature(item)
-                if isinstance(val, (int, float)):
-                    folder_map[val] = item
-            except (ValueError, TypeError):
-                pass
+        if format_type == 'nxrefine':
+            pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
+            filename_map = {}
+            for item in os.listdir(self.sample_directory):
+                match = re.search(pattern, item)
+                if match:
+                    filename_map[_normalize_temperature(match.group(1))] = item
 
-        if temperatures is not None:
-            if not isinstance(temperatures, (list, tuple, set)):
-                temperatures = [temperatures]
-            self.temperatures = [_normalize_temperature(t) for t in temperatures]
-        else:
-            self.temperatures = sorted(folder_map.keys())
+            available_temps = sorted(list(filename_map.keys()), key=float)
+            self.temperatures = [
+                t for t in available_temps
+                if (temperatures is None or t in temperatures)
+                and (exclude_temperatures is None or t not in exclude_temperatures)
+            ]
 
-        if exclude_temperatures is not None:
-            if not isinstance(exclude_temperatures, (list, tuple, set)):
-                exclude_temperatures = [exclude_temperatures]
-            exclude_set = {_normalize_temperature(t) for t in exclude_temperatures}
-            self.temperatures = [t for t in self.temperatures if t not in exclude_set]
+            for temperature in self.temperatures:
+                item = filename_map[temperature]
+                path = str(os.path.join(self.sample_directory, item))
+                try:
+                    self.datasets[temperature] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
+                except Exception as e:
+                    print(f"Failed to load data for temperature {temperature} K from file {item}. Error: {e}")
+                    raise
 
-        # Load .nxs files
-        for T in self.temperatures:
-            folder_name = folder_map.get(T, str(T))
-            folder_path = os.path.join(self.sample_directory, folder_name)
-            if not os.path.isdir(folder_path):
-                continue
-            for file in os.listdir(folder_path):
-                if file.endswith(file_ending):
-                    filepath = os.path.join(folder_path, file)
+        elif format_type == 'chess':
+            folder_map = {}
+            for item in os.listdir(self.sample_directory):
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isdir(item_path):
+                    val = _normalize_temperature(item)
+                    if isinstance(val, (int, float)):
+                        try:
+                            if any(f.endswith(file_ending) for f in os.listdir(item_path)):
+                                folder_map[val] = item
+                        except OSError:
+                            pass
 
-                    # Load dataset at each temperature
-                    self.datasets[T] = load_data(filepath, print_tree)
+            available_temps = sorted(list(folder_map.keys()), key=float)
+            self.temperatures = [
+                t for t in available_temps
+                if (temperatures is None or t in temperatures)
+                and (exclude_temperatures is None or t not in exclude_temperatures)
+            ]
+
+            for T in self.temperatures:
+                folder_name = folder_map.get(T, str(T))
+                folder_path = os.path.join(self.sample_directory, folder_name)
+                if not os.path.isdir(folder_path):
+                    continue
+                for file in os.listdir(folder_path):
+                    if file.endswith(file_ending):
+                        filepath = os.path.join(folder_path, file)
+                        self.datasets[T] = load_data(filepath, print_tree)
+                        break
 
         self.initialize()
 

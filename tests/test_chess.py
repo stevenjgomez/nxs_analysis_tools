@@ -433,6 +433,112 @@ def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, 
     assert td4.temperatures == [20, 300]
 
 
+def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
+    """Test load_datasets automatically detecting and loading NXRefine format."""
+    (tmp_path / "sample_15.nxs").touch()
+    (tmp_path / "sample_25.nxs").touch()
+
+    calls = []
+    def mock_load_transform(path, print_tree=True, use_nxlink=True):
+        calls.append((path, use_nxlink))
+        return sample_3d_nxdata
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", mock_load_transform)
+
+    td = TempDependence(str(tmp_path))
+    assert td._detect_format() == 'nxrefine'
+    td.load_datasets(print_tree=False)
+
+    assert td.temperatures == [15, 25]
+    assert 15 in td.datasets
+    assert 25 in td.datasets
+    # Verify default use_nxlink=True passed to load_transform
+    assert all(c[1] is True for c in calls)
+
+
+def test_load_datasets_positional_file_ending(tmp_path, sample_3d_nxdata, monkeypatch):
+    """Test passing file_ending positionally to load_datasets."""
+    d = tmp_path / "15"
+    d.mkdir()
+    (d / "data_custom.nxs").touch()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
+
+    td = TempDependence(str(tmp_path))
+    td.load_datasets("custom.nxs", print_tree=False)
+    assert td.temperatures == [15]
+    assert 15 in td.datasets
+
+
+def test_load_transforms_deprecation_and_delegation(tmp_path, sample_3d_nxdata, monkeypatch):
+    """Test that load_transforms emits DeprecationWarning and delegates to load_datasets."""
+    (tmp_path / "sample_15.nxs").touch()
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, **kwargs: sample_3d_nxdata)
+
+    td = TempDependence(str(tmp_path))
+    with pytest.deprecated_call(match="`load_transforms` is deprecated"):
+        td.load_transforms(print_tree=False)
+    assert td.temperatures == [15]
+    assert 15 in td.datasets
+
+
+def test_load_datasets_no_format_found(tmp_path):
+    """Test that FileNotFoundError is raised when directory has no recognizable format."""
+    td = TempDependence(str(tmp_path))
+    with pytest.raises(FileNotFoundError, match="No valid NXRefine"):
+        td.load_datasets(print_tree=False)
+
+
+def test_load_datasets_lazy_loading(tmp_path):
+    """Test that both NXRefine and legacy CHESS datasets load lazily without reading array data into RAM."""
+    from nexusformat.nexus import NXroot, NXentry, NXdata, NXfield, NXlink, nxsave
+
+    # 1. Test legacy CHESS lazy loading
+    chess_dir = tmp_path / "chess"
+    sub_15 = chess_dir / "15"
+    sub_15.mkdir(parents=True)
+    legacy_file = sub_15 / "data_hkli.nxs"
+
+    root = NXroot()
+    root['entry'] = NXentry()
+    h = NXfield(np.arange(10), name='H')
+    counts = NXfield(np.ones((10, 10, 10), dtype=np.float32), name='counts')
+    root['entry']['data'] = NXdata(counts, (h,))
+    nxsave(str(legacy_file), root)
+
+    td_chess = TempDependence(str(chess_dir))
+    assert td_chess._detect_format() == 'chess'
+    td_chess.load_datasets(print_tree=False)
+    # Check that array was NOT loaded into memory
+    assert td_chess.datasets[15].nxsignal._value is None
+
+    # 2. Test NXRefine lazy loading with default use_nxlink=True
+    nxrefine_dir = tmp_path / "nxrefine"
+    nx_15 = nxrefine_dir / "15"
+    nx_15.mkdir(parents=True)
+    raw_transform = nx_15 / "transform.nxs"
+
+    raw_root = NXroot()
+    raw_root['entry'] = NXentry()
+    raw_root['entry']['data'] = NXdata(NXfield(np.ones((10, 10, 10), dtype=np.float32), name='v'))
+    nxsave(str(raw_transform), raw_root)
+
+    wrapper_file = nxrefine_dir / "cubic_15.nxs"
+    w = NXroot()
+    w['entry'] = NXentry()
+    w['entry']['transform'] = NXdata(
+        NXlink(name='data', target='/entry/data/v', file="15/transform.nxs"),
+        (NXfield(np.arange(10), name='Ql'), NXfield(np.arange(10), name='Qk'), NXfield(np.arange(10), name='Qh'))
+    )
+    nxsave(str(wrapper_file), w)
+
+    td_nxrefine = TempDependence(str(nxrefine_dir))
+    assert td_nxrefine._detect_format() == 'nxrefine'
+    td_nxrefine.load_datasets(print_tree=False)
+    # Check that array was NOT loaded into memory
+    assert td_nxrefine.datasets[15].nxsignal._value is None
+
+
 
 
 
