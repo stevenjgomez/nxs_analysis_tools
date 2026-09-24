@@ -153,6 +153,7 @@ intersphinx_mapping = {
 
 myst_enable_extensions = [
     'amsmath',
+    'dollarmath',
     'substitution'
 ]
 

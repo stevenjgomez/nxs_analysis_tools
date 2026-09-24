@@ -45,3 +45,8 @@
   ```bash
   stubgen src/nxs_analysis_tools
   ```
+
+## 6. Tagging & Releases
+- Version numbers are dynamically driven by git tags via `setuptools_scm`.
+- **Pre-releases (Alpha/RC)**: Create and push git tags (`git tag -a vX.Y.ZaN -m "..." && git push origin vX.Y.ZaN`) to trigger PyPI publishing for testing, but **do not** create formal GitHub Releases.
+- **Stable Releases**: Create git tags and publish official GitHub Releases (`gh release create`) on `main` once all testing and PRs are finalized.
