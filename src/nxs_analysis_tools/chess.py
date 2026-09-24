@@ -220,7 +220,11 @@ class TempDependence:
 
     def find_temperatures(self):
         """
-        Set the list of temperatures by automatically scanning the sample directory for .nxs files from NXRefine.
+        Set the list of temperatures by automatically scanning the sample directory for .nxs files.
+
+        Supports both:
+        - NXRefine transform files matching `*_<temperature>.nxs` directly in the sample directory.
+        - Legacy CHESS file structure where subdirectories are named `<temperature>` and contain `.nxs` files.
         """
 
         # Assert that self.sample_directory must exist
@@ -229,16 +233,32 @@ class TempDependence:
 
         # Clear existing temperatures
         self.temperatures = []
+        temps = []
 
-        # Search for nxrefine .nxs files
+        pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
         for item in os.listdir(self.sample_directory):
-            pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
-            match = re.search(pattern, item)
-            if match:
-                self.temperatures.append(_normalize_temperature(match.group(1)))
+            item_path = os.path.join(self.sample_directory, item)
+            # NXRefine format: .nxs files in sample directory
+            if os.path.isfile(item_path):
+                match = re.search(pattern, item)
+                if match:
+                    temps.append(_normalize_temperature(match.group(1)))
+
+        # If no NXRefine files were found, check for legacy CHESS temperature subdirectories
+        if not temps:
+            for item in os.listdir(self.sample_directory):
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isdir(item_path):
+                    val = _normalize_temperature(item)
+                    if isinstance(val, (int, float)):
+                        try:
+                            if any(f.endswith('.nxs') for f in os.listdir(item_path)):
+                                temps.append(val)
+                        except OSError:
+                            pass
 
         # Sort the temperatures numerically and deduplicate
-        self.temperatures = sorted(list(dict.fromkeys(self.temperatures)), key=float)
+        self.temperatures = sorted(list(dict.fromkeys(temps)), key=float)
 
     def set_sample_directory(self, path):
         """

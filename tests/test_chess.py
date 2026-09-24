@@ -219,6 +219,32 @@ def test_find_temperatures_decimal_and_p_format(tmp_path):
     assert td.temperatures == [15.5, 20, 25.5]
 
 
+def test_find_temperatures_legacy_chess_format(tmp_path):
+    # Setup directories for legacy CHESS format
+    for folder in ["15p5", "20", "25.5", "300"]:
+        d = tmp_path / folder
+        d.mkdir()
+        (d / "data_hkli.nxs").touch()
+
+    # Add non-temperature or non-nxs folders to ensure they are ignored
+    other = tmp_path / "other_folder"
+    other.mkdir()
+    (other / "data.nxs").touch()
+
+    no_nxs = tmp_path / "99"
+    no_nxs.mkdir()
+    (no_nxs / "readme.txt").touch()
+
+    td = TempDependence(str(tmp_path))
+    td.find_temperatures()
+
+    assert td.temperatures == [15.5, 20, 25.5, 300]
+
+    # Test filtering with logical operators
+    below_150 = [T for T in td.temperatures if T < 150]
+    assert below_150 == [15.5, 20, 25.5]
+
+
 def test_plot_linecuts_heatmap_float_temperatures():
     td = TempDependence()
     td.temperatures = ['15.5', '20.5', '25.5']
