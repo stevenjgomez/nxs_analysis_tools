@@ -94,6 +94,18 @@ With `use_nxlink=True` (the default), NXRefine datasets preserve their native C-
   plot_slice(data[:, :, 0.0])
   ```
 
+### `Scissors` & `cut_data()` `center` / `window` Ordering
+Because `Scissors.cut_data()` maps `center` and `window` tuples positionally to `data.nxaxes`, when `use_nxlink=True`, coordinates must match the dataset axis order `(Ql, Qk, Qh)`:
+- `center = (L_center, K_center, H_center)`
+- `window = (L_window, K_window, H_window)`
+
+For example, to perform a linecut along $H$ centered at $H = -0.5$ with integration windows $\pm 0.2$ along $L$ and $K$:
+```python
+# center and window ordered as (L, K, H):
+xtl.cut_data(center=(0.0, 0.0, -0.5), window=(0.2, 0.2, 0.25))
+```
+Here `window[2] = 0.25` is the largest window, selecting `Qh` as the linecut axis.
+
 ---
 
 ## 4. Temperature Key Conventions & Normalization
