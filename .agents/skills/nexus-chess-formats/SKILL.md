@@ -67,7 +67,36 @@ When `nexusformat.nexus.nxload(path)` is called, the file structure is traversed
 
 ---
 
-## 3. Temperature Key Conventions & Normalization
+## 3. Reciprocal Space Planes vs. Array Axes Slicing
+
+A common source of confusion when slicing 3D reciprocal space volumes is confusing the **plane name** with the **sliced coordinate**:
+- A reciprocal lattice plane is defined by **fixing the coordinate perpendicular to the plane**:
+  - **$HK$ Plane**: $L$ (or $Q_l$) is held constant (e.g., $L = 0.0$). The remaining free axes are $H$ and $K$.
+  - **$HL$ Plane**: $K$ (or $Q_k$) is held constant (e.g., $K = 0.0$). The remaining free axes are $H$ and $L$.
+  - **$KL$ Plane**: $H$ (or $Q_h$) is held constant (e.g., $H = 0.0$). The remaining free axes are $K$ and $L$.
+
+> [!WARNING]
+> Fixing $Q_h = 0.0$ ($H = 0.0$) does **NOT** yield the $HK$ plane! It eliminates the $H$ coordinate, resulting in the **$KL$ plane**. To observe the **$HK$ plane**, you must slice at $Q_l = 0.0$ ($L = 0.0$).
+
+### Mapping to Array Axes under `use_nxlink=True`
+With `use_nxlink=True` (the default), NXRefine datasets preserve their native C-order axes:
+`data.nxaxes == ['Ql', 'Qk', 'Qh']` (shape: `(N_l, N_k, N_h)`).
+- **$HK$ Plane ($Q_l = 0.0$)**: Slice along **Axis 0**:
+  ```python
+  plot_slice(data[0.0, :, :])
+  ```
+- **$HL$ Plane ($Q_k = 0.0$)**: Slice along **Axis 1**:
+  ```python
+  plot_slice(data[:, 0.0, :])
+  ```
+- **$KL$ Plane ($Q_h = 0.0$)**: Slice along **Axis 2**:
+  ```python
+  plot_slice(data[:, :, 0.0])
+  ```
+
+---
+
+## 4. Temperature Key Conventions & Normalization
 
 Beamline files encode temperatures in three equivalent notations:
 1. **Integer**: `15`, `300`

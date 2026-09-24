@@ -55,6 +55,12 @@ When asked to generate a new tutorial:
 
 Always use float literals (e.g., `0.0`, `1.5`) when intending to slice by physical reciprocal space coordinates.
 
+- **Reciprocal Space Plane Rule**: A reciprocal plane is obtained by fixing the coordinate perpendicular to it:
+  - **$HK$ plane**: requires fixing $L = 0.0$ / $Q_l = 0.0$.
+  - **$HL$ plane**: requires fixing $K = 0.0$ / $Q_k = 0.0$.
+  - **$KL$ plane**: requires fixing $H = 0.0$ / $Q_h = 0.0$.
+  - Under `use_nxlink=True`, axis order is `(Ql, Qk, Qh)`. Slicing `data[0.0, :, :]` fixes $Q_l=0.0$ and views the **$HK$ plane**. Slicing `data[:, :, 0.0]` fixes $Q_h=0.0$ and views the **$KL$ plane**.
+
 ## 4. Temperature Parameter Conventions & Loading
 
 When writing or updating tutorial examples that load temperature series:
