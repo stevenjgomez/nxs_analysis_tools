@@ -55,7 +55,33 @@ When asked to generate a new tutorial:
 
 Always use float literals (e.g., `0.0`, `1.5`) when intending to slice by physical reciprocal space coordinates.
 
-## 4. Verifying Notebooks Locally
+## 4. Temperature Parameter Conventions & Loading
+
+When writing or updating tutorial examples that load temperature series:
+- **Use `load_datasets()`**: Prefer the unified `sample.load_datasets()` method over deprecated `load_transforms()`.
+- **Use Numeric Keys**: Prefer numeric values in temperature lists:
+  ```python
+  sample.load_datasets(temperatures=[15, 300])
+  ```
+  Note that strings (e.g. `'15.5'`, `'15p5'`) are also supported.
+- **Filtering with Logical Operators**: Showcase discovering available temperatures and filtering with list comprehensions:
+  ```python
+  sample.find_temperatures()
+  temps_below_150 = [T for T in sample.temperatures if T < 150]
+  sample.load_datasets(temperatures=temps_below_150)
+  ```
+- **Parameter Name**: Always use `temperatures` (the parameter `temperatures_list` is deprecated).
+
+## 5. Verifying Notebooks Locally
+
+### Headless Display Configuration
+When executing notebooks programmatically or in test scripts, configure Matplotlib for headless operation to prevent blocking GUI backend errors:
+```python
+import matplotlib
+matplotlib.use('Agg')
+import builtins
+builtins.display = lambda *args, **kwargs: None
+```
 
 ### Option A: Pytest Suite (Fastest & Most Informative)
 Run the automated notebook test suite using `pytest`:
