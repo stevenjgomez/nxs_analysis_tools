@@ -349,23 +349,29 @@ def test_load_transforms_flexible_temperature_formats(tmp_path, sample_3d_nxdata
 
     monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, **kwargs: sample_3d_nxdata)
 
-    # 1. temperatures_list with 'p' notation string and standard decimal float
+    # 1. temperatures with 'p' notation string and standard decimal float
     td = TempDependence(str(tmp_path))
-    td.load_transforms(temperatures_list=['15p5', 25.5], print_tree=False)
+    td.load_transforms(temperatures=['15p5', 25.5], print_tree=False)
     assert td.temperatures == [15.5, 25.5]
     assert 15.5 in td.datasets
     assert 25.5 in td.datasets
     assert '15p5' in td.datasets
 
-    # 2. temperatures_list with decimal string and int, plus exclude_temperatures with 'p' string
+    # 2. temperatures with decimal string and int, plus exclude_temperatures with 'p' string
     td2 = TempDependence(str(tmp_path))
-    td2.load_transforms(temperatures_list=['15.5', 20, '25p5'], exclude_temperatures='15p5', print_tree=False)
+    td2.load_transforms(temperatures=['15.5', 20, '25p5'], exclude_temperatures='15p5', print_tree=False)
     assert td2.temperatures == [20, 25.5]
 
     # 3. exclude_temperatures as a list of mixed formats (decimal string and float)
     td3 = TempDependence(str(tmp_path))
     td3.load_transforms(exclude_temperatures=['25.5', 15.5], print_tree=False)
     assert td3.temperatures == [20, 300]
+
+    # 4. Deprecation warning when using temperatures_list
+    td4 = TempDependence(str(tmp_path))
+    with pytest.deprecated_call(match="`temperatures_list` is deprecated"):
+        td4.load_transforms(temperatures_list=[20, 300], print_tree=False)
+    assert td4.temperatures == [20, 300]
 
 
 def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, monkeypatch):
@@ -377,22 +383,28 @@ def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, 
 
     monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
 
-    # 1. temperatures_list with decimal float and decimal string matching '15p5' folder
+    # 1. temperatures with decimal float and decimal string matching '15p5' folder
     td = TempDependence(str(tmp_path))
-    td.load_datasets(temperatures_list=[15.5, '25.5'], print_tree=False)
+    td.load_datasets(temperatures=[15.5, '25.5'], print_tree=False)
     assert td.temperatures == [15.5, 25.5]
     assert 15.5 in td.datasets
     assert '15p5' in td.datasets
 
-    # 2. temperatures_list with 'p' string, excluding single int
+    # 2. temperatures with 'p' string, excluding single int
     td2 = TempDependence(str(tmp_path))
-    td2.load_datasets(temperatures_list=['15p5', 20, 300], exclude_temperatures=20, print_tree=False)
+    td2.load_datasets(temperatures=['15p5', 20, 300], exclude_temperatures=20, print_tree=False)
     assert td2.temperatures == [15.5, 300]
 
     # 3. exclude_temperatures with 'p' string and decimal string
     td3 = TempDependence(str(tmp_path))
     td3.load_datasets(exclude_temperatures=['15p5', '25.5'], print_tree=False)
     assert td3.temperatures == [20, 300]
+
+    # 4. Deprecation warning when using temperatures_list
+    td4 = TempDependence(str(tmp_path))
+    with pytest.deprecated_call(match="`temperatures_list` is deprecated"):
+        td4.load_datasets(temperatures_list=[20, 300], print_tree=False)
+    assert td4.temperatures == [20, 300]
 
 
 

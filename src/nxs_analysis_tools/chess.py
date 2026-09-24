@@ -128,9 +128,9 @@ class TempDependence:
         Initialize Scissors and LinecutModel objects for each temperature.
     set_data(temperature, data):
         Set the dataset for a specific temperature.
-    load_transforms(temperatures_list=None, exclude_temperatures=None, print_tree=True):
+    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True):
         Load transform datasets (from nxrefine) based on temperature.
-    load_datasets(file_ending='hkli.nxs', temperatures_list=None, exclude_temperatures=None, 
+    load_datasets(file_ending='hkli.nxs', temperatures=None, exclude_temperatures=None, 
                   print_tree=True):
         Load datasets (legacy CHESS format) from the specified folder.
     to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
@@ -274,17 +274,17 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures_list=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
+    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False, temperatures_list=None):
         """
         Load transform datasets (from NXRefine) based on temperature.
 
         Parameters
         ----------
-        temperatures_list : list of int, float, or str, optional
+        temperatures : list of int, float, or str, optional
             List of temperatures to load. If None, all available temperatures are loaded.
 
         exclude_temperatures : int, float, str, or list, optional
-            Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
+            Temperatures to skip. Applied after filtering with `temperatures`, if provided.
         
         print_tree : bool, optional
             Whether to print the data tree upon loading. Default True.
@@ -293,11 +293,26 @@ class TempDependence:
             If True, maintains the NXlink defined in the data file, which references
             the raw data in the transform.nxs file. This saves memory when working with
             many datasets. In this case, the axes are in reverse order. Default is False.
+
+        temperatures_list : list of int, float, or str, optional
+            .. deprecated::
+               `temperatures_list` is deprecated and will be removed in a future release.
+               Please use `temperatures` instead.
         """
         if temperatures_list is not None:
-            if not isinstance(temperatures_list, (list, tuple, set)):
-                temperatures_list = [temperatures_list]
-            temperatures_list = {_normalize_temperature(t) for t in temperatures_list}
+            warnings.warn(
+                "`temperatures_list` is deprecated and will be removed in a future release. "
+                "Please use `temperatures` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if temperatures is None:
+                temperatures = temperatures_list
+
+        if temperatures is not None:
+            if not isinstance(temperatures, (list, tuple, set)):
+                temperatures = [temperatures]
+            temperatures = {_normalize_temperature(t) for t in temperatures}
         if exclude_temperatures is not None:
             if not isinstance(exclude_temperatures, (list, tuple, set)):
                 exclude_temperatures = [exclude_temperatures]
@@ -309,7 +324,7 @@ class TempDependence:
         # Filter temperatures
         filtered = [
             t for t in self.temperatures
-            if (temperatures_list is None or t in temperatures_list)
+            if (temperatures is None or t in temperatures)
             and (exclude_temperatures is None or t not in exclude_temperatures)
         ]
         self.temperatures = filtered
@@ -333,7 +348,7 @@ class TempDependence:
 
         self.initialize()
         
-    def load_datasets(self, file_ending='hkli.nxs', temperatures_list=None, exclude_temperatures=None, print_tree=True):
+    def load_datasets(self, file_ending='hkli.nxs', temperatures=None, exclude_temperatures=None, print_tree=True, temperatures_list=None):
         """
         Load datasets (CHESS format) from the specified folder.
 
@@ -341,13 +356,27 @@ class TempDependence:
         ----------
         file_ending : str, optional
             File extension of datasets to load. Default is 'hkli.nxs'.
-        temperatures_list : list of int, float, or str, optional
+        temperatures : list of int, float, or str, optional
             Specific temperatures to load. If None, all temperatures are loaded.
         exclude_temperatures : list of int, float, or str, optional
-            Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
+            Temperatures to skip. Applied after filtering with `temperatures`, if provided.
         print_tree : bool, optional
             If True, prints the NeXus tree structure for each file. Default is True.
+        temperatures_list : list of int, float, or str, optional
+            .. deprecated::
+               `temperatures_list` is deprecated and will be removed in a future release.
+               Please use `temperatures` instead.
         """
+        if temperatures_list is not None:
+            warnings.warn(
+                "`temperatures_list` is deprecated and will be removed in a future release. "
+                "Please use `temperatures` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if temperatures is None:
+                temperatures = temperatures_list
+
         folder_map = {}
         for item in os.listdir(self.sample_directory):
             try:
@@ -357,10 +386,10 @@ class TempDependence:
             except (ValueError, TypeError):
                 pass
 
-        if temperatures_list is not None:
-            if not isinstance(temperatures_list, (list, tuple, set)):
-                temperatures_list = [temperatures_list]
-            self.temperatures = [_normalize_temperature(t) for t in temperatures_list]
+        if temperatures is not None:
+            if not isinstance(temperatures, (list, tuple, set)):
+                temperatures = [temperatures]
+            self.temperatures = [_normalize_temperature(t) for t in temperatures]
         else:
             self.temperatures = sorted(folder_map.keys())
 
