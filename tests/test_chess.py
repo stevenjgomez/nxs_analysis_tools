@@ -340,6 +340,62 @@ def test_temp_dependence_initialize_connects_data(sample_3d_nxdata):
     assert td.scissors['20'].data is sample_3d_nxdata
 
 
+def test_load_transforms_flexible_temperature_formats(tmp_path, sample_3d_nxdata, monkeypatch):
+    # Setup files with mixed 'p', decimal, and integer formats
+    (tmp_path / "sample_15p5.nxs").touch()
+    (tmp_path / "sample_20.nxs").touch()
+    (tmp_path / "sample_25.5.nxs").touch()
+    (tmp_path / "sample_300.nxs").touch()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, **kwargs: sample_3d_nxdata)
+
+    # 1. temperatures_list with 'p' notation string and standard decimal float
+    td = TempDependence(str(tmp_path))
+    td.load_transforms(temperatures_list=['15p5', 25.5], print_tree=False)
+    assert td.temperatures == [15.5, 25.5]
+    assert 15.5 in td.datasets
+    assert 25.5 in td.datasets
+    assert '15p5' in td.datasets
+
+    # 2. temperatures_list with decimal string and int, plus exclude_temperatures with 'p' string
+    td2 = TempDependence(str(tmp_path))
+    td2.load_transforms(temperatures_list=['15.5', 20, '25p5'], exclude_temperatures='15p5', print_tree=False)
+    assert td2.temperatures == [20, 25.5]
+
+    # 3. exclude_temperatures as a list of mixed formats (decimal string and float)
+    td3 = TempDependence(str(tmp_path))
+    td3.load_transforms(exclude_temperatures=['25.5', 15.5], print_tree=False)
+    assert td3.temperatures == [20, 300]
+
+
+def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, monkeypatch):
+    # Setup directories with mixed 'p', decimal, and integer formats
+    for folder in ["15p5", "20", "25.5", "300"]:
+        d = tmp_path / folder
+        d.mkdir()
+        (d / "data_hkli.nxs").touch()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
+
+    # 1. temperatures_list with decimal float and decimal string matching '15p5' folder
+    td = TempDependence(str(tmp_path))
+    td.load_datasets(temperatures_list=[15.5, '25.5'], print_tree=False)
+    assert td.temperatures == [15.5, 25.5]
+    assert 15.5 in td.datasets
+    assert '15p5' in td.datasets
+
+    # 2. temperatures_list with 'p' string, excluding single int
+    td2 = TempDependence(str(tmp_path))
+    td2.load_datasets(temperatures_list=['15p5', 20, 300], exclude_temperatures=20, print_tree=False)
+    assert td2.temperatures == [15.5, 300]
+
+    # 3. exclude_temperatures with 'p' string and decimal string
+    td3 = TempDependence(str(tmp_path))
+    td3.load_datasets(exclude_temperatures=['15p5', '25.5'], print_tree=False)
+    assert td3.temperatures == [20, 300]
+
+
+
 
 
 

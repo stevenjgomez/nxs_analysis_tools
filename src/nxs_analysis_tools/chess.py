@@ -295,9 +295,11 @@ class TempDependence:
             many datasets. In this case, the axes are in reverse order. Default is False.
         """
         if temperatures_list is not None:
+            if not isinstance(temperatures_list, (list, tuple, set)):
+                temperatures_list = [temperatures_list]
             temperatures_list = {_normalize_temperature(t) for t in temperatures_list}
         if exclude_temperatures is not None:
-            if not isinstance(exclude_temperatures, list):
+            if not isinstance(exclude_temperatures, (list, tuple, set)):
                 exclude_temperatures = [exclude_temperatures]
             exclude_temperatures = {_normalize_temperature(t) for t in exclude_temperatures}
 
@@ -347,22 +349,23 @@ class TempDependence:
             If True, prints the NeXus tree structure for each file. Default is True.
         """
         folder_map = {}
+        for item in os.listdir(self.sample_directory):
+            try:
+                val = _normalize_temperature(item)
+                if isinstance(val, (int, float)):
+                    folder_map[val] = item
+            except (ValueError, TypeError):
+                pass
+
         if temperatures_list is not None:
+            if not isinstance(temperatures_list, (list, tuple, set)):
+                temperatures_list = [temperatures_list]
             self.temperatures = [_normalize_temperature(t) for t in temperatures_list]
         else:
-            self.temperatures = []  # Empty list to store temperature values
-            for item in os.listdir(self.sample_directory):
-                try:
-                    val = _normalize_temperature(item)
-                    if isinstance(val, (int, float)):
-                        self.temperatures.append(val)
-                        folder_map[val] = item
-                except (ValueError, TypeError):
-                    pass  # Otherwise don't add it
-            self.temperatures.sort()  # Sort from low to high T
+            self.temperatures = sorted(folder_map.keys())
 
         if exclude_temperatures is not None:
-            if not isinstance(exclude_temperatures, list):
+            if not isinstance(exclude_temperatures, (list, tuple, set)):
                 exclude_temperatures = [exclude_temperatures]
             exclude_set = {_normalize_temperature(t) for t in exclude_temperatures}
             self.temperatures = [t for t in self.temperatures if t not in exclude_set]
