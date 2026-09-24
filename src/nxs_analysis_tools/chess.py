@@ -17,7 +17,71 @@ from nxs_analysis_tools.fitting import LinecutModel
 from nxs_analysis_tools.datareduction import load_transform, reciprocal_lattice_params
 from lmfit.models import PseudoVoigtModel, LinearModel
 from nexusformat.nexus import NXdata, NXfield, NXroot, NXentry, nxsave
+def _normalize_temperature(t):
+    """
+    Normalize a temperature value to an int or float, accepting str, int, or float.
+    Legacy 'p' notation (e.g. '15p5') is supported and converted to float (e.g. 15.5).
+    Whole numbers are converted to int.
+    """
+    if isinstance(t, (int, float, np.number)):
+        return int(t) if float(t).is_integer() else float(t)
+    if isinstance(t, str):
+        clean = t.replace('p', '.')
+        try:
+            val = float(clean)
+            return int(val) if val.is_integer() else val
+        except ValueError:
+            return t
+    return t
 
+
+class TempDict(dict):
+    """
+    A dictionary for temperature-keyed data that transparently supports
+    both numeric (int, float) and string representations of temperatures.
+    """
+
+    def _normalize_key(self, key):
+        return _normalize_temperature(key)
+
+    def __getitem__(self, key):
+        norm_key = self._normalize_key(key)
+        if super().__contains__(norm_key):
+            return super().__getitem__(norm_key)
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        if super().__contains__(str(key)):
+            return super().__getitem__(str(key))
+        raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(self._normalize_key(key), value)
+
+    def __contains__(self, key):
+        norm_key = self._normalize_key(key)
+        return (
+            super().__contains__(norm_key)
+            or super().__contains__(key)
+            or super().__contains__(str(key))
+        )
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def pop(self, key, *args):
+        norm_key = self._normalize_key(key)
+        if super().__contains__(norm_key):
+            return super().pop(norm_key, *args)
+        if super().__contains__(key):
+            return super().pop(key, *args)
+        if super().__contains__(str(key)):
+            return super().pop(str(key), *args)
+        if args:
+            return args[0]
+        raise KeyError(key)
 
 
 class TempDependence:
@@ -36,7 +100,7 @@ class TempDependence:
         Label for the x-axis of plots, determined by the axis of the linecuts.
     datasets : dict
         Dictionary storing datasets keyed by temperature.
-    temperatures : list of str
+    temperatures : list of int or float
         List of temperatures for which data is available.
     scissors : dict
         Dictionary of Scissors objects, one for each temperature, used for data manipulation and
@@ -133,20 +197,15 @@ class TempDependence:
             self.set_sample_directory(sample_directory)
 
         self.xlabel = ''
-        self.datasets = {}
+        self.datasets = TempDict()
         self.temperatures = []
-        self.scissors = {}
-        self.linecuts = {}
-        self.linecutmodels = {}
+        self.scissors = TempDict()
+        self.linecuts = TempDict()
+        self.linecutmodels = TempDict()
         self.xtec_data = None
         self.a, self.b, self.c, self.al, self.be, self.ga, \
             self.a_star, self.b_star, self.c_star, self.al_star, self.be_star, self.ga_star \
             = [None] * 12
-        
-        if sample_directory is None:
-            self.sample_directory = None
-        else:
-            self.set_sample_directory(sample_directory)
 
     def set_temperatures(self, temperatures):
         """
@@ -157,7 +216,7 @@ class TempDependence:
         temperatures : list
             List of temperatures to set.
         """
-        self.temperatures = temperatures
+        self.temperatures = [_normalize_temperature(t) for t in temperatures]
 
     def find_temperatures(self):
         """
@@ -173,13 +232,13 @@ class TempDependence:
 
         # Search for nxrefine .nxs files
         for item in os.listdir(self.sample_directory):
-            pattern = r'_(\d+(?:p\d+)?)\.nxs'
+            pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
             match = re.search(pattern, item)
             if match:
-                self.temperatures.append(match.group(1))
+                self.temperatures.append(_normalize_temperature(match.group(1)))
 
-        # Sort the temperatures
-        self.temperatures.sort(key=lambda t: float(t.replace('p', '.')))    
+        # Sort the temperatures numerically and deduplicate
+        self.temperatures = sorted(list(dict.fromkeys(self.temperatures)), key=float)
 
     def set_sample_directory(self, path):
         """
@@ -198,7 +257,7 @@ class TempDependence:
         """
         for temperature in self.temperatures:
             self.scissors[temperature] = Scissors()
-            if temperature in self.datasets.keys():
+            if temperature in self.datasets:
                 self.scissors[temperature].set_data(self.datasets[temperature])
             self.linecutmodels[temperature] = LinecutModel()
 
@@ -208,7 +267,7 @@ class TempDependence:
 
         Parameters
         ----------
-        temperature : str
+        temperature : int, float, or str
             Temperature for which to set the data.
         data : object
             The dataset to be set.
@@ -221,7 +280,7 @@ class TempDependence:
 
         Parameters
         ----------
-        temperatures_list : list of int, float, or None, optional
+        temperatures_list : list of int, float, or str, optional
             List of temperatures to load. If None, all available temperatures are loaded.
 
         exclude_temperatures : int, float, str, or list, optional
@@ -235,16 +294,12 @@ class TempDependence:
             the raw data in the transform.nxs file. This saves memory when working with
             many datasets. In this case, the axes are in reverse order. Default is False.
         """
-        # Normalize filter inputs to p-format strings (e.g. 15.5 -> '15p5')
-        def to_p_format(t):
-            return str(t).replace('.', 'p')
-
         if temperatures_list is not None:
-            temperatures_list = {to_p_format(t) for t in temperatures_list}
+            temperatures_list = {_normalize_temperature(t) for t in temperatures_list}
         if exclude_temperatures is not None:
             if not isinstance(exclude_temperatures, list):
                 exclude_temperatures = [exclude_temperatures]
-            exclude_temperatures = {to_p_format(t) for t in exclude_temperatures}
+            exclude_temperatures = {_normalize_temperature(t) for t in exclude_temperatures}
 
         # Discover all available temperatures
         self.find_temperatures()
@@ -258,12 +313,12 @@ class TempDependence:
         self.temperatures = filtered
 
         # Load files
-        pattern = r'_(\d+(?:p\d+)?)\.nxs'
-        filename_map = {
-            re.search(pattern, item).group(1): item
-            for item in os.listdir(self.sample_directory)
-            if re.search(pattern, item)
-        }
+        pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
+        filename_map = {}
+        for item in os.listdir(self.sample_directory):
+            match = re.search(pattern, item)
+            if match:
+                filename_map[_normalize_temperature(match.group(1))] = item
 
         for temperature in self.temperatures:
             item = filename_map[temperature]
@@ -284,34 +339,43 @@ class TempDependence:
         ----------
         file_ending : str, optional
             File extension of datasets to load. Default is 'hkli.nxs'.
-        temperatures_list : list of int or str, optional
+        temperatures_list : list of int, float, or str, optional
             Specific temperatures to load. If None, all temperatures are loaded.
-        exclude_temperatures : list of int or str, optional
+        exclude_temperatures : list of int, float, or str, optional
             Temperatures to skip. Applied after filtering with `temperatures_list`, if provided.
         print_tree : bool, optional
             If True, prints the NeXus tree structure for each file. Default is True.
         """
-
+        folder_map = {}
         if temperatures_list is not None:
-            self.temperatures = [str(t) for t in temperatures_list]
+            self.temperatures = [_normalize_temperature(t) for t in temperatures_list]
         else:
-            self.temperatures = []  # Empty list to store temperature folder names
+            self.temperatures = []  # Empty list to store temperature values
             for item in os.listdir(self.sample_directory):
                 try:
-                    self.temperatures.append(int(item))  # If folder name can be int, add it
-                except ValueError:
+                    val = _normalize_temperature(item)
+                    if isinstance(val, (int, float)):
+                        self.temperatures.append(val)
+                        folder_map[val] = item
+                except (ValueError, TypeError):
                     pass  # Otherwise don't add it
             self.temperatures.sort()  # Sort from low to high T
-            self.temperatures = [str(i) for i in self.temperatures]  # Convert to strings
-            
+
         if exclude_temperatures is not None:
-            [self.temperatures.remove(str(t)) for t in exclude_temperatures]
+            if not isinstance(exclude_temperatures, list):
+                exclude_temperatures = [exclude_temperatures]
+            exclude_set = {_normalize_temperature(t) for t in exclude_temperatures}
+            self.temperatures = [t for t in self.temperatures if t not in exclude_set]
 
         # Load .nxs files
         for T in self.temperatures:
-            for file in os.listdir(os.path.join(self.sample_directory, T)):
+            folder_name = folder_map.get(T, str(T))
+            folder_path = os.path.join(self.sample_directory, folder_name)
+            if not os.path.isdir(folder_path):
+                continue
+            for file in os.listdir(folder_path):
                 if file.endswith(file_ending):
-                    filepath = os.path.join(self.sample_directory, T, file)
+                    filepath = os.path.join(folder_path, file)
 
                     # Load dataset at each temperature
                     self.datasets[T] = load_data(filepath, print_tree)
@@ -333,7 +397,7 @@ class TempDependence:
         """
         Clear the datasets stored in the TempDependence instance.
         """
-        self.datasets = {}
+        self.datasets = TempDict()
 
     def to_xtec(
         self,
@@ -544,7 +608,7 @@ class TempDependence:
         for T in self.temperatures:
             if verbose:
                 print("----------------------------------")
-                print("T = " + T + " K")
+                print(f"T = {T} K")
             self.scissors[T].set_window(window, verbose)
 
     def set_center(self, center):
@@ -595,7 +659,7 @@ class TempDependence:
         for T in self.temperatures:
             if verbose:
                 print("-------------------------------")
-                print("Cutting T = " + T + " K data...")
+                print(f"Cutting T = {T} K data...")
             self.scissors[T].set_center(center)
             self.scissors[T].set_window(window)
             self.scissors[T].cut_data(axis=axis, verbose=verbose,
@@ -679,7 +743,7 @@ class TempDependence:
         x = cut.nxaxes[0].nxdata
 
         # Convert the list of temperatures to a NumPy array for the y-axis
-        y = np.array([int(t) for t in self.temperatures])
+        y = np.array([float(str(t).replace('p', '.')) for t in self.temperatures])
 
         # Collect counts from each temperature and ensure they are numpy arrays
         v = [self.linecuts[T].nxsignal.nxdata for T in self.temperatures]
@@ -738,7 +802,7 @@ class TempDependence:
                 stacklevel=2
             )
         else:
-            target_temp = str(temperature) if str(temperature) in self.datasets else temperature
+            target_temp = temperature
         
         # Fetch the appropriate dataset
         target_data = self.datasets[target_temp]
@@ -890,7 +954,7 @@ class TempDependence:
         """
         for T, linecutmodel in self.linecutmodels.items():
             _, ax = plt.subplots()
-            ax.set(title=T + ' K')
+            ax.set(title=f"{T} K")
             linecutmodel.plot_initial_guess()
 
     def fit(self, verbose=False):
@@ -1033,13 +1097,13 @@ class TempDependence:
 
         Notes
         -----
-        - Temperature values are converted to integers for plotting.
+        - Temperature values are converted to floats for plotting.
         - Peak heights are extracted from the 'peakheight' parameter in the model results.
         - The plot uses standard axes labels with temperature in Kelvin.
         """
 
         # Create an array of temperature values
-        temperatures = [int(T) for T in self.temperatures]
+        temperatures = [float(str(T).replace('p', '.')) for T in self.temperatures]
 
         # Create an empty list for the peak heights
         peakheights = []

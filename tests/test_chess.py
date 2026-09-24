@@ -207,3 +207,139 @@ def test_to_xtec_validation_errors(multi_temp_dependence):
         td.to_xtec(temperatures=['999'])
 
 
+def test_find_temperatures_decimal_and_p_format(tmp_path):
+    (tmp_path / "sample_15p5.nxs").touch()
+    (tmp_path / "sample_20.nxs").touch()
+    (tmp_path / "sample_25.5.nxs").touch()
+
+    td = TempDependence(str(tmp_path))
+    td.find_temperatures()
+
+    # Must be numeric values sorted numerically, no 'p'
+    assert td.temperatures == [15.5, 20, 25.5]
+
+
+def test_plot_linecuts_heatmap_float_temperatures():
+    td = TempDependence()
+    td.temperatures = ['15.5', '20.5', '25.5']
+    for t in td.temperatures:
+        x = NXfield(np.linspace(0, 1, 10), name='Qh')
+        sig = NXfield(np.ones(10), name='counts')
+        td.linecuts[t] = NXdata(sig, (x,))
+
+    p = td.plot_linecuts_heatmap()
+    # Ensure heatmap coordinates on y-axis are floats preserving decimal precision
+    # The meshgrid y values correspond to the temperatures
+    y_coords = p.axes.get_children()[0].get_coordinates()[:, :, 1]
+    # Check that y bounds cover the float range [15.5, 25.5]
+    assert np.isclose(y_coords.min(), 15.5) or y_coords.min() <= 15.5
+    assert np.isclose(y_coords.max(), 25.5) or y_coords.max() >= 25.5
+
+
+def test_plot_order_parameter_float_temperatures():
+    from unittest.mock import MagicMock
+    td = TempDependence()
+    td.temperatures = ['15.5', '20.5', '25.5']
+    for t in td.temperatures:
+        m = MagicMock()
+        m.modelresult.params = {'peakheight': MagicMock(value=float(t) * 2.0)}
+        td.linecutmodels[t] = m
+
+    fig, ax = td.plot_order_parameter()
+    line = ax.get_lines()[0]
+    xdata = line.get_xdata()
+    ydata = line.get_ydata()
+
+    assert np.allclose(xdata, [15.5, 20.5, 25.5])
+    assert np.issubdtype(xdata.dtype, np.floating)
+    assert np.allclose(ydata, [31.0, 41.0, 51.0])
+
+
+def test_plot_integration_window_float_resolution(sample_3d_nxdata):
+    td = TempDependence()
+    td.temperatures = ['15.5']
+    td.datasets['15.5'] = sample_3d_nxdata
+    td.scissors['15.5'] = Scissors(data=sample_3d_nxdata, center=(0.0, 0.0, 0.0), window=(0.2, 0.2, 0.2))
+
+    # Float numeric lookup
+    plots1 = td.plot_integration_window(temperature=15.5)
+    assert len(plots1) == 3
+
+    # String lookup
+    plots2 = td.plot_integration_window(temperature='15.5')
+    assert len(plots2) == 3
+
+    # Legacy 'p' lookup
+    plots3 = td.plot_integration_window(temperature='15p5')
+    assert len(plots3) == 3
+
+
+def test_temp_dict_indexing():
+    from nxs_analysis_tools.chess import TempDict
+    d = TempDict()
+    d['15'] = 'val_15'
+    d['25p5'] = 'val_25.5'
+    d[300] = 'val_300'
+
+    # Numeric and string retrieval
+    assert d[15] == 'val_15'
+    assert d['15'] == 'val_15'
+    assert d[15.0] == 'val_15'
+    assert d[25.5] == 'val_25.5'
+    assert d['25.5'] == 'val_25.5'
+    assert d['25p5'] == 'val_25.5'
+    assert d[300] == 'val_300'
+    assert d['300'] == 'val_300'
+
+    # Containment
+    assert 15 in d
+    assert '15' in d
+    assert 25.5 in d
+    assert '25.5' in d
+    assert '25p5' in d
+    assert 999 not in d
+
+    # .get() and .pop()
+    assert d.get(15) == 'val_15'
+    assert d.get('25.5') == 'val_25.5'
+    assert d.get(999, 'default') == 'default'
+    assert d.pop('15') == 'val_15'
+    assert 15 not in d
+
+
+def test_temp_dependence_numeric_indexing(sample_3d_nxdata):
+    td = TempDependence()
+    # Insert with integer
+    td.datasets[15] = sample_3d_nxdata
+    td.scissors[15] = Scissors(data=sample_3d_nxdata, center=(0.0, 0.0, 0.0), window=(0.2, 0.2, 0.2))
+
+    # Access with string or int
+    assert td.datasets[15] is sample_3d_nxdata
+    assert td.datasets['15'] is sample_3d_nxdata
+    assert td.scissors[15] is not None
+    assert td.scissors['15'] is not None
+
+
+def test_set_temperatures_numeric():
+    td = TempDependence()
+    td.set_temperatures(['15', '20.5', '25p5', 300])
+    assert td.temperatures == [15, 20.5, 25.5, 300]
+    assert all(isinstance(t, (int, float)) for t in td.temperatures)
+
+
+def test_temp_dependence_initialize_connects_data(sample_3d_nxdata):
+    td = TempDependence()
+    td.temperatures = [15, 20]
+    td.datasets[15] = sample_3d_nxdata
+    td.datasets[20] = sample_3d_nxdata
+    td.initialize()
+
+    assert td.scissors[15].data is sample_3d_nxdata
+    assert td.scissors[20].data is sample_3d_nxdata
+    assert td.scissors['15'].data is sample_3d_nxdata
+    assert td.scissors['20'].data is sample_3d_nxdata
+
+
+
+
+
