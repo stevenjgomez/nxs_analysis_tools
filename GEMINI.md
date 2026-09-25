@@ -13,6 +13,7 @@
   - Documentation: `docs/<description>`
 - Never commit directly to `main`.
 - Changes must be proposed via a Pull Request into `main` using GitHub CLI (`gh pr create`).
+- **Never merge pull requests**: Under no circumstances should the agent merge a pull request (`gh pr merge` is forbidden). Only the user can merge pull requests.
 - **Commit Attribution**: All AI-assisted commits must include the following trailer in the commit message body:
   ```git
   Co-authored-by: Antigravity <noreply@google.com>
