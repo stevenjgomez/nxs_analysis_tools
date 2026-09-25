@@ -90,73 +90,37 @@ class Symmetrizer:
         **kwargs
     ):
         self.data = data
-        self.symmetry = symmetry.lower() if isinstance(symmetry, str) else symmetry
-        self.tol = tol
-        self.positive_values = positive_values
-        self.aspect = aspect
-        self.layer_axis = layer_axis
+        self.symmetry = None
         self.symmetrized = None
-
-        # Apply symmetry preset baseline if provided
-        preset_lattice_angle = None
-        preset_n_fold = None
-        preset_mirror = True
-        preset_mirror_axis = None
-        preset_mirror_angle = None
-
-        if self.symmetry == 'hexagonal':
-            preset_lattice_angle = 60.0
-            preset_n_fold = 6
-            preset_mirror_angle = 30.0
-        elif self.symmetry == 'tetragonal':
-            preset_lattice_angle = 90.0
-            preset_n_fold = 4
-            preset_mirror_angle = 45.0
-        elif self.symmetry == 'trigonal':
-            preset_lattice_angle = 120.0
-            preset_n_fold = 3
-            preset_mirror_angle = 30.0
-        elif self.symmetry == 'orthorhombic':
-            preset_lattice_angle = 90.0
-            preset_n_fold = 2
-            preset_mirror_axis = 0
-        elif self.symmetry is not None:
-            raise ValueError(
-                f"Unknown symmetry '{symmetry}'. Supported presets are: "
-                "'hexagonal', 'tetragonal', 'trigonal', 'orthorhombic'."
-            )
-
-        # Explicit arguments override presets
-        self.lattice_angle = (
-            lattice_angle if lattice_angle is not None
-            else (preset_lattice_angle if preset_lattice_angle is not None else 90.0)
-        )
-        self.n_fold = n_fold if n_fold is not None else preset_n_fold
-        self.mirror = mirror if mirror is not None else (preset_mirror if self.symmetry is not None else True)
-        self.mirror_axis = mirror_axis if mirror_axis is not None else preset_mirror_axis
-        self.mirror_angle = mirror_angle if mirror_angle is not None else preset_mirror_angle
-
-        # Angle parameters for wedge method
-        self.theta_min = theta_min
-        self.theta_max = theta_max
-        self.skew_angle = self.lattice_angle
-
+        self.symmetrization_mask = None
+        self.wedge = None
         self.plane1symmetrizer = None
         self.plane2symmetrizer = None
         self.plane3symmetrizer = None
+        self.transform = None
+        self.transformer = None
+        self.rotations = None
+
+        self.set_parameters(
+            theta_min=theta_min,
+            theta_max=theta_max,
+            lattice_angle=lattice_angle,
+            mirror=mirror,
+            mirror_axis=mirror_axis,
+            mirror_angle=mirror_angle,
+            n_fold=n_fold,
+            symmetry=symmetry,
+            tol=tol,
+            layer_axis=layer_axis,
+            aspect=aspect,
+            positive_values=positive_values,
+            **kwargs
+        )
 
         if self.data is not None and self.data.ndim == 3:
             if self.layer_axis is None:
                 self.layer_axis = 2
             self._init_planes(self.data)
-
-        self.symmetrization_mask = None
-        self.wedge = None
-        self.transform = None
-        self.rotations = None
-
-        if kwargs:
-            self.set_parameters(**kwargs)
 
     def set_parameters(
         self,
@@ -182,45 +146,87 @@ class Symmetrizer:
                 self.n_fold = 6
                 self.mirror = True
                 self.mirror_angle = 30.0
+                self.mirror_axis = None
             elif self.symmetry == 'tetragonal':
                 self.lattice_angle = 90.0
                 self.n_fold = 4
                 self.mirror = True
                 self.mirror_angle = 45.0
+                self.mirror_axis = None
             elif self.symmetry == 'trigonal':
                 self.lattice_angle = 120.0
                 self.n_fold = 3
                 self.mirror = True
                 self.mirror_angle = 30.0
+                self.mirror_axis = None
             elif self.symmetry == 'orthorhombic':
                 self.lattice_angle = 90.0
                 self.n_fold = 2
                 self.mirror = True
                 self.mirror_axis = 0
+                self.mirror_angle = None
+            else:
+                raise ValueError(
+                    f"Unknown symmetry '{symmetry}'. Supported presets are: "
+                    "'hexagonal', 'tetragonal', 'trigonal', 'orthorhombic'."
+                )
 
         if lattice_angle is not None:
             self.lattice_angle = lattice_angle
             self.skew_angle = lattice_angle
+        elif not hasattr(self, 'lattice_angle') or self.lattice_angle is None:
+            self.lattice_angle = 90.0
+            self.skew_angle = 90.0
+
         if n_fold is not None:
             self.n_fold = n_fold
+        elif not hasattr(self, 'n_fold'):
+            self.n_fold = None
+
         if mirror is not None:
             self.mirror = mirror
+        elif not hasattr(self, 'mirror') or self.mirror is None:
+            self.mirror = True
+
         if mirror_axis is not None:
             self.mirror_axis = mirror_axis
+        elif not hasattr(self, 'mirror_axis'):
+            self.mirror_axis = None
+
         if mirror_angle is not None:
             self.mirror_angle = mirror_angle
+        elif not hasattr(self, 'mirror_angle'):
+            self.mirror_angle = None
+
         if theta_min is not None:
             self.theta_min = theta_min
+        elif not hasattr(self, 'theta_min'):
+            self.theta_min = None
+
         if theta_max is not None:
             self.theta_max = theta_max
+        elif not hasattr(self, 'theta_max'):
+            self.theta_max = None
+
         if tol is not None:
             self.tol = tol
+        elif not hasattr(self, 'tol'):
+            self.tol = 0.01
+
         if layer_axis is not None:
             self.layer_axis = layer_axis
+        elif not hasattr(self, 'layer_axis'):
+            self.layer_axis = None
+
         if aspect is not None:
             self.aspect = aspect
+        elif not hasattr(self, 'aspect'):
+            self.aspect = 1.0
+
         if positive_values is not None:
             self.positive_values = positive_values
+        elif not hasattr(self, 'positive_values'):
+            self.positive_values = True
 
         if self.lattice_angle is not None:
             self.transformer = ShearTransformer(self.lattice_angle)
@@ -233,6 +239,10 @@ class Symmetrizer:
                     self.rotations = abs(int(360.0 / diff / 2.0))
                 else:
                     self.rotations = abs(int(360.0 / diff))
+            else:
+                self.rotations = 1
+        elif self.n_fold is not None:
+            self.rotations = self.n_fold
 
     def _init_planes(self, data):
         """Initializes 3-plane symmetrizers for 3D datasets."""
@@ -430,11 +440,20 @@ class Symmetrizer:
     def _symmetrize_2d_wedge(self, data, positive_values=True, **kwargs):
         theta_min = self.theta_min
         theta_max = self.theta_max
-        mirror = self.mirror
-        mirror_axis = self.mirror_axis if self.mirror_axis is not None else 0
+        mirror = self.mirror if self.mirror is not None else True
+        mirror_axis = self.mirror_axis
         rotations = self.rotations
 
-        if theta_min is None or theta_max is None or rotations is None:
+        if mirror and mirror_axis is None:
+            warnings.warn(
+                "mirror_axis not specified. Defaulting to 0. "
+                "Set mirror_axis explicitly when using mirror=True.",
+                UserWarning,
+                stacklevel=3
+            )
+            mirror_axis = 0
+
+        if theta_min is None or theta_max is None:
             fold = self.n_fold if self.n_fold is not None else 6
             if mirror:
                 theta_min = 0.0 if theta_min is None else theta_min
@@ -444,6 +463,20 @@ class Symmetrizer:
                 theta_min = 0.0 if theta_min is None else theta_min
                 theta_max = 360.0 / fold if theta_max is None else theta_max
                 rotations = fold
+        elif rotations is None:
+            diff = abs(theta_max - theta_min)
+            if diff > 0:
+                if mirror:
+                    rotations = abs(int(360.0 / diff / 2.0))
+                else:
+                    rotations = abs(int(360.0 / diff))
+            else:
+                rotations = 1
+
+        self.theta_min = theta_min
+        self.theta_max = theta_max
+        self.rotations = rotations
+        self.mirror_axis = mirror_axis
 
         p = Padder(data)
         padding = tuple(len(axis) for axis in data.nxaxes)
@@ -892,7 +925,7 @@ class Symmetrizer:
         else:
             raise ValueError(f"Unknown symmetrization method '{method}'.")
 
-    def test(self, data=None, slice_coord=None, **kwargs):
+    def test(self, data=None, method=None, slice_coord=None, **kwargs):
         """
         Visualizes the symmetrization process for testing and parameter tuning.
         """
@@ -901,16 +934,23 @@ class Symmetrizer:
         if data is None:
             raise ValueError("No data provided to test().")
 
+        if method is None:
+            if self.theta_min is not None or self.theta_max is not None:
+                method = 'wedge'
+            else:
+                method = 'average'
+
         if data.ndim == 2:
-            if hasattr(self, 'wedge') and self.wedge is not None and self.symmetrization_mask is not None:
+            if method == 'wedge':
                 symm_test = self.symmetrize_2d(data, method='wedge')
                 fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
                 axes = axesarr.reshape(-1)
-                plot_slice(data, skew_angle=self.skew_angle if self.skew_angle is not None else self.lattice_angle, ax=axes[0], title='data', **kwargs)
+                skew = self.skew_angle if self.skew_angle is not None else self.lattice_angle
+                plot_slice(data, skew_angle=skew, ax=axes[0], title='data', **kwargs)
                 filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ('vmin', 'vmax')}
-                plot_slice(self.symmetrization_mask, skew_angle=self.skew_angle if self.skew_angle is not None else self.lattice_angle, ax=axes[1], title='mask', **filtered_kwargs)
-                plot_slice(self.wedge, skew_angle=self.skew_angle if self.skew_angle is not None else self.lattice_angle, ax=axes[2], title='wedge', **kwargs)
-                plot_slice(symm_test, skew_angle=self.skew_angle if self.skew_angle is not None else self.lattice_angle, ax=axes[3], title='symmetrized', **kwargs)
+                plot_slice(self.symmetrization_mask, skew_angle=skew, ax=axes[1], title='mask', **filtered_kwargs)
+                plot_slice(self.wedge, skew_angle=skew, ax=axes[2], title='wedge', **kwargs)
+                plot_slice(symm_test, skew_angle=skew, ax=axes[3], title='symmetrized', **kwargs)
                 plt.subplots_adjust(wspace=0.4)
                 plt.show()
                 return fig, axesarr
@@ -928,7 +968,7 @@ class Symmetrizer:
             if slice_coord is None:
                 slice_coord = float(coords[len(coords) // 2])
             orig_slice = self._get_slice(data, axis_idx, int(np.argmin(np.abs(coords - slice_coord))))
-            symm_slice = self.symmetrize_slice(slice_coord, axis=axis_idx, method='average')
+            symm_slice = self.symmetrize_slice(slice_coord, axis=axis_idx, method=method)
             fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
             plot_slice(orig_slice, skew_angle=self.lattice_angle, ax=axesarr[0], title=f'Original Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)
             plot_slice(symm_slice, skew_angle=self.lattice_angle, ax=axesarr[1], title=f'Symmetrized Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)

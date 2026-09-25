@@ -10,28 +10,28 @@ _mirror_plane_affine = mirror_plane_affine
 class Symmetrizer:
     data: Incomplete
     symmetry: Incomplete
-    tol: Incomplete
-    positive_values: Incomplete
-    aspect: Incomplete
-    layer_axis: Incomplete
     symmetrized: Incomplete
-    lattice_angle: Incomplete
-    n_fold: Incomplete
-    mirror: Incomplete
-    mirror_axis: Incomplete
-    mirror_angle: Incomplete
-    theta_min: Incomplete
-    theta_max: Incomplete
-    skew_angle: Incomplete
+    symmetrization_mask: Incomplete
+    wedge: Incomplete
     plane1symmetrizer: Incomplete
     plane2symmetrizer: Incomplete
     plane3symmetrizer: Incomplete
-    symmetrization_mask: Incomplete
-    wedge: Incomplete
     transform: Incomplete
-    rotations: Incomplete
-    def __init__(self, data=None, symmetry=None, lattice_angle=None, n_fold=None, layer_axis=None, mirror=None, mirror_axis=None, mirror_angle=None, tol: float = 0.01, theta_min=None, theta_max=None, positive_values: bool = True, aspect: float = 1.0, **kwargs) -> None: ...
     transformer: Incomplete
+    rotations: Incomplete
+    layer_axis: int
+    def __init__(self, data=None, symmetry=None, lattice_angle=None, n_fold=None, layer_axis=None, mirror=None, mirror_axis=None, mirror_angle=None, tol: float = 0.01, theta_min=None, theta_max=None, positive_values: bool = True, aspect: float = 1.0, **kwargs) -> None: ...
+    lattice_angle: float
+    n_fold: int
+    mirror: bool
+    mirror_angle: float
+    mirror_axis: Incomplete
+    skew_angle: Incomplete
+    theta_min: Incomplete
+    theta_max: Incomplete
+    tol: Incomplete
+    aspect: Incomplete
+    positive_values: Incomplete
     def set_parameters(self, theta_min=None, theta_max=None, lattice_angle=None, mirror=None, mirror_axis=None, mirror_angle=None, n_fold=None, symmetry=None, tol=None, layer_axis=None, aspect=None, positive_values=None, **kwargs) -> None: ...
     def set_data(self, data) -> None: ...
     lattice_params: Incomplete
@@ -41,7 +41,7 @@ class Symmetrizer:
     def symmetrize_2d(self, data=None, method=None, positive_values=None, **kwargs): ...
     def symmetrize_3d(self, data=None, method=None, parallel: bool = False, num_workers=None, positive_values=None, **kwargs): ...
     def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None): ...
-    def test(self, data=None, slice_coord=None, **kwargs): ...
+    def test(self, data=None, method=None, slice_coord=None, **kwargs): ...
     def save(self, fout_name=None) -> None: ...
 
 class Symmetrizer2D(Symmetrizer):
