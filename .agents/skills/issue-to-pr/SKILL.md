@@ -77,3 +77,4 @@ Co-authored-by: Antigravity <noreply@google.com>"
     gh pr create --title "<Type>: <Summary>" --body-file scratch/pr_body.md --base main
     ```
 - Report the PR URL and a concise summary back to the user.
+- **Never merge pull requests**: Under no circumstances should the agent merge a pull request (e.g., `gh pr merge` is strictly forbidden). Only the user is permitted to merge pull requests.
