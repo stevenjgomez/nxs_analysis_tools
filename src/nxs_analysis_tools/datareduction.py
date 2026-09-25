@@ -17,7 +17,7 @@ from IPython.display import display, Markdown, HTML, Image
 from nexusformat.nexus import NXfield, NXdata, nxload, NeXusError, NXroot, NXentry, nxsave
 from scipy.ndimage import rotate, zoom
 
-from .lineartransformations import ShearTransformer
+from .lineartransformations import ShearTransformer, rotate_plane_affine
 
 
 # Specify items on which users are allowed to perform standalone imports
@@ -1293,46 +1293,22 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
         elif data.ndim == 2:
             sliced_data = data
 
-        # Add padding to avoid data cutoff during rotation
-        p = Padder(sliced_data)
-        padding = tuple(len(axis) for axis in sliced_data.nxaxes)
-        counts = p.pad(padding)
-        counts = p.padded.nxsignal
+        q1 = sliced_data.nxaxes[0].nxdata
+        q2 = sliced_data.nxaxes[1].nxdata
+        dq1 = float((q1[-1] - q1[0]) / (len(q1) - 1)) if len(q1) > 1 else 1.0
+        dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
+        c = np.array([-q1[0] / dq1, -q2[0] / dq2], dtype=float)
 
-        # Skew data to match lattice angle
-        t = ShearTransformer(lattice_angle)
-        counts = t.apply(counts)
-
-        # 1. Record shape beforehand
-        pre_zoom_shape = counts.shape
-
-        # Apply coordinate aspect ratio correction
-        y_res = sliced_data.shape[1] / (sliced_data.nxaxes[1].max() - sliced_data.nxaxes[1].min())
-        x_res = sliced_data.shape[0] / (sliced_data.nxaxes[0].max() - sliced_data.nxaxes[0].min())
-        counts = zoom(counts, zoom=(1, aspect * x_res / y_res), order=aspect_order)
-
-        # Perform rotation
-        counts = rotate(counts, rotation_angle, reshape=False, order=rotation_order)
-
-        # Undo aspect ratio correction
-        counts = zoom(counts, zoom=(1, 1 / (aspect * x_res / y_res)), order=aspect_order)
-
-        # 2. Force shape recovery (Avoids off-by-one rounding error)
-        if counts.shape != pre_zoom_shape:
-            # Crop if the zoom made it too large
-            counts = counts[:pre_zoom_shape[0], :pre_zoom_shape[1]]
-            
-            # Pad if the zoom made it too small
-            pad_x = pre_zoom_shape[0] - counts.shape[0]
-            pad_y = pre_zoom_shape[1] - counts.shape[1]
-            if pad_x > 0 or pad_y > 0:
-                counts = np.pad(counts, ((0, pad_x), (0, pad_y)), mode='constant')
-
-        # Undo skew transformation
-        counts = t.invert(counts)
-
-        # Remove padding
-        counts = p.unpad(counts)
+        counts = rotate_plane_affine(
+            sliced_data.nxsignal.nxdata,
+            lattice_angle=lattice_angle,
+            rotation_angle=rotation_angle,
+            dq1=dq1,
+            dq2=dq2,
+            origin=c,
+            aspect=aspect,
+            order=rotation_order
+        )
 
         # Write slice
         if data.ndim == 3:
@@ -1340,13 +1316,12 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
             index[rotation_axis] = i
             output_array[tuple(index)] = counts
         elif data.ndim == 2:
-            # 3. Assign into array
             output_array[:] = counts
             
     if printout:
         print('\nRotation completed.')
 
-    return NXdata(NXfield(output_array, name=p.padded.nxsignal.nxname),
+    return NXdata(NXfield(output_array, name=data.nxsignal.nxname),
                   ([axis for axis in data.nxaxes]))
 
 
