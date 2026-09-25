@@ -263,3 +263,33 @@ class TestSymmetrizerFeatures:
             warnings.simplefilter("error", UserWarning)
             res_raw = sym.symmetrize(method='average', positive_values=False)
         assert (res_raw.nxsignal.nxdata < 0.0).any()
+
+    def test_wedge_rotations_and_reconstruction(self):
+        # 45-degree wedge with mirror=True -> rotations must be 4
+        s_wedge = Symmetrizer(theta_min=0, theta_max=45, mirror=True, mirror_axis=0)
+        assert s_wedge.rotations == 4
+
+        # 45-degree wedge with mirror=False -> rotations must be 8
+        s_nomirror = Symmetrizer(theta_min=0, theta_max=45, mirror=False)
+        assert s_nomirror.rotations == 8
+
+        # 90-degree wedge with mirror=False -> rotations must be 4
+        s_90 = Symmetrizer(theta_min=45, theta_max=135, mirror=False)
+        assert s_90.rotations == 4
+
+        # Symmetrize synthetic 4-fold data
+        data_2d = make_synthetic_nxdata((45, 45), ((-2.0, 2.0), (-2.0, 2.0)), names=('h', 'k'))
+        data_2d.nxsignal.nxdata[:, :] = 1.0
+        add_gaussian_peak(data_2d, (1.0, 0.0), sigma=0.15, intensity=50.0)
+        add_gaussian_peak(data_2d, (0.0, 1.0), sigma=0.15, intensity=50.0)
+
+        res = s_wedge.symmetrize_2d(data_2d, method='wedge')
+        assert res.shape == (45, 45)
+        # Symmetrized result must be fully reconstructed without zero-gap sectors
+        assert (res.nxsignal.nxdata > 0).all()
+
+        # Test method on 2D wedge should return (2, 2) subplots
+        fig, axesarr = s_wedge.test(data_2d)
+        assert axesarr.shape == (2, 2)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
