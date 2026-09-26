@@ -129,9 +129,9 @@ class TempDependence:
     set_data(temperature, data):
         Set the dataset for a specific temperature.
     load_datasets(temperatures=None, exclude_temperatures=None, file_ending='hkli.nxs',
-                  print_tree=True, use_nxlink=True):
+                  print_tree=True, use_nxlink=False):
         Load datasets from the sample directory, automatically detecting NXRefine or legacy CHESS format.
-    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=True):
+    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
         .. deprecated:: Use `load_datasets` instead.
     to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
         Export datasets as a combined NXdata object (and optional .nxs file) suitable for XTEC.
@@ -329,7 +329,7 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=True, temperatures_list=None, **kwargs):
+    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False, temperatures_list=None, **kwargs):
         """
         Load transform datasets (from NXRefine) based on temperature.
 
@@ -359,7 +359,7 @@ class TempDependence:
         exclude_temperatures=None,
         file_ending='hkli.nxs',
         print_tree=True,
-        use_nxlink=True,
+        use_nxlink=False,
         *,
         temperatures_list=None,
         **kwargs,
@@ -382,9 +382,9 @@ class TempDependence:
         print_tree : bool, optional
             If True, prints the NeXus tree structure for each file. Default is True.
         use_nxlink : bool, optional
-            If True (default), maintains the NXlink defined in NXRefine transform data files,
+            If True, maintains the NXlink defined in NXRefine transform data files,
             referencing raw data in transform.nxs without eagerly loading 3D arrays into memory.
-            Default is True.
+            Default is False.
         temperatures_list : list of int, float, or str, optional
             .. deprecated::
                `temperatures_list` is deprecated and will be removed in a future release.
