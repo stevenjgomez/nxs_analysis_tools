@@ -110,3 +110,81 @@ def test_mdheading_rendering(sample_2d_array):
 def test_plot_returns_quadmesh(sample_nxdata):
     p = plot_slice(sample_nxdata)
     assert isinstance(p, QuadMesh)
+
+
+def test_plot_slice_normalization_default_both():
+    """Test plot_slice normalization with default normalize=True and empty_bins='both'."""
+    data = np.array([
+        [[10.0, 20.0], [0.0, 40.0]],
+        [[10.0, 20.0], [0.0, np.nan]],
+        [[10.0, 20.0], [30.0, 40.0]],
+    ])  # shape (3, 2, 2)
+
+    p = plot_slice(data, sum_axis=0)
+    # Expected:
+    # (0, 0): [10, 10, 10] -> 10.0
+    # (0, 1): [20, 20, 20] -> 20.0
+    # (1, 0): [0, 0, 30] -> valid 1 -> 30.0
+    # (1, 1): [40, nan, 40] -> valid 2 -> 40.0
+    expected = np.array([[10.0, 20.0], [30.0, 40.0]])
+    plotted = p.get_array().reshape(2, 2)
+    # pcolormesh flattens the transposed data_arr
+    assert np.allclose(plotted, expected) or np.allclose(plotted.T, expected)
+
+
+def test_plot_slice_normalization_options():
+    """Test plot_slice with empty_bins='nan', 'none', and normalize=False."""
+    data = np.array([
+        [[10.0, 20.0], [0.0, 40.0]],
+        [[10.0, 20.0], [0.0, np.nan]],
+        [[10.0, 20.0], [30.0, 40.0]],
+    ])
+
+    # 1. empty_bins='nan' (zeros are counted as valid)
+    p_nan = plot_slice(data, sum_axis=0, empty_bins='nan')
+    # (1, 0): [0, 0, 30] -> valid 3 -> 30.0 / 3 = 10.0
+    # (1, 1): [40, nan, 40] -> valid 2 -> 80.0 / 2 = 40.0
+    expected_nan = np.array([[10.0, 20.0], [10.0, 40.0]])
+    plotted_nan = p_nan.get_array().reshape(2, 2)
+    assert np.allclose(plotted_nan, expected_nan) or np.allclose(plotted_nan.T, expected_nan)
+
+    # 2. empty_bins='none' (all bins counted as valid)
+    p_none = plot_slice(data, sum_axis=0, empty_bins='none')
+    # (1, 0): 30.0 / 3 = 10.0
+    # (1, 1): 80.0 / 3 = 26.666...
+    expected_none = np.array([[10.0, 20.0], [10.0, 80.0 / 3.0]])
+    plotted_none = p_none.get_array().reshape(2, 2)
+    assert np.allclose(plotted_none, expected_none) or np.allclose(plotted_none.T, expected_none)
+
+    # 3. normalize=False (raw sum)
+    p_raw = plot_slice(data, sum_axis=0, normalize=False)
+    # raw sum along axis 0
+    expected_raw = np.nansum(data, axis=0)
+    plotted_raw = p_raw.get_array().reshape(2, 2)
+    assert np.allclose(plotted_raw, expected_raw, equal_nan=True) or np.allclose(plotted_raw.T, expected_raw, equal_nan=True)
+
+
+def test_plot_slice_normalization_nxdata():
+    """Test plot_slice normalization on a 3D NXdata object."""
+    raw = np.array([
+        [[10.0, 20.0], [0.0, 40.0]],
+        [[10.0, 20.0], [0.0, np.nan]],
+        [[10.0, 20.0], [30.0, 40.0]],
+    ])
+    z = NXfield(np.arange(3), name='z')
+    y = NXfield(np.arange(2), name='y')
+    x = NXfield(np.arange(2), name='x')
+    data_nx = NXdata(NXfield(raw, name='counts'), (z, y, x))
+
+    p = plot_slice(data_nx, sum_axis=0)
+    expected = np.array([[10.0, 20.0], [30.0, 40.0]])
+    plotted = p.get_array().reshape(2, 2)
+    assert np.allclose(plotted, expected) or np.allclose(plotted.T, expected)
+
+
+def test_plot_slice_invalid_empty_bins():
+    """Test that invalid empty_bins raises ValueError."""
+    data = np.ones((3, 2, 2))
+    with pytest.raises(ValueError, match="Unknown empty_bins option"):
+        plot_slice(data, sum_axis=0, empty_bins='invalid')
+

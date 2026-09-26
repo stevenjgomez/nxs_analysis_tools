@@ -287,6 +287,7 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
                xticks=None, yticks=None, cbar=True, logscale=False,
                symlogscale=False, cmap='viridis', linthresh=1,
                title=None, mdheading=None, cbartitle=None,
+               normalize=True, empty_bins='both',
                **kwargs):
     """
     Plot a 2D slice of the provided dataset, with optional transformations
@@ -362,6 +363,17 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         The title for the colorbar. If None, the colorbar label will be set to
          the name of the signal.
 
+    normalize : bool, optional
+        Whether to normalize the summed data by the number of non-empty bins along
+        `sum_axis`. Only invoked when `data` has dimension higher than 2D and is
+        reduced via `sum_axis`. Default is True.
+
+    empty_bins : {'both', 'nan', 'none'}, optional
+        Defines which bins are considered empty when counting valid bins for normalization:
+        - 'both': Ignore NaNs and zeros. (Default)
+        - 'nan': Ignore only NaNs.
+        - 'none': Count all voxels along `sum_axis` regardless of content.
+
     **kwargs
         Additional keyword arguments passed to `pcolormesh`.
 
@@ -395,17 +407,46 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
             raise ValueError("sum_axis must be specified when data.ndim == 3.")
 
         if is_array:
-            data = data.sum(axis=sum_axis)
+            raw_data = data
         elif is_nxdata:
-            arr = data.nxsignal.nxdata
-            arr = arr.sum(axis=sum_axis)
+            raw_data = data.nxsignal.nxdata
 
+        if normalize:
+            if np.issubdtype(raw_data.dtype, np.floating):
+                isnan_mask = np.isnan(raw_data)
+            else:
+                isnan_mask = np.zeros_like(raw_data, dtype=bool)
+
+            if empty_bins == 'nan':
+                valid_mask = ~isnan_mask
+            elif empty_bins == 'both':
+                valid_mask = ~isnan_mask & (raw_data != 0)
+            elif empty_bins == 'none':
+                valid_mask = np.ones_like(raw_data, dtype=bool)
+            else:
+                raise ValueError(f"Unknown empty_bins option '{empty_bins}'. Expected 'both', 'nan', or 'none'.")
+
+            # Count valid bins along sum_axis
+            bin_counts = np.sum(valid_mask, axis=sum_axis)
+
+            # Sum intensities ignoring invalid bins
+            data_sum = np.nansum(np.where(valid_mask, raw_data, 0), axis=sum_axis)
+
+            # Avoid divide-by-zero where bin_counts == 0
+            with np.errstate(divide='ignore', invalid='ignore'):
+                reduced = np.where(bin_counts > 0, data_sum / bin_counts, 0.0)
+        else:
+            reduced = raw_data.sum(axis=sum_axis)
+
+        if is_array:
+            data = reduced
+        elif is_nxdata:
             # Create a 2D template from the original nxdata
             slice_obj = [slice(None)] * len(data.shape)
             slice_obj[sum_axis] = 0
 
             # Use the 2D template to create a new nxdata
-            data = array_to_nxdata(arr, data[slice_obj])
+            data = array_to_nxdata(reduced, data[slice_obj])
 
     if data.ndim != 2:
         raise ValueError("Slice data must be 2D.")
