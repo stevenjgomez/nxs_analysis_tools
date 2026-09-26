@@ -988,65 +988,156 @@ class Symmetrizer:
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
 
 
-def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=None):
+def _identify_axis_name(ax, default_name):
+    """Identify physical reciprocal space axis ('h', 'k', 'l') from an axis or field."""
+    name = getattr(ax, "nxname", getattr(ax, "name", None))
+    if name is None and isinstance(ax, str):
+        name = ax
+    if name is not None:
+        name_lower = str(name).lower()
+        if name_lower in ("h", "qh") or name_lower.endswith("_h") or name_lower.startswith("h_"):
+            return "h"
+        elif name_lower in ("k", "qk") or name_lower.endswith("_k") or name_lower.startswith("k_"):
+            return "k"
+        elif name_lower in ("l", "ql") or name_lower.endswith("_l") or name_lower.startswith("l_"):
+            return "l"
+    return default_name
+
+
+def generate_gaussian(
+    H,
+    K=None,
+    L=None,
+    amp=1.0,
+    stddev=1.0,
+    lattice_params=None,
+    coeffs=None,
+    center=None,
+    return_nxdata=False,
+):
     """
     Generate a 3D Gaussian distribution.
 
     This function creates a 3D Gaussian distribution in reciprocal space based
-     on the specified parameters.
+    on the specified parameters. Supports inputs as three separate coordinate
+    arrays/fields or directly as a 3D :class:`nexusformat.nexus.tree.NXdata` object,
+    automatically aligning coordinates to reciprocal lattice axes regardless of
+    whether axes are ordered ``[Qh, Qk, Ql]`` or ``[Ql, Qk, Qh]``.
 
     Parameters
     ----------
-    H, K, L : :class:`numpy.ndarray` or :class:`nexusformat.nexus.tree.NXfield`
-        The three principal axes of the reciprocal space grid. These should be provided in the 
-        order corresponding to the axes of the relevant dataset.
-    amp : float
-        Amplitude of the Gaussian distribution.
-    stddev : float
-        Standard deviation of the Gaussian distribution.
-    lattice_params : tuple
-        Lattice parameters [e.g., (a, b, c, alpha, beta, gamma)]. These should be provided in
-        the order corresponding to the axes of the relevant dataset.
-    coeffs : list, optional
-        Coefficients for the Gaussian expression, including cross-terms between axes.
-         Default is [1, 0, 1, 0, 1, 0],
-         corresponding to (1*H**2 + 0*H*K + 1*K**2 + 0*K*L + 1*L**2 + 0*L*H).
-    center : tuple
-        Tuple of coordinates for the center of the Gaussian. Default is (0,0,0).
+    H : :class:`nexusformat.nexus.tree.NXdata`, :class:`nexusformat.nexus.tree.NXfield`, or :class:`numpy.ndarray`
+        The first coordinate axis, or a 3D :class:`nexusformat.nexus.tree.NXdata` object.
+    K : :class:`nexusformat.nexus.tree.NXfield` or :class:`numpy.ndarray`, optional
+        The second coordinate axis. If `H` is an NXdata object, this parameter is omitted
+        or can positionally provide `amp`.
+    L : :class:`nexusformat.nexus.tree.NXfield` or :class:`numpy.ndarray`, optional
+        The third coordinate axis. If `H` is an NXdata object, this parameter is omitted
+        or can positionally provide `stddev`.
+    amp : float, optional
+        Amplitude of the Gaussian distribution. Default is 1.0.
+    stddev : float, optional
+        Standard deviation of the Gaussian distribution. Default is 1.0.
+    lattice_params : tuple, optional
+        Lattice parameters ``(a, b, c, alpha, beta, gamma)``.
+    coeffs : tuple or list, optional
+        Coefficients for the quadratic form in reciprocal space:
+        ``(A, B, C, D, E, F)`` corresponding to
+        ``A*H**2 + B*(b*/a*)*H*K + C*(b*/a*)**2*K**2 + D*(b**c*/a**2)*K*L + E*(c*/a*)**2*L**2 + F*(c*/a*)*L*H``.
+        Default is ``(1, 0, 1, 0, 1, 0)``.
+    center : tuple or dict, optional
+        Center of the Gaussian in physical reciprocal coordinates (H, K, L).
+        Default is ``(0, 0, 0)``.
+    return_nxdata : bool, optional
+        If True and an NXdata object was provided, returns the generated Gaussian
+        wrapped in an :class:`nexusformat.nexus.tree.NXdata` object with matching metadata.
+        Default is False.
 
     Returns
     -------
-    gaussian : :class:`numpy.ndarray`
-        3D Gaussian distribution array.
+    gaussian : :class:`numpy.ndarray` or :class:`nexusformat.nexus.tree.NXdata`
+        3D Gaussian distribution matching the shape and axis orientation of the input.
     """
+    data_template = None
+    if isinstance(H, NXdata):
+        data_template = H
+        axes = list(data_template.nxaxes)
+        if len(axes) != 3:
+            raise ValueError("generate_gaussian requires a 3-dimensional NXdata object.")
+        ax0, ax1, ax2 = axes[0], axes[1], axes[2]
+        if K is not None and not isinstance(K, (np.ndarray, NXfield, list, tuple)):
+            # Positional calling: generate_gaussian(data, amp, stddev, lattice_params, [coeffs], [center])
+            center = lattice_params if center is None else center
+            coeffs = stddev if coeffs is None else coeffs
+            lattice_params = amp if lattice_params is None else lattice_params
+            stddev = L if stddev is None else stddev
+            amp = K
+    else:
+        if K is None or L is None:
+            raise ValueError("H, K, and L coordinate axes must all be provided if first argument is not NXdata.")
+        ax0, ax1, ax2 = H, K, L
+
+    if lattice_params is None and data_template is not None:
+        lattice_params = getattr(data_template, "lattice_params", None)
+    if lattice_params is None:
+        raise ValueError("lattice_params (a, b, c, alpha, beta, gamma) must be provided.")
+
+    if center is None:
+        center = (0.0, 0.0, 0.0)
+
     if coeffs is None:
         coeffs = (1, 0, 1, 0, 1, 0)
+
+    val0 = ax0.nxdata if hasattr(ax0, "nxdata") else np.asarray(ax0)
+    val1 = ax1.nxdata if hasattr(ax1, "nxdata") else np.asarray(ax1)
+    val2 = ax2.nxdata if hasattr(ax2, "nxdata") else np.asarray(ax2)
+
+    names = [
+        _identify_axis_name(ax0, "h"),
+        _identify_axis_name(ax1, "k"),
+        _identify_axis_name(ax2, "l"),
+    ]
+
+    # If axes cannot be uniquely identified as h, k, l, fall back to argument order [h, k, l]
+    if set(names) != {"h", "k", "l"}:
+        names = ["h", "k", "l"]
 
     # Reciprocal lattice parameters
     a, b, c, alpha, beta, gamma = lattice_params
     a_, b_, c_, *_ = reciprocal_lattice_params((a, b, c, alpha, beta, gamma))
 
-    # Shift coordinates
-    H = H - center[0]
-    K = K - center[1]
-    L = L - center[2]
+    # Build coordinate grid matching the input axes ordering
+    grid0, grid1, grid2 = np.meshgrid(val0, val1, val2, indexing="ij")
+    grids = {names[0]: grid0, names[1]: grid1, names[2]: grid2}
 
-    # Build coordinate grid
-    H, K, L = np.meshgrid(H, K, L, indexing="ij")
+    # Shift coordinates according to physical H, K, L center
+    if isinstance(center, dict):
+        c_h = center.get("H", center.get("h", 0.0))
+        c_k = center.get("K", center.get("k", 0.0))
+        c_l = center.get("L", center.get("l", 0.0))
+    else:
+        c_h, c_k, c_l = center[0], center[1], center[2]
+
+    grid_H = grids["h"] - c_h
+    grid_K = grids["k"] - c_k
+    grid_L = grids["l"] - c_l
 
     A, B, C, D, E, F = coeffs
 
     # Quadratic form in reciprocal space
     quad = (
-        A * H**2
-        + B * (b_ / a_) * H * K
-        + C * (b_ / a_)**2 * K**2
-        + D * (b_ * c_ / a_**2) * K * L
-        + E * (c_ / a_)**2 * L**2
-        + F * (c_ / a_) * L * H
+        A * grid_H**2
+        + B * (b_ / a_) * grid_H * grid_K
+        + C * (b_ / a_)**2 * grid_K**2
+        + D * (b_ * c_ / a_**2) * grid_K * grid_L
+        + E * (c_ / a_)**2 * grid_L**2
+        + F * (c_ / a_) * grid_L * grid_H
     )
 
     gaussian = amp * np.exp(-quad / (2 * stddev**2))
+
+    if return_nxdata and data_template is not None:
+        return array_to_nxdata(gaussian, data_template, signal_name="gaussian")
 
     return gaussian
 
