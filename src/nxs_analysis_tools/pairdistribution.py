@@ -22,7 +22,7 @@ from .lineartransformations import ShearTransformer, rotate_plane_affine, mirror
 _rotate_plane_affine = rotate_plane_affine
 _mirror_plane_affine = mirror_plane_affine
 
-__all__ = ['Symmetrizer', 'Symmetrizer2D', 'Symmetrizer3D', 'Puncher', 'Interpolator',
+__all__ = ['Symmetrizer', 'Puncher', 'Interpolator',
            'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
            'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine'
            ]
@@ -986,41 +986,6 @@ class Symmetrizer:
         f['entry']['data'] = self.symmetrized
         nxsave(fout_name, f)
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
-
-
-class Symmetrizer2D(Symmetrizer):
-    """
-    A class for symmetrizing 2D datasets.
-
-    Subclass of :class:`Symmetrizer` preserved for backward compatibility.
-    """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def symmetrize_2d(self, data=None, method='wedge', **kwargs):
-        return super().symmetrize_2d(data=data, method=method, **kwargs)
-
-    def symmetrize(self, data=None, method='wedge', **kwargs):
-        return super().symmetrize(data=data, method=method, **kwargs)
-
-
-class Symmetrizer3D(Symmetrizer):
-    """
-    A class to symmetrize 3D datasets by performing sequential 2D symmetrization on
-    different planes.
-
-    Subclass of :class:`Symmetrizer` preserved for backward compatibility.
-    """
-    def __init__(self, data=None):
-        if data is None:
-            raise ValueError("Symmetrizer3D requires a 3D NXdata object for initialization.")
-        super().__init__(data=data)
-
-    def symmetrize_3d(self, data=None, method='wedge', **kwargs):
-        return super().symmetrize_3d(data=data, method=method, **kwargs)
-
-    def symmetrize(self, data=None, method='wedge', **kwargs):
-        return super().symmetrize(data=data, method=method, **kwargs)
 
 
 def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=None):

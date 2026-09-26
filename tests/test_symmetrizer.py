@@ -9,8 +9,6 @@ builtins.display = lambda *args, **kwargs: None
 
 from nxs_analysis_tools.pairdistribution import (
     Symmetrizer,
-    Symmetrizer2D,
-    Symmetrizer3D,
     _rotate_plane_affine,
 )
 
@@ -239,12 +237,11 @@ class TestSymmetrizerFeatures:
         res_average = sym.symmetrize(method='average')
         assert np.allclose(res.nxsignal.nxdata, res_average.nxsignal.nxdata)
 
-    def test_subclass_backward_compatibility(self):
-        data_2d = make_synthetic_nxdata((35, 35), ((-2.0, 2.0), (-2.0, 2.0)), names=('h', 'k'))
-        s2 = Symmetrizer2D(theta_min=0, theta_max=60, lattice_angle=60, mirror=False)
-        res2 = s2.symmetrize_2d(data_2d)
-        assert res2.ndim == 2
-        assert s2.symmetrization_mask is not None
+    def test_subclasses_removed(self):
+        """Verify Symmetrizer2D and Symmetrizer3D are removed in v0.2.0."""
+        import nxs_analysis_tools.pairdistribution as pd
+        assert not hasattr(pd, "Symmetrizer2D")
+        assert not hasattr(pd, "Symmetrizer3D")
 
     def test_positive_values_warning_and_override(self):
         # Create dataset with negative values
