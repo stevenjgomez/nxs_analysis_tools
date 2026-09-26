@@ -720,7 +720,7 @@ class Symmetrizer:
         return NXdata(NXfield(out_array, name=data.nxsignal.nxname),
                       tuple(axis for axis in data.nxaxes))
 
-    def symmetrize(self, data=None, method=None, parallel=False, num_workers=None, positive_values=None, **kwargs):
+    def symmetrize(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, **kwargs):
         """
         Symmetrize the dataset.
 
@@ -728,9 +728,8 @@ class Symmetrizer:
         ----------
         data : :class:`nexusformat.nexus.tree.NXdata`, optional
             Dataset to symmetrize. If not provided, uses self.data.
-        method : {'wedge', 'average'}, optional
-            Symmetrization algorithm. Defaults to 'wedge' with a deprecation notice
-            (will become 'average' in 0.2.0).
+        method : {'average', 'wedge'}, optional
+            Symmetrization algorithm. Defaults to 'average'.
         parallel : bool, optional
             Whether to use multi-threaded parallelism for 3D layer processing.
             Defaults to False.
@@ -747,21 +746,14 @@ class Symmetrizer:
         :class:`nexusformat.nexus.tree.NXdata`
             The symmetrized dataset.
         """
-        if isinstance(data, str) and method is None:
+        if isinstance(data, str) and (method == 'average' or method is None):
             method = data
             data = None
         if data is not None:
             self.set_data(data)
 
         if method is None:
-            warnings.warn(
-                "method='wedge' is currently the default, but method='average' will become "
-                "the default in version 0.2.0. To suppress this warning, explicitly specify "
-                "method='wedge' or method='average'.",
-                FutureWarning,
-                stacklevel=2
-            )
-            method = 'wedge'
+            method = 'average'
 
         if self.data is None:
             raise ValueError("No data provided to Symmetrizer.")
@@ -776,14 +768,14 @@ class Symmetrizer:
         else:
             raise ValueError(f"Symmetrizer supports 2D or 3D datasets, got {self.data.ndim}D.")
 
-    def symmetrize_2d(self, data=None, method=None, positive_values=None, **kwargs):
+    def symmetrize_2d(self, data=None, method='average', positive_values=None, **kwargs):
         """Symmetrize a 2D dataset."""
         if data is None:
             data = self.data
         if data is None:
             raise ValueError("No data provided to symmetrize_2d.")
         if method is None:
-            method = 'wedge'
+            method = 'average'
         if positive_values is None:
             positive_values = self.positive_values
 
@@ -807,14 +799,14 @@ class Symmetrizer:
         else:
             raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
 
-    def symmetrize_3d(self, data=None, method=None, parallel=False, num_workers=None, positive_values=None, **kwargs):
+    def symmetrize_3d(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, **kwargs):
         """Symmetrize a 3D dataset."""
         if data is None:
             data = self.data
         if data is None:
             raise ValueError("No data provided to symmetrize_3d.")
         if method is None:
-            method = 'wedge'
+            method = 'average'
         if positive_values is None:
             positive_values = self.positive_values
 
@@ -1005,6 +997,12 @@ class Symmetrizer2D(Symmetrizer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def symmetrize_2d(self, data=None, method='wedge', **kwargs):
+        return super().symmetrize_2d(data=data, method=method, **kwargs)
+
+    def symmetrize(self, data=None, method='wedge', **kwargs):
+        return super().symmetrize(data=data, method=method, **kwargs)
+
 
 class Symmetrizer3D(Symmetrizer):
     """
@@ -1017,6 +1015,12 @@ class Symmetrizer3D(Symmetrizer):
         if data is None:
             raise ValueError("Symmetrizer3D requires a 3D NXdata object for initialization.")
         super().__init__(data=data)
+
+    def symmetrize_3d(self, data=None, method='wedge', **kwargs):
+        return super().symmetrize_3d(data=data, method=method, **kwargs)
+
+    def symmetrize(self, data=None, method='wedge', **kwargs):
+        return super().symmetrize(data=data, method=method, **kwargs)
 
 
 def generate_gaussian(H, K, L, amp, stddev, lattice_params, coeffs=None, center=None):
@@ -2028,13 +2032,6 @@ def fourier_transform_nxdata(data, method='complete', verbose=True):
     print("FFT started.")
 
     if method == 'complete':
-
-        warnings.warn(
-            "In version v0.1.15 and beyond, the default method was changed from method='staged' "
-            "to method='complete' to avoid issues with data containing a non-orthogonal third "
-            "coordinate axis. Previous behavior can be restored by using method='staged'."
-            )
-
         print("Performing FFT...") if verbose else None
 
         # Allocate aligned complex array
@@ -2483,7 +2480,7 @@ class DeltaPDF:
         """
         self.padded = self.padder.pad(padding)
 
-    def perform_fft(self, is_2d=None, **kwargs):
+    def perform_fft(self, **kwargs):
         """
         Perform a 3D Fourier Transform on the padded data.
 
@@ -2510,14 +2507,4 @@ class DeltaPDF:
          sizes of the original data axes.
 
         """
-
-        if is_2d is not None:
-            warnings.warn(
-                "The 'is_2d' argument is deprecated and has no effect. "
-                "All FFTs now match the input dimensionality.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        # self.fft = fourier_transform_nxdata(self.padded, staged=staged, is_2d=is_2d)
         self.fft = fourier_transform_nxdata(self.padded, **kwargs)

@@ -231,11 +231,13 @@ class TestSymmetrizerFeatures:
 
         assert np.allclose(res_serial.nxsignal.nxdata, res_parallel.nxsignal.nxdata, atol=1e-10)
 
-    def test_default_method_warning(self):
+    def test_default_method_is_average(self):
         data_2d = make_synthetic_nxdata((25, 25), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
-        sym = Symmetrizer(data_2d, theta_min=0, theta_max=60, lattice_angle=60)
-        with pytest.deprecated_call(match="method='wedge' is currently the default"):
-            sym.symmetrize()
+        add_gaussian_peak(data_2d, (0.5, 0.5), sigma=0.2, intensity=20.0)
+        sym = Symmetrizer(data_2d, symmetry='tetragonal')
+        res = sym.symmetrize()
+        res_average = sym.symmetrize(method='average')
+        assert np.allclose(res.nxsignal.nxdata, res_average.nxsignal.nxdata)
 
     def test_subclass_backward_compatibility(self):
         data_2d = make_synthetic_nxdata((35, 35), ((-2.0, 2.0), (-2.0, 2.0)), names=('h', 'k'))
