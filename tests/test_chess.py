@@ -482,6 +482,133 @@ def test_load_datasets_lazy_loading(tmp_path):
     assert td_nxrefine.datasets[15].nxsignal._value is None
 
 
+def test_load_datasets_prevalidation_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch, capsys):
+    """Test that NXRefine datasets are prevalidated, skipping incomplete ones and printing messages."""
+    nxrefine_dir = tmp_path / "nxrefine_val"
+    nxrefine_dir.mkdir()
+
+    # Valid: 15 and 25 have wrapper files and subfolders with transform.nxs
+    for t in [15, 25]:
+        (nxrefine_dir / f"sample_{t}.nxs").touch()
+        t_dir = nxrefine_dir / str(t)
+        t_dir.mkdir()
+        (t_dir / "transform.nxs").touch()
+
+    # Incomplete: 50 has wrapper file and folder, but folder lacks transform.nxs
+    (nxrefine_dir / "sample_50.nxs").touch()
+    (nxrefine_dir / "50").mkdir()
+
+    # Incomplete: 60 has folder without transform.nxs and lacks wrapper file
+    (nxrefine_dir / "60").mkdir()
+
+    # Incomplete: 70 has wrapper file, but folder does not exist at all
+    (nxrefine_dir / "sample_70.nxs").touch()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, print_tree=True, use_nxlink=True: sample_3d_nxdata)
+
+    td = TempDependence(str(nxrefine_dir))
+    td.load_datasets(print_tree=False)
+
+    captured = capsys.readouterr().out
+    assert "Skipping datasets for temperatures: [50, 60, 70]" in captured
+    assert "Loading datasets for temperatures: [15, 25]" in captured
+
+    assert td.temperatures == [15, 25]
+    assert 15 in td.datasets
+    assert 25 in td.datasets
+    assert 50 not in td.datasets
+    assert 60 not in td.datasets
+    assert 70 not in td.datasets
+
+
+def test_load_datasets_prevalidation_legacy_chess(tmp_path, sample_3d_nxdata, monkeypatch, capsys):
+    """Test that legacy CHESS datasets are prevalidated, skipping folders without data files."""
+    chess_dir = tmp_path / "chess_val"
+    chess_dir.mkdir()
+
+    # Valid: 15 and 25 have folders with data_hkli.nxs
+    for t in [15, 25]:
+        t_dir = chess_dir / str(t)
+        t_dir.mkdir()
+        (t_dir / "data_hkli.nxs").touch()
+
+    # Incomplete: 50 has folder with only non-data file
+    d_50 = chess_dir / "50"
+    d_50.mkdir()
+    (d_50 / "readme.txt").touch()
+
+    # Incomplete: 60 is an empty folder
+    (chess_dir / "60").mkdir()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
+
+    td = TempDependence(str(chess_dir))
+    td.load_datasets(print_tree=False)
+
+    captured = capsys.readouterr().out
+    assert "Skipping datasets for temperatures: [50, 60]" in captured
+    assert "Loading datasets for temperatures: [15, 25]" in captured
+
+    assert td.temperatures == [15, 25]
+    assert 15 in td.datasets
+    assert 25 in td.datasets
+    assert 50 not in td.datasets
+    assert 60 not in td.datasets
+
+
+def test_load_datasets_prevalidation_explicit_and_excluded_temperatures(tmp_path, sample_3d_nxdata, monkeypatch, capsys):
+    """Test prevalidation when temperatures and exclude_temperatures are specified."""
+    chess_dir = tmp_path / "chess_explicit"
+    chess_dir.mkdir()
+
+    for t in [15, 25]:
+        t_dir = chess_dir / str(t)
+        t_dir.mkdir()
+        (t_dir / "data_hkli.nxs").touch()
+
+    # 50 is empty
+    (chess_dir / "50").mkdir()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
+
+    td = TempDependence(str(chess_dir))
+
+    # Request temperatures=[15, 50] with exclude_temperatures=[25]
+    # 25 is excluded from candidates, so it should not be loaded or marked as skipped
+    td.load_datasets(temperatures=[15, 50], exclude_temperatures=[25], print_tree=False)
+
+    captured = capsys.readouterr().out
+    assert "Skipping datasets for temperatures: [50]" in captured
+    assert "Loading datasets for temperatures: [15]" in captured
+    assert "25" not in captured
+
+    assert td.temperatures == [15]
+    assert 15 in td.datasets
+    assert 25 not in td.datasets
+    assert 50 not in td.datasets
+
+
+def test_load_datasets_prevalidation_all_valid(tmp_path, sample_3d_nxdata, monkeypatch, capsys):
+    """Test that when all datasets are valid, Skipping message is omitted."""
+    chess_dir = tmp_path / "chess_all_valid"
+    chess_dir.mkdir()
+
+    for t in [15, 25]:
+        t_dir = chess_dir / str(t)
+        t_dir.mkdir()
+        (t_dir / "data_hkli.nxs").touch()
+
+    monkeypatch.setattr("nxs_analysis_tools.chess.load_data", lambda path, print_tree=True: sample_3d_nxdata)
+
+    td = TempDependence(str(chess_dir))
+    td.load_datasets(print_tree=False)
+
+    captured = capsys.readouterr().out
+    assert "Skipping datasets" not in captured
+    assert "Loading datasets for temperatures: [15, 25]" in captured
+    assert td.temperatures == [15, 25]
+
+
 
 
 

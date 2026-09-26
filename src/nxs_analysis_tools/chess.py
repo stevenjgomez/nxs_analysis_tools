@@ -343,6 +343,10 @@ class TempDependence:
         - NXRefine transform files matching `*_<temperature>.nxs` directly in `sample_directory`.
         - Legacy CHESS format with subdirectories named `<temperature>` containing `*<file_ending>` files.
 
+        Pre-validates candidate datasets before loading, skipping incomplete or corrupted
+        temperature datasets (such as folders lacking transform.nxs or *hkli.nxs) and printing
+        status messages indicating which temperatures are skipped and loaded.
+
         Parameters
         ----------
         temperatures : int, float, str, or list of int, float, or str, optional
@@ -381,21 +385,57 @@ class TempDependence:
 
         if format_type == 'nxrefine':
             pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
-            filename_map = {}
+            wrapper_map = {}
             for item in os.listdir(self.sample_directory):
-                match = re.search(pattern, item)
-                if match:
-                    filename_map[_normalize_temperature(match.group(1))] = item
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isfile(item_path):
+                    match = re.search(pattern, item)
+                    if match:
+                        wrapper_map[_normalize_temperature(match.group(1))] = item
 
-            available_temps = sorted(list(filename_map.keys()), key=float)
-            self.temperatures = [
-                t for t in available_temps
-                if (temperatures is None or t in temperatures)
-                and (exclude_temperatures is None or t not in exclude_temperatures)
-            ]
+            folder_map = {}
+            for item in os.listdir(self.sample_directory):
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isdir(item_path):
+                    val = _normalize_temperature(item)
+                    if isinstance(val, (int, float)):
+                        folder_map[val] = item
+
+            if temperatures is not None:
+                candidate_temps = sorted(list(temperatures), key=float)
+            else:
+                candidate_temps = sorted(list(set(wrapper_map.keys()) | set(folder_map.keys())), key=float)
+
+            if exclude_temperatures is not None:
+                candidate_temps = [t for t in candidate_temps if t not in exclude_temperatures]
+
+            valid_temperatures = []
+            skipped_temperatures = []
+            for T in candidate_temps:
+                is_valid = True
+                if T not in wrapper_map:
+                    is_valid = False
+                elif folder_map:
+                    if T not in folder_map:
+                        is_valid = False
+                    else:
+                        transform_file = os.path.join(self.sample_directory, folder_map[T], 'transform.nxs')
+                        if not os.path.isfile(transform_file):
+                            is_valid = False
+
+                if is_valid:
+                    valid_temperatures.append(T)
+                else:
+                    skipped_temperatures.append(T)
+
+            if skipped_temperatures:
+                print(f"Skipping datasets for temperatures: {skipped_temperatures}")
+            print(f"Loading datasets for temperatures: {valid_temperatures}")
+
+            self.temperatures = valid_temperatures
 
             for temperature in self.temperatures:
-                item = filename_map[temperature]
+                item = wrapper_map[temperature]
                 path = str(os.path.join(self.sample_directory, item))
                 try:
                     self.datasets[temperature] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
@@ -410,29 +450,49 @@ class TempDependence:
                 if os.path.isdir(item_path):
                     val = _normalize_temperature(item)
                     if isinstance(val, (int, float)):
+                        folder_map[val] = item
+
+            if temperatures is not None:
+                candidate_temps = sorted(list(temperatures), key=float)
+            else:
+                candidate_temps = sorted(list(folder_map.keys()), key=float)
+
+            if exclude_temperatures is not None:
+                candidate_temps = [t for t in candidate_temps if t not in exclude_temperatures]
+
+            valid_temperatures = []
+            skipped_temperatures = []
+            valid_files = {}
+
+            for T in candidate_temps:
+                is_valid = False
+                if T in folder_map:
+                    folder_name = folder_map[T]
+                    folder_path = os.path.join(self.sample_directory, folder_name)
+                    if os.path.isdir(folder_path):
                         try:
-                            if any(f.endswith(file_ending) for f in os.listdir(item_path)):
-                                folder_map[val] = item
+                            for file in os.listdir(folder_path):
+                                if file.endswith(file_ending):
+                                    is_valid = True
+                                    valid_files[T] = os.path.join(folder_path, file)
+                                    break
                         except OSError:
                             pass
 
-            available_temps = sorted(list(folder_map.keys()), key=float)
-            self.temperatures = [
-                t for t in available_temps
-                if (temperatures is None or t in temperatures)
-                and (exclude_temperatures is None or t not in exclude_temperatures)
-            ]
+                if is_valid:
+                    valid_temperatures.append(T)
+                else:
+                    skipped_temperatures.append(T)
+
+            if skipped_temperatures:
+                print(f"Skipping datasets for temperatures: {skipped_temperatures}")
+            print(f"Loading datasets for temperatures: {valid_temperatures}")
+
+            self.temperatures = valid_temperatures
 
             for T in self.temperatures:
-                folder_name = folder_map.get(T, str(T))
-                folder_path = os.path.join(self.sample_directory, folder_name)
-                if not os.path.isdir(folder_path):
-                    continue
-                for file in os.listdir(folder_path):
-                    if file.endswith(file_ending):
-                        filepath = os.path.join(folder_path, file)
-                        self.datasets[T] = load_data(filepath, print_tree)
-                        break
+                filepath = valid_files[T]
+                self.datasets[T] = load_data(filepath, print_tree)
 
         self.initialize()
 
