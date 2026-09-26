@@ -439,7 +439,7 @@ def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
     (tmp_path / "sample_25.nxs").touch()
 
     calls = []
-    def mock_load_transform(path, print_tree=True, use_nxlink=True):
+    def mock_load_transform(path, print_tree=True, use_nxlink=False):
         calls.append((path, use_nxlink))
         return sample_3d_nxdata
 
@@ -452,8 +452,8 @@ def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
     assert td.temperatures == [15, 25]
     assert 15 in td.datasets
     assert 25 in td.datasets
-    # Verify default use_nxlink=True passed to load_transform
-    assert all(c[1] is True for c in calls)
+    # Verify default use_nxlink=False passed to load_transform
+    assert all(c[1] is False for c in calls)
 
 
 def test_load_datasets_positional_file_ending(tmp_path, sample_3d_nxdata, monkeypatch):
@@ -512,7 +512,7 @@ def test_load_datasets_lazy_loading(tmp_path):
     # Check that array was NOT loaded into memory
     assert td_chess.datasets[15].nxsignal._value is None
 
-    # 2. Test NXRefine lazy loading with default use_nxlink=True
+    # 2. Test NXRefine lazy loading with use_nxlink=True
     nxrefine_dir = tmp_path / "nxrefine"
     nx_15 = nxrefine_dir / "15"
     nx_15.mkdir(parents=True)
@@ -534,7 +534,7 @@ def test_load_datasets_lazy_loading(tmp_path):
 
     td_nxrefine = TempDependence(str(nxrefine_dir))
     assert td_nxrefine._detect_format() == 'nxrefine'
-    td_nxrefine.load_datasets(print_tree=False)
+    td_nxrefine.load_datasets(print_tree=False, use_nxlink=True)
     # Check that array was NOT loaded into memory
     assert td_nxrefine.datasets[15].nxsignal._value is None
 

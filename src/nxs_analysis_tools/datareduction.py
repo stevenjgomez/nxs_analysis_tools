@@ -57,7 +57,7 @@ def load_data(path, print_tree=True):
     return g.entry.data
 
 
-def load_transform(path, print_tree=True, use_nxlink=True):
+def load_transform(path, print_tree=True, use_nxlink=False):
     """
     Load transform data from an nxrefine output file.
 
@@ -70,10 +70,10 @@ def load_transform(path, print_tree=True, use_nxlink=True):
         If True, prints the NeXus data tree upon loading. Default is True.
 
     use_nxlink : bool, optional
-        If True (default), maintains the NXlink defined in the data file, which references
+        If True, maintains the NXlink defined in the data file, which references
         the raw data in the transform.nxs file. This saves memory when working with
         many datasets. In this case, the axes are in reverse order (Ql, Qk, Qh).
-        Default is True.
+        Default is False.
 
     Returns
     -------
