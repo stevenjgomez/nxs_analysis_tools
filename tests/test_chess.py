@@ -53,19 +53,9 @@ def test_chess_plot_integration_window_zooms_when_show_highlight_false(temp_depe
         assert np.isclose(ylim[0], -0.3)
         assert np.isclose(ylim[1], 0.3)
 
-def test_chess_highlight_integration_window_width_height_deprecated(temp_dependence_instance):
+def test_chess_highlight_integration_window_removed(temp_dependence_instance):
     td = temp_dependence_instance
-    with pytest.deprecated_call():
-        plots = td.highlight_integration_window(temperature='15', width=1.0, height=0.6)
-    
-    for p in plots:
-        ax = p.axes
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        assert np.isclose(xlim[0], -0.5)
-        assert np.isclose(xlim[1], 0.5)
-        assert np.isclose(ylim[0], -0.3)
-        assert np.isclose(ylim[1], 0.3)
+    assert not hasattr(td, 'highlight_integration_window')
 
 def test_chess_plot_integration_window_defaults_temperature_warning(temp_dependence_instance):
     td = temp_dependence_instance
@@ -366,38 +356,9 @@ def test_temp_dependence_initialize_connects_data(sample_3d_nxdata):
     assert td.scissors['20'].data is sample_3d_nxdata
 
 
-def test_load_transforms_flexible_temperature_formats(tmp_path, sample_3d_nxdata, monkeypatch):
-    # Setup files with mixed 'p', decimal, and integer formats
-    (tmp_path / "sample_15p5.nxs").touch()
-    (tmp_path / "sample_20.nxs").touch()
-    (tmp_path / "sample_25.5.nxs").touch()
-    (tmp_path / "sample_300.nxs").touch()
-
-    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, **kwargs: sample_3d_nxdata)
-
-    # 1. temperatures with 'p' notation string and standard decimal float
+def test_load_transforms_removed(tmp_path):
     td = TempDependence(str(tmp_path))
-    td.load_transforms(temperatures=['15p5', 25.5], print_tree=False)
-    assert td.temperatures == [15.5, 25.5]
-    assert 15.5 in td.datasets
-    assert 25.5 in td.datasets
-    assert '15p5' in td.datasets
-
-    # 2. temperatures with decimal string and int, plus exclude_temperatures with 'p' string
-    td2 = TempDependence(str(tmp_path))
-    td2.load_transforms(temperatures=['15.5', 20, '25p5'], exclude_temperatures='15p5', print_tree=False)
-    assert td2.temperatures == [20, 25.5]
-
-    # 3. exclude_temperatures as a list of mixed formats (decimal string and float)
-    td3 = TempDependence(str(tmp_path))
-    td3.load_transforms(exclude_temperatures=['25.5', 15.5], print_tree=False)
-    assert td3.temperatures == [20, 300]
-
-    # 4. Deprecation warning when using temperatures_list
-    td4 = TempDependence(str(tmp_path))
-    with pytest.deprecated_call(match="`temperatures_list` is deprecated"):
-        td4.load_transforms(temperatures_list=[20, 300], print_tree=False)
-    assert td4.temperatures == [20, 300]
+    assert not hasattr(td, 'load_transforms')
 
 
 def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, monkeypatch):
@@ -426,12 +387,6 @@ def test_load_datasets_flexible_temperature_formats(tmp_path, sample_3d_nxdata, 
     td3.load_datasets(exclude_temperatures=['15p5', '25.5'], print_tree=False)
     assert td3.temperatures == [20, 300]
 
-    # 4. Deprecation warning when using temperatures_list
-    td4 = TempDependence(str(tmp_path))
-    with pytest.deprecated_call(match="`temperatures_list` is deprecated"):
-        td4.load_datasets(temperatures_list=[20, 300], print_tree=False)
-    assert td4.temperatures == [20, 300]
-
 
 def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
     """Test load_datasets automatically detecting and loading NXRefine format."""
@@ -439,7 +394,7 @@ def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
     (tmp_path / "sample_25.nxs").touch()
 
     calls = []
-    def mock_load_transform(path, print_tree=True, use_nxlink=False):
+    def mock_load_transform(path, print_tree=True, use_nxlink=True):
         calls.append((path, use_nxlink))
         return sample_3d_nxdata
 
@@ -452,8 +407,8 @@ def test_load_datasets_auto_nxrefine(tmp_path, sample_3d_nxdata, monkeypatch):
     assert td.temperatures == [15, 25]
     assert 15 in td.datasets
     assert 25 in td.datasets
-    # Verify default use_nxlink=False passed to load_transform
-    assert all(c[1] is False for c in calls)
+    # Verify default use_nxlink=True passed to load_transform
+    assert all(c[1] is True for c in calls)
 
 
 def test_load_datasets_positional_file_ending(tmp_path, sample_3d_nxdata, monkeypatch):
@@ -466,18 +421,6 @@ def test_load_datasets_positional_file_ending(tmp_path, sample_3d_nxdata, monkey
 
     td = TempDependence(str(tmp_path))
     td.load_datasets("custom.nxs", print_tree=False)
-    assert td.temperatures == [15]
-    assert 15 in td.datasets
-
-
-def test_load_transforms_deprecation_and_delegation(tmp_path, sample_3d_nxdata, monkeypatch):
-    """Test that load_transforms emits DeprecationWarning and delegates to load_datasets."""
-    (tmp_path / "sample_15.nxs").touch()
-    monkeypatch.setattr("nxs_analysis_tools.chess.load_transform", lambda path, **kwargs: sample_3d_nxdata)
-
-    td = TempDependence(str(tmp_path))
-    with pytest.deprecated_call(match="`load_transforms` is deprecated"):
-        td.load_transforms(print_tree=False)
     assert td.temperatures == [15]
     assert 15 in td.datasets
 
@@ -512,7 +455,7 @@ def test_load_datasets_lazy_loading(tmp_path):
     # Check that array was NOT loaded into memory
     assert td_chess.datasets[15].nxsignal._value is None
 
-    # 2. Test NXRefine lazy loading with use_nxlink=True
+    # 2. Test NXRefine lazy loading with default use_nxlink=True
     nxrefine_dir = tmp_path / "nxrefine"
     nx_15 = nxrefine_dir / "15"
     nx_15.mkdir(parents=True)
@@ -534,7 +477,7 @@ def test_load_datasets_lazy_loading(tmp_path):
 
     td_nxrefine = TempDependence(str(nxrefine_dir))
     assert td_nxrefine._detect_format() == 'nxrefine'
-    td_nxrefine.load_datasets(print_tree=False, use_nxlink=True)
+    td_nxrefine.load_datasets(print_tree=False)
     # Check that array was NOT loaded into memory
     assert td_nxrefine.datasets[15].nxsignal._value is None
 

@@ -129,10 +129,8 @@ class TempDependence:
     set_data(temperature, data):
         Set the dataset for a specific temperature.
     load_datasets(temperatures=None, exclude_temperatures=None, file_ending='hkli.nxs',
-                  print_tree=True, use_nxlink=False):
+                  print_tree=True, use_nxlink=True):
         Load datasets from the sample directory, automatically detecting NXRefine or legacy CHESS format.
-    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
-        .. deprecated:: Use `load_datasets` instead.
     to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
         Export datasets as a combined NXdata object (and optional .nxs file) suitable for XTEC.
     get_sample_directory():
@@ -329,39 +327,13 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False, temperatures_list=None, **kwargs):
-        """
-        Load transform datasets (from NXRefine) based on temperature.
-
-        .. deprecated::
-           `load_transforms` is deprecated and will be removed in a future release.
-           Please use `load_datasets` instead, which automatically detects whether the files
-           are in NXRefine or legacy CHESS format.
-        """
-        warnings.warn(
-            "`load_transforms` is deprecated and will be removed in a future release. "
-            "Please use `load_datasets` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.load_datasets(
-            temperatures=temperatures,
-            exclude_temperatures=exclude_temperatures,
-            print_tree=print_tree,
-            use_nxlink=use_nxlink,
-            temperatures_list=temperatures_list,
-            **kwargs,
-        )
-        
     def load_datasets(
         self,
         temperatures=None,
         exclude_temperatures=None,
         file_ending='hkli.nxs',
         print_tree=True,
-        use_nxlink=False,
-        *,
-        temperatures_list=None,
+        use_nxlink=True,
         **kwargs,
     ):
         """
@@ -382,28 +354,14 @@ class TempDependence:
         print_tree : bool, optional
             If True, prints the NeXus tree structure for each file. Default is True.
         use_nxlink : bool, optional
-            If True, maintains the NXlink defined in NXRefine transform data files,
+            If True (default), maintains the NXlink defined in NXRefine transform data files,
             referencing raw data in transform.nxs without eagerly loading 3D arrays into memory.
-            Default is False.
-        temperatures_list : list of int, float, or str, optional
-            .. deprecated::
-               `temperatures_list` is deprecated and will be removed in a future release.
-               Please use `temperatures` instead.
+            Default is True.
         """
         # Backward compatibility for positional file_ending argument (e.g. load_datasets('hkli.nxs'))
         if isinstance(temperatures, str) and (temperatures.endswith('.nxs') or temperatures.endswith('.h5')):
             file_ending = temperatures
             temperatures = None
-
-        if temperatures_list is not None:
-            warnings.warn(
-                "`temperatures_list` is deprecated and will be removed in a future release. "
-                "Please use `temperatures` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if temperatures is None:
-                temperatures = temperatures_list
 
         if temperatures is not None:
             if not isinstance(temperatures, (list, tuple, set)):
@@ -915,32 +873,6 @@ class TempDependence:
         )
         
         return p
-
-    def highlight_integration_window(self, temperature=None, width=None, height=None,
-                                     label=None, highlight_color='red', **kwargs):
-        """
-        Displays the integration window plot for a specific temperature.
-
-        .. deprecated:: 
-           `highlight_integration_window` is deprecated and will be removed in a future version.
-           Please use `plot_integration_window(show_highlight=True)` instead.
-        """
-        warnings.warn(
-            "`highlight_integration_window` is deprecated and will be removed in a future release. "
-            "Please use `plot_integration_window(..., show_highlight=True)` instead.",
-            category=DeprecationWarning,
-            stacklevel=2
-        )
-
-        return self.plot_integration_window(
-            temperature=temperature,
-            show_highlight=True,
-            width=width,
-            height=height,
-            label=label,
-            highlight_color=highlight_color,
-            **kwargs
-        )
 
     def set_model_components(self, model_components):
         """
