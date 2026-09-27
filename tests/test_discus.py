@@ -151,13 +151,90 @@ def test_load_discus_nxs_fallback_no_step_vecs(tmp_path):
     assert data.axes == ['H', 'L']
 
 
-def test_load_discus_nxs_real_file_if_available():
-    """Verify loading real experimental DISCUS output file if present on this machine."""
-    real_path = "/Users/stevengomezalvarado/Library/CloudStorage/OneDrive-Personal/Documents/UCSB/Projects/CsV3Sb5Sn/DISCUS/fmc/009/mmc_output_adjusted.nxs"
-    if os.path.exists(real_path):
-        data = load_discus_nxs(real_path)
-        assert data.ndim == 2
-        assert data.shape == (251, 251)
-        assert data.axes == ['H', 'L']
-        assert 'K' in data
-        assert np.isclose(float(data.K.nxdata), 3.0)
+
+
+def test_load_discus_nxs_format_nexus_2d(tmp_path):
+    """Test loading a DISCUS file written with 'form nexus' (entry/data/Sq with Qh, Ql)."""
+    p = tmp_path / "test_nexus_2d.nxs"
+    with h5py.File(str(p), 'w') as f:
+        entry = f.create_group('entry')
+        data_grp = entry.create_group('data')
+        data_grp.attrs['signal'] = 'Sq'
+        data_grp.attrs['axes'] = 'Qh:Ql'
+        data_grp.create_dataset('Sq', data=np.ones((20, 30), dtype=np.float64))
+        data_grp.create_dataset('Qh', data=np.linspace(-1.0, 1.0, 20))
+        data_grp.create_dataset('Ql', data=np.linspace(-3.0, 3.0, 30))
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 2
+    assert data.shape == (20, 30)
+    assert data.axes == ['H', 'L']
+    assert data.signal == 'counts'
+    assert np.isclose(data.H[0], -1.0)
+    assert np.isclose(data.L[-1], 3.0)
+
+
+def test_load_discus_nxs_format_nexus_3d(tmp_path):
+    """Test loading a 3D DISCUS file written with 'form nexus'."""
+    p = tmp_path / "test_nexus_3d.nxs"
+    with h5py.File(str(p), 'w') as f:
+        entry = f.create_group('entry')
+        data_grp = entry.create_group('data')
+        data_grp.attrs['signal'] = 'Sq'
+        data_grp.attrs['axes'] = 'Qh:Qk:Ql'
+        data_grp.create_dataset('Sq', data=np.ones((10, 12, 14), dtype=np.float64))
+        data_grp.create_dataset('Qh', data=np.linspace(-1.0, 1.0, 10))
+        data_grp.create_dataset('Qk', data=np.linspace(-2.0, 2.0, 12))
+        data_grp.create_dataset('Ql', data=np.linspace(-3.0, 3.0, 14))
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 3
+    assert data.shape == (10, 12, 14)
+    assert data.axes == ['H', 'K', 'L']
+
+
+def test_load_discus_nxs_off_by_one_counts_extra(tmp_path):
+    """Test off-by-one where counts array has 1 extra slice along a dimension."""
+    p = tmp_path / "test_off_by_one_counts.nxs"
+    with h5py.File(str(p), 'w') as f:
+        entry = f.create_group('entry')
+        data_grp = entry.create_group('data')
+        data_grp.attrs['signal'] = 'Sq'
+        data_grp.attrs['axes'] = 'Qh:Qk'
+        # Sq has shape (21, 30), but Qh has 20 points (off by 1)
+        data_grp.create_dataset('Sq', data=np.zeros((21, 30), dtype=np.float64))
+        data_grp.create_dataset('Qh', data=np.linspace(-2.0, 2.0, 20))
+        data_grp.create_dataset('Qk', data=np.linspace(-3.0, 3.0, 30))
+
+    with pytest.warns(UserWarning, match="off-by-one"):
+        data = load_discus_nxs(str(p))
+
+    assert data.ndim == 2
+    assert data.shape == (20, 30)
+    assert data.axes == ['H', 'K']
+    assert len(data.H) == 20
+    assert len(data.K) == 30
+
+
+def test_load_discus_nxs_off_by_one_axis_extra(tmp_path):
+    """Test off-by-one where axis has 1 extra point compared to counts array."""
+    p = tmp_path / "test_off_by_one_axis.nxs"
+    with h5py.File(str(p), 'w') as f:
+        entry = f.create_group('entry')
+        data_grp = entry.create_group('data')
+        data_grp.attrs['signal'] = 'Sq'
+        data_grp.attrs['axes'] = 'Qh:Qk'
+        # Sq has shape (20, 30), but Qk has 31 points (off by 1)
+        data_grp.create_dataset('Sq', data=np.zeros((20, 30), dtype=np.float64))
+        data_grp.create_dataset('Qh', data=np.linspace(-2.0, 2.0, 20))
+        data_grp.create_dataset('Qk', data=np.linspace(-3.0, 3.0, 31))
+
+    with pytest.warns(UserWarning, match="off-by-one"):
+        data = load_discus_nxs(str(p))
+
+    assert data.ndim == 2
+    assert data.shape == (20, 30)
+    assert data.axes == ['H', 'K']
+    assert len(data.H) == 20
+    assert len(data.K) == 30
+

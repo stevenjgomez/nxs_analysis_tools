@@ -89,24 +89,26 @@ exit
 ```
 
 ### C. Exporting to NeXus / HDF5 Format
-To export the scattering intensities to an HDF5 `.nxs` file readable by `nxs_analysis_tools.load_discus_nxs`:
+In the `output` menu of DISCUS, two primary formats can be specified for export:
 ```text
 output
   outfile my_simulation.nxs
-  value inte                        # Intensity (or 'ampl', 'phas', etc.)
-  form hdf5                         # Format must be 'hdf5'
+  value   inte                      # Intensity ('inte', 'ampl', 'phas', etc.)
+  form    hdf5                      # Can be 'hdf5' or 'nexus'
   run
 exit
 ```
+`load_discus_nxs` in `nxs_analysis_tools` supports both formats transparently:
+1. `form hdf5`: Writes HDF5 datasets directly to the file root (`/data`, `/lower_limits`, `/step_sizes`, `/step_sizes_abs`, etc.).
+2. `form nexus`: Writes standard NeXus hierarchy (`/entry/data/Sq` with axes `Qh`, `Qk`, `Ql`).
 
 ---
 
-## 3. DISCUS NeXus File Structure
+## 3. DISCUS File Structures
 
-When DISCUS exports HDF5 files (`form hdf5`), it writes the following datasets to the root group:
-- `data`: 3D array of double-precision intensities with dimensions:
-  `shape == (n_abs, n_ord, n_top)`.
-  - For 3D volumes: `(N_h, N_k, N_l)` (or permuted according to `abs`, `ord`, `top`).
+### A. HDF5 Format (`form hdf5`)
+- `data`: 3D or 2D array of double-precision intensities.
+  - For 3D volumes: `(N_abs, N_ord, N_top)`.
   - For 2D slices: One dimension has size 1 (e.g. `(251, 251, 1)` for an $HL$ plane).
 - `lower_limits`: Array of 3 floats `[H_min, K_min, L_min]`. Always indexed $[H, K, L]$.
 - `step_sizes`: Array of 3 floats `[step_abs, step_ord, step_top]`.
@@ -118,21 +120,38 @@ When DISCUS exports HDF5 files (`form hdf5`), it writes the following datasets t
 - `PROGRAM`: `'DISCUS60'`.
 - `format`: `'Yell 1.0'`.
 
+### B. NeXus Format (`form nexus`)
+- `/entry` (`NXentry`)
+  - `/entry/data` (`NXdata`)
+    - `Sq`: Intensity dataset with shape `(dimy, dimx)` or `(dimz, dimy, dimx)`.
+    - `Qh`, `Qk`, `Ql`: Reciprocal coordinate arrays for active directions.
+    - `@signal`: `'Sq'` or `1`.
+    - `@axes`: Colon-separated list of axis names (e.g. `'Qh:Ql'` or `'Qh:Qk:Ql'`).
+
 ---
 
-## 4. Integration with `nxs-analysis-tools`
+## 4. Off-by-One Alignment
+In DISCUS simulations, floating-point rounding (e.g. `(upper - lower) / step` vs `nint`) or grid definitions (`na N` points vs intervals) frequently causes a $\pm 1$ mismatch between coordinate arrays and the data array.
+`load_discus_nxs` automatically detects and aligns $\pm 1$ mismatches:
+- If `counts` has 1 extra slice along a dimension compared to the coordinate array, it automatically trims `counts` along that dimension.
+- If the coordinate array has 1 extra point compared to `counts`, it automatically trims the coordinate array.
+- In both cases, an informative warning is emitted and a valid, correctly dimensioned `NXdata` object is returned.
 
-Use [`load_discus_nxs(path)`](file:///Users/stevengomezalvarado/nxs_analysis_tools/src/nxs_analysis_tools/datareduction.py) to import DISCUS `.nxs` files:
+---
+
+## 5. Integration with `nxs-analysis-tools`
+
+Use [`load_discus_nxs(path)`](file:///Users/stevengomezalvarado/nxs_analysis_tools/src/nxs_analysis_tools/datareduction.py) to import DISCUS `.nxs` or `.hdf5` files:
 ```python
 from nxs_analysis_tools import load_discus_nxs, plot_slice
 
 # 2D plane (e.g., HL plane with fixed K)
-data_2d = load_discus_nxs("mmc_output_adjusted.nxs")
+data_2d = load_discus_nxs("my_hl_plane.nxs")
 # Result is 2D NXdata with axes ('H', 'L') and fixed coordinate K stored as an attribute/field
 plot_slice(data_2d)
 
 # 3D volume
-data_3d = load_discus_nxs("mmc_output_adjusted_3D.nxs")
+data_3d = load_discus_nxs("my_3d_volume.nxs")
 # Result is 3D NXdata with axes ('H', 'K', 'L')
 plot_slice(data_3d[:, 0.0, :])  # Slice HL plane at K=0.0
 ```
