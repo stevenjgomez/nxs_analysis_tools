@@ -9,7 +9,7 @@ from .chess import TempDependence
 from ._version import version as __version__
 
 # What to import when running "from nxs_analysis_tools import *"
-__all__ = ['load_data', 'load_transform', 'plot_slice', 'Scissors',
+__all__ = ['load_data', 'load_transform', 'load_discus_nxs', 'plot_slice', 'Scissors',
            'reciprocal_lattice_params', 'rotate_data',
            'convert_to_inverse_angstroms', 'array_to_nxdata', 'Padder',
            'rebin_nxdata', 'rebin_3d', 'rebin_1d', 'TempDependence',

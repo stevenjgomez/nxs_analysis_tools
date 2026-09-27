@@ -1,0 +1,163 @@
+import os
+import pytest
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import builtins
+builtins.display = lambda *args, **kwargs: None
+
+import h5py
+from nexusformat.nexus import NXdata
+from nxs_analysis_tools import load_discus_nxs, plot_slice
+
+
+def create_mock_discus_nxs(filepath, shape, lower_limits, step_vecs, step_sizes=None):
+    """
+    Helper to create a synthetic DISCUS HDF5 file matching the DISCUS schema.
+    """
+    with h5py.File(str(filepath), 'w') as f:
+        f.create_dataset('PROGRAM', data=np.bytes_('DISCUS60'))
+        f.create_dataset('format', data=np.bytes_('Yell 1.0'))
+        f.create_dataset('is_direct', data=np.int8(0))
+        f.create_dataset('lower_limits', data=np.array(lower_limits, dtype=np.float64))
+        if step_sizes is not None:
+            f.create_dataset('step_sizes', data=np.array(step_sizes, dtype=np.float64))
+        else:
+            f.create_dataset('step_sizes', data=np.array([np.max(np.abs(v)) for v in step_vecs], dtype=np.float64))
+
+        if step_vecs is not None and len(step_vecs) >= 2:
+            f.create_dataset('step_sizes_abs', data=np.array(step_vecs[0], dtype=np.float64))
+            f.create_dataset('step_sizes_ord', data=np.array(step_vecs[1], dtype=np.float64))
+            if len(step_vecs) >= 3:
+                f.create_dataset('step_sizes_top', data=np.array(step_vecs[2], dtype=np.float64))
+
+        data = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
+        f.create_dataset('data', data=data)
+        f.create_dataset('unit_cell', data=np.array([5.0, 5.0, 10.0, 90.0, 90.0, 90.0], dtype=np.float64))
+
+    return filepath
+
+
+def test_load_discus_nxs_2d_hl_plane(tmp_path):
+    """Test loading a 2D HL plane (K is fixed) from a 3D DISCUS file with trailing singleton."""
+    p = tmp_path / "test_hl.nxs"
+    # Shape: (21, 31, 1). Abs is H (step 0.2), Ord is L (step 0.1), Top is K (fixed at 3.0)
+    create_mock_discus_nxs(
+        filepath=p,
+        shape=(21, 31, 1),
+        lower_limits=[-2.0, 3.0, -1.5],
+        step_vecs=[[0.2, 0.0, 0.0], [0.0, 0.0, 0.1], [0.0, 0.0, 0.0]],
+    )
+
+    data = load_discus_nxs(str(p))
+    assert isinstance(data, NXdata)
+    assert data.ndim == 2
+    assert data.shape == (21, 31)
+    assert data.axes == ['H', 'L']
+    assert data.counts.shape == (21, 31)
+    assert np.isclose(data.H[0], -2.0)
+    assert np.isclose(data.H[-1], -2.0 + 20 * 0.2)
+    assert np.isclose(data.L[0], -1.5)
+    assert np.isclose(data.L[-1], -1.5 + 30 * 0.1)
+    assert 'K' in data
+    assert np.isclose(float(data.K.nxdata), 3.0)
+
+    # Verify that plot_slice handles the resulting NXdata
+    qm = plot_slice(data)
+    assert qm is not None
+
+
+def test_load_discus_nxs_2d_hk_plane(tmp_path):
+    """Test loading a 2D HK plane (L is fixed)."""
+    p = tmp_path / "test_hk.nxs"
+    create_mock_discus_nxs(
+        filepath=p,
+        shape=(15, 25, 1),
+        lower_limits=[-1.0, -2.0, 0.0],
+        step_vecs=[[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.0]],
+    )
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 2
+    assert data.shape == (15, 25)
+    assert data.axes == ['H', 'K']
+    assert 'L' in data
+    assert np.isclose(float(data.L.nxdata), 0.0)
+
+
+def test_load_discus_nxs_2d_kl_plane(tmp_path):
+    """Test loading a 2D KL plane (H is fixed)."""
+    p = tmp_path / "test_kl.nxs"
+    create_mock_discus_nxs(
+        filepath=p,
+        shape=(10, 20, 1),
+        lower_limits=[1.0, -1.0, -2.0],
+        step_vecs=[[0.0, 0.2, 0.0], [0.0, 0.0, 0.2], [0.0, 0.0, 0.0]],
+    )
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 2
+    assert data.shape == (10, 20)
+    assert data.axes == ['K', 'L']
+    assert 'H' in data
+    assert np.isclose(float(data.H.nxdata), 1.0)
+
+
+def test_load_discus_nxs_3d_volume(tmp_path):
+    """Test loading a full 3D DISCUS volume."""
+    p = tmp_path / "test_3d.nxs"
+    create_mock_discus_nxs(
+        filepath=p,
+        shape=(10, 12, 14),
+        lower_limits=[-1.0, -2.0, -3.0],
+        step_vecs=[[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
+    )
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 3
+    assert data.shape == (10, 12, 14)
+    assert data.axes == ['H', 'K', 'L']
+    assert data.counts.shape == (10, 12, 14)
+
+
+def test_load_discus_nxs_already_squeezed_2d(tmp_path):
+    """Test loading a 2D DISCUS file that was already saved with 2D shape."""
+    p = tmp_path / "test_2d_squeezed.nxs"
+    create_mock_discus_nxs(
+        filepath=p,
+        shape=(15, 20),
+        lower_limits=[-1.0, 0.0, -2.0],
+        step_vecs=[[0.1, 0.0, 0.0], [0.0, 0.0, 0.2]],
+        step_sizes=[0.1, 0.2],
+    )
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 2
+    assert data.shape == (15, 20)
+    assert data.axes == ['H', 'L']
+
+
+def test_load_discus_nxs_fallback_no_step_vecs(tmp_path):
+    """Test fallback when step_sizes_abs/ord/top are absent."""
+    p = tmp_path / "test_fallback.nxs"
+    with h5py.File(str(p), 'w') as f:
+        f.create_dataset('lower_limits', data=np.array([-2.0, 0.0, -3.0], dtype=np.float64))
+        f.create_dataset('step_sizes', data=np.array([0.2, 0.0, 0.1], dtype=np.float64))
+        f.create_dataset('data', data=np.zeros((10, 15, 1), dtype=np.float64))
+
+    data = load_discus_nxs(str(p))
+    assert data.ndim == 2
+    assert data.shape == (10, 15)
+    assert data.axes == ['H', 'L']
+
+
+def test_load_discus_nxs_real_file_if_available():
+    """Verify loading real experimental DISCUS output file if present on this machine."""
+    real_path = "/Users/stevengomezalvarado/Library/CloudStorage/OneDrive-Personal/Documents/UCSB/Projects/CsV3Sb5Sn/DISCUS/fmc/009/mmc_output_adjusted.nxs"
+    if os.path.exists(real_path):
+        data = load_discus_nxs(real_path)
+        assert data.ndim == 2
+        assert data.shape == (251, 251)
+        assert data.axes == ['H', 'L']
+        assert 'K' in data
+        assert np.isclose(float(data.K.nxdata), 3.0)
