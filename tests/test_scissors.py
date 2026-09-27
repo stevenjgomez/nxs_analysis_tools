@@ -97,3 +97,13 @@ def test_cubic_l_rods_normalization():
     cut_wide = sc.cut_data(window=(1.5, 0.1, 0.8), normalize=True)
     np.testing.assert_allclose(cut_narrow.nxsignal.nxdata, cut_wide.nxsignal.nxdata, rtol=1e-3)
 
+
+def test_scissors_highlight_integration_window_removed(sample_3d_uniform_volume):
+    sc = Scissors(data=sample_3d_uniform_volume)
+    assert not hasattr(sc, 'highlight_integration_window')
+
+
+def test_rotate_data_2d_removed():
+    import nxs_analysis_tools.datareduction as dr
+    assert not hasattr(dr, 'rotate_data_2D')
+

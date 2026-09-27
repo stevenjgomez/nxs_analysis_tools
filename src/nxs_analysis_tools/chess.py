@@ -129,10 +129,8 @@ class TempDependence:
     set_data(temperature, data):
         Set the dataset for a specific temperature.
     load_datasets(temperatures=None, exclude_temperatures=None, file_ending='hkli.nxs',
-                  print_tree=True, use_nxlink=False):
+                  print_tree=True, use_nxlink=True):
         Load datasets from the sample directory, automatically detecting NXRefine or legacy CHESS format.
-    load_transforms(temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False):
-        .. deprecated:: Use `load_datasets` instead.
     to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
         Export datasets as a combined NXdata object (and optional .nxs file) suitable for XTEC.
     get_sample_directory():
@@ -329,39 +327,13 @@ class TempDependence:
         """
         self.datasets[temperature] = data
 
-    def load_transforms(self, temperatures=None, exclude_temperatures=None, print_tree=True, use_nxlink=False, temperatures_list=None, **kwargs):
-        """
-        Load transform datasets (from NXRefine) based on temperature.
-
-        .. deprecated::
-           `load_transforms` is deprecated and will be removed in a future release.
-           Please use `load_datasets` instead, which automatically detects whether the files
-           are in NXRefine or legacy CHESS format.
-        """
-        warnings.warn(
-            "`load_transforms` is deprecated and will be removed in a future release. "
-            "Please use `load_datasets` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.load_datasets(
-            temperatures=temperatures,
-            exclude_temperatures=exclude_temperatures,
-            print_tree=print_tree,
-            use_nxlink=use_nxlink,
-            temperatures_list=temperatures_list,
-            **kwargs,
-        )
-        
     def load_datasets(
         self,
         temperatures=None,
         exclude_temperatures=None,
         file_ending='hkli.nxs',
         print_tree=True,
-        use_nxlink=False,
-        *,
-        temperatures_list=None,
+        use_nxlink=True,
         **kwargs,
     ):
         """
@@ -370,6 +342,10 @@ class TempDependence:
         Supports both:
         - NXRefine transform files matching `*_<temperature>.nxs` directly in `sample_directory`.
         - Legacy CHESS format with subdirectories named `<temperature>` containing `*<file_ending>` files.
+
+        Pre-validates candidate datasets before loading, skipping incomplete or corrupted
+        temperature datasets (such as folders lacking transform.nxs or *hkli.nxs) and printing
+        status messages indicating which temperatures are skipped and loaded.
 
         Parameters
         ----------
@@ -382,28 +358,14 @@ class TempDependence:
         print_tree : bool, optional
             If True, prints the NeXus tree structure for each file. Default is True.
         use_nxlink : bool, optional
-            If True, maintains the NXlink defined in NXRefine transform data files,
+            If True (default), maintains the NXlink defined in NXRefine transform data files,
             referencing raw data in transform.nxs without eagerly loading 3D arrays into memory.
-            Default is False.
-        temperatures_list : list of int, float, or str, optional
-            .. deprecated::
-               `temperatures_list` is deprecated and will be removed in a future release.
-               Please use `temperatures` instead.
+            Default is True.
         """
         # Backward compatibility for positional file_ending argument (e.g. load_datasets('hkli.nxs'))
         if isinstance(temperatures, str) and (temperatures.endswith('.nxs') or temperatures.endswith('.h5')):
             file_ending = temperatures
             temperatures = None
-
-        if temperatures_list is not None:
-            warnings.warn(
-                "`temperatures_list` is deprecated and will be removed in a future release. "
-                "Please use `temperatures` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if temperatures is None:
-                temperatures = temperatures_list
 
         if temperatures is not None:
             if not isinstance(temperatures, (list, tuple, set)):
@@ -423,21 +385,57 @@ class TempDependence:
 
         if format_type == 'nxrefine':
             pattern = r'_(\d+(?:[p.]\d+)?)\.nxs'
-            filename_map = {}
+            wrapper_map = {}
             for item in os.listdir(self.sample_directory):
-                match = re.search(pattern, item)
-                if match:
-                    filename_map[_normalize_temperature(match.group(1))] = item
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isfile(item_path):
+                    match = re.search(pattern, item)
+                    if match:
+                        wrapper_map[_normalize_temperature(match.group(1))] = item
 
-            available_temps = sorted(list(filename_map.keys()), key=float)
-            self.temperatures = [
-                t for t in available_temps
-                if (temperatures is None or t in temperatures)
-                and (exclude_temperatures is None or t not in exclude_temperatures)
-            ]
+            folder_map = {}
+            for item in os.listdir(self.sample_directory):
+                item_path = os.path.join(self.sample_directory, item)
+                if os.path.isdir(item_path):
+                    val = _normalize_temperature(item)
+                    if isinstance(val, (int, float)):
+                        folder_map[val] = item
+
+            if temperatures is not None:
+                candidate_temps = sorted(list(temperatures), key=float)
+            else:
+                candidate_temps = sorted(list(set(wrapper_map.keys()) | set(folder_map.keys())), key=float)
+
+            if exclude_temperatures is not None:
+                candidate_temps = [t for t in candidate_temps if t not in exclude_temperatures]
+
+            valid_temperatures = []
+            skipped_temperatures = []
+            for T in candidate_temps:
+                is_valid = True
+                if T not in wrapper_map:
+                    is_valid = False
+                elif folder_map:
+                    if T not in folder_map:
+                        is_valid = False
+                    else:
+                        transform_file = os.path.join(self.sample_directory, folder_map[T], 'transform.nxs')
+                        if not os.path.isfile(transform_file):
+                            is_valid = False
+
+                if is_valid:
+                    valid_temperatures.append(T)
+                else:
+                    skipped_temperatures.append(T)
+
+            if skipped_temperatures:
+                print(f"Skipping datasets for temperatures: {skipped_temperatures}")
+            print(f"Loading datasets for temperatures: {valid_temperatures}")
+
+            self.temperatures = valid_temperatures
 
             for temperature in self.temperatures:
-                item = filename_map[temperature]
+                item = wrapper_map[temperature]
                 path = str(os.path.join(self.sample_directory, item))
                 try:
                     self.datasets[temperature] = load_transform(path, print_tree=print_tree, use_nxlink=use_nxlink)
@@ -452,29 +450,49 @@ class TempDependence:
                 if os.path.isdir(item_path):
                     val = _normalize_temperature(item)
                     if isinstance(val, (int, float)):
+                        folder_map[val] = item
+
+            if temperatures is not None:
+                candidate_temps = sorted(list(temperatures), key=float)
+            else:
+                candidate_temps = sorted(list(folder_map.keys()), key=float)
+
+            if exclude_temperatures is not None:
+                candidate_temps = [t for t in candidate_temps if t not in exclude_temperatures]
+
+            valid_temperatures = []
+            skipped_temperatures = []
+            valid_files = {}
+
+            for T in candidate_temps:
+                is_valid = False
+                if T in folder_map:
+                    folder_name = folder_map[T]
+                    folder_path = os.path.join(self.sample_directory, folder_name)
+                    if os.path.isdir(folder_path):
                         try:
-                            if any(f.endswith(file_ending) for f in os.listdir(item_path)):
-                                folder_map[val] = item
+                            for file in os.listdir(folder_path):
+                                if file.endswith(file_ending):
+                                    is_valid = True
+                                    valid_files[T] = os.path.join(folder_path, file)
+                                    break
                         except OSError:
                             pass
 
-            available_temps = sorted(list(folder_map.keys()), key=float)
-            self.temperatures = [
-                t for t in available_temps
-                if (temperatures is None or t in temperatures)
-                and (exclude_temperatures is None or t not in exclude_temperatures)
-            ]
+                if is_valid:
+                    valid_temperatures.append(T)
+                else:
+                    skipped_temperatures.append(T)
+
+            if skipped_temperatures:
+                print(f"Skipping datasets for temperatures: {skipped_temperatures}")
+            print(f"Loading datasets for temperatures: {valid_temperatures}")
+
+            self.temperatures = valid_temperatures
 
             for T in self.temperatures:
-                folder_name = folder_map.get(T, str(T))
-                folder_path = os.path.join(self.sample_directory, folder_name)
-                if not os.path.isdir(folder_path):
-                    continue
-                for file in os.listdir(folder_path):
-                    if file.endswith(file_ending):
-                        filepath = os.path.join(folder_path, file)
-                        self.datasets[T] = load_data(filepath, print_tree)
-                        break
+                filepath = valid_files[T]
+                self.datasets[T] = load_data(filepath, print_tree)
 
         self.initialize()
 
@@ -915,32 +933,6 @@ class TempDependence:
         )
         
         return p
-
-    def highlight_integration_window(self, temperature=None, width=None, height=None,
-                                     label=None, highlight_color='red', **kwargs):
-        """
-        Displays the integration window plot for a specific temperature.
-
-        .. deprecated:: 
-           `highlight_integration_window` is deprecated and will be removed in a future version.
-           Please use `plot_integration_window(show_highlight=True)` instead.
-        """
-        warnings.warn(
-            "`highlight_integration_window` is deprecated and will be removed in a future release. "
-            "Please use `plot_integration_window(..., show_highlight=True)` instead.",
-            category=DeprecationWarning,
-            stacklevel=2
-        )
-
-        return self.plot_integration_window(
-            temperature=temperature,
-            show_highlight=True,
-            width=width,
-            height=height,
-            label=label,
-            highlight_color=highlight_color,
-            **kwargs
-        )
 
     def set_model_components(self, model_components):
         """
