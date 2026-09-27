@@ -147,10 +147,9 @@ from nxs_analysis_tools import load_discus_nxs, plot_slice
 
 # 2D plane (e.g., HL plane with fixed K)
 data_2d = load_discus_nxs("my_hl_plane.nxs")
-# Result is 2D NXdata with axes ('Qh', 'Ql') and fixed coordinate Qk (and K) stored on the group
-# Both Qh/Ql and H/L can be used to access coordinates:
+# Result is 2D NXdata with axes ('Qh', 'Ql') and fixed coordinate Qk stored on the group
 print(data_2d.axes)  # ['Qh', 'Ql']
-print(data_2d.Qh, data_2d.H)  # identical
+print(data_2d.Qh, data_2d.Ql)
 plot_slice(data_2d)
 
 # 3D volume

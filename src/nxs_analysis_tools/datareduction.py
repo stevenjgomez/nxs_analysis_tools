@@ -1331,7 +1331,7 @@ def rotate_data(data, lattice_angle, rotation_angle, rotation_axis=None, rotatio
             output_array[tuple(index)] = counts
         elif data.ndim == 2:
             output_array[:] = counts
-            
+
     if printout:
         print('\nRotation completed.')
 
@@ -1500,7 +1500,7 @@ def load_discus_nxs(path):
        `lower_limits`, `step_sizes`, and direction step vectors
        (`step_sizes_abs`, `step_sizes_ord`, `step_sizes_top`).
 
-    Reciprocal space axes ('H', 'K', 'L') are automatically detected and
+    Reciprocal space axes ('Qh', 'Qk', 'Ql') are automatically detected and
     normalized for arbitrary 2D planes (HK, HL, KL) and 3D volumes.
     Singleton dimensions in 2D planes are automatically squeezed, with any
     fixed out-of-plane coordinate stored directly on the returned NXdata group.
@@ -1519,8 +1519,8 @@ def load_discus_nxs(path):
     -------
     NXdata
         The data converted to the CHESS format, with axes labeled
-        according to the active reciprocal space directions (e.g., 'H', 'K',
-        and/or 'L'), and the signal labeled 'counts'. For 2D planes, any fixed
+        according to the active reciprocal space directions (e.g., 'Qh', 'Qk',
+        and/or 'Ql'), and the signal labeled 'counts'. For 2D planes, any fixed
         out-of-plane coordinate is stored on the NXdata group.
     """
     root = nxload(str(path))
@@ -1656,13 +1656,6 @@ def load_discus_nxs(path):
             squeezed_counts = np.squeeze(raw_counts)
             data = NXdata(NXfield(squeezed_counts, name="counts"), tuple(active_axes))
 
-        # Add single-letter aliases (H, K, L) for convenience
-        for q_name, letter in [('Qh', 'H'), ('Qk', 'K'), ('Ql', 'L')]:
-            if q_name in data and letter not in data:
-                data[letter] = data[q_name]
-            elif letter in data and q_name not in data:
-                data[q_name] = data[letter]
-
         return data
 
     # ---------------------------------------------------------------
@@ -1784,12 +1777,5 @@ def load_discus_nxs(path):
             NXfield(squeezed_counts, name="counts"),
             tuple(active_axes),
         )
-
-    # Add single-letter aliases (H, K, L) for convenience
-    for q_name, letter in [('Qh', 'H'), ('Qk', 'K'), ('Ql', 'L')]:
-        if q_name in data and letter not in data:
-            data[letter] = data[q_name]
-        elif letter in data and q_name not in data:
-            data[q_name] = data[letter]
 
     return data

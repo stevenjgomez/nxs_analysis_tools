@@ -55,17 +55,13 @@ def test_load_discus_nxs_2d_hl_plane(tmp_path):
     assert data.shape == (21, 31)
     assert data.axes == ['Qh', 'Ql']
     assert data.counts.shape == (21, 31)
-    # Check Qh and alias H
     assert np.isclose(data.Qh[0], -2.0)
-    assert np.isclose(data.H[0], -2.0)
     assert np.isclose(data.Qh[-1], -2.0 + 20 * 0.2)
     assert np.isclose(data.Ql[0], -1.5)
-    assert np.isclose(data.L[0], -1.5)
     assert np.isclose(data.Ql[-1], -1.5 + 30 * 0.1)
-    # Check fixed coordinate on both Qk and K
-    assert 'Qk' in data and 'K' in data
+    # Check fixed coordinate Qk
+    assert 'Qk' in data
     assert np.isclose(float(data.Qk.nxdata), 3.0)
-    assert np.isclose(float(data.K.nxdata), 3.0)
 
     # Verify that plot_slice handles the resulting NXdata
     qm = plot_slice(data)
@@ -86,9 +82,8 @@ def test_load_discus_nxs_2d_hk_plane(tmp_path):
     assert data.ndim == 2
     assert data.shape == (15, 25)
     assert data.axes == ['Qh', 'Qk']
-    assert 'Ql' in data and 'L' in data
+    assert 'Ql' in data
     assert np.isclose(float(data.Ql.nxdata), 0.0)
-    assert np.isclose(float(data.L.nxdata), 0.0)
 
 
 def test_load_discus_nxs_2d_kl_plane(tmp_path):
@@ -105,9 +100,8 @@ def test_load_discus_nxs_2d_kl_plane(tmp_path):
     assert data.ndim == 2
     assert data.shape == (10, 20)
     assert data.axes == ['Qk', 'Ql']
-    assert 'Qh' in data and 'H' in data
+    assert 'Qh' in data
     assert np.isclose(float(data.Qh.nxdata), 1.0)
-    assert np.isclose(float(data.H.nxdata), 1.0)
 
 
 def test_load_discus_nxs_3d_volume(tmp_path):
@@ -125,7 +119,7 @@ def test_load_discus_nxs_3d_volume(tmp_path):
     assert data.shape == (10, 12, 14)
     assert data.axes == ['Qh', 'Qk', 'Ql']
     assert data.counts.shape == (10, 12, 14)
-    assert np.isclose(data.Qh[0], -1.0) and np.isclose(data.H[0], -1.0)
+    assert np.isclose(data.Qh[0], -1.0)
 
 
 def test_load_discus_nxs_already_squeezed_2d(tmp_path):
@@ -178,8 +172,8 @@ def test_load_discus_nxs_format_nexus_2d(tmp_path):
     assert data.shape == (20, 30)
     assert data.axes == ['Qh', 'Ql']
     assert data.signal == 'counts'
-    assert np.isclose(data.Qh[0], -1.0) and np.isclose(data.H[0], -1.0)
-    assert np.isclose(data.Ql[-1], 3.0) and np.isclose(data.L[-1], 3.0)
+    assert np.isclose(data.Qh[0], -1.0)
+    assert np.isclose(data.Ql[-1], 3.0)
 
 
 def test_load_discus_nxs_format_nexus_3d(tmp_path):
@@ -199,9 +193,9 @@ def test_load_discus_nxs_format_nexus_3d(tmp_path):
     assert data.ndim == 3
     assert data.shape == (10, 12, 14)
     assert data.axes == ['Qh', 'Qk', 'Ql']
-    assert np.isclose(data.Qh[0], -1.0) and np.isclose(data.H[0], -1.0)
-    assert np.isclose(data.Qk[0], -2.0) and np.isclose(data.K[0], -2.0)
-    assert np.isclose(data.Ql[0], -3.0) and np.isclose(data.L[0], -3.0)
+    assert np.isclose(data.Qh[0], -1.0)
+    assert np.isclose(data.Qk[0], -2.0)
+    assert np.isclose(data.Ql[0], -3.0)
 
 
 def test_load_discus_nxs_off_by_one_counts_extra(tmp_path):
@@ -223,8 +217,8 @@ def test_load_discus_nxs_off_by_one_counts_extra(tmp_path):
     assert data.ndim == 2
     assert data.shape == (20, 30)
     assert data.axes == ['Qh', 'Qk']
-    assert len(data.Qh) == 20 and len(data.H) == 20
-    assert len(data.Qk) == 30 and len(data.K) == 30
+    assert len(data.Qh) == 20
+    assert len(data.Qk) == 30
 
 
 def test_load_discus_nxs_off_by_one_axis_extra(tmp_path):
@@ -246,6 +240,6 @@ def test_load_discus_nxs_off_by_one_axis_extra(tmp_path):
     assert data.ndim == 2
     assert data.shape == (20, 30)
     assert data.axes == ['Qh', 'Qk']
-    assert len(data.Qh) == 20 and len(data.H) == 20
-    assert len(data.Qk) == 30 and len(data.K) == 30
+    assert len(data.Qh) == 20
+    assert len(data.Qk) == 30
 
