@@ -1525,12 +1525,15 @@ def load_discus_nxs(path):
     """
     root = nxload(str(path))
 
-    def _normalize_axis_name(name):
-        n = str(name).strip().upper()
-        if n.startswith('Q') and len(n) > 1:
-            n = n[1:]
-        if n in ['H', 'K', 'L']:
-            return n
+    def _to_q_name(name):
+        n = str(name).strip()
+        u = n.upper()
+        if u in ['H', 'QH']:
+            return 'Qh'
+        if u in ['K', 'QK']:
+            return 'Qk'
+        if u in ['L', 'QL']:
+            return 'Ql'
         return name
 
     # Check if this file follows the NeXus schema (from DISCUS 'form nexus')
@@ -1578,17 +1581,17 @@ def load_discus_nxs(path):
         for k in data_group.keys():
             if k == signal_name or k == 'title':
                 continue
-            norm = _normalize_axis_name(k)
-            if norm in ['H', 'K', 'L']:
+            norm = _to_q_name(k)
+            if norm in ['Qh', 'Qk', 'Ql']:
                 found_axes[norm] = (k, np.array(data_group[k].nxdata))
 
         assigned_axes = []
         for a_name in raw_axes_list:
-            norm = _normalize_axis_name(a_name)
+            norm = _to_q_name(a_name)
             assigned_axes.append(norm)
 
         if not assigned_axes:
-            for norm in ['H', 'K', 'L']:
+            for norm in ['Qh', 'Qk', 'Ql']:
                 if norm in found_axes:
                     assigned_axes.append(norm)
 
@@ -1653,12 +1656,19 @@ def load_discus_nxs(path):
             squeezed_counts = np.squeeze(raw_counts)
             data = NXdata(NXfield(squeezed_counts, name="counts"), tuple(active_axes))
 
+        # Add single-letter aliases (H, K, L) for convenience
+        for q_name, letter in [('Qh', 'H'), ('Qk', 'K'), ('Ql', 'L')]:
+            if q_name in data and letter not in data:
+                data[letter] = data[q_name]
+            elif letter in data and q_name not in data:
+                data[q_name] = data[letter]
+
         return data
 
     # ---------------------------------------------------------------
     # HDF5 Format Handling ('form hdf5')
     # ---------------------------------------------------------------
-    axis_names = ['H', 'K', 'L']
+    axis_names = ['Qh', 'Qk', 'Ql']
     shape = root.data.shape
 
     # Determine step vectors and axis assignment per dimension
@@ -1693,7 +1703,7 @@ def load_discus_nxs(path):
         # Fallback when step_sizes_abs is not present
         step_sizes = np.array(root.step_sizes) if hasattr(root, 'step_sizes') else np.ones(len(shape))
         if len(shape) == 3 and all(s > 1 for s in shape):
-            assigned_axes = ['H', 'K', 'L']
+            assigned_axes = ['Qh', 'Qk', 'Ql']
             step_vecs = [np.eye(3)[i] * step_sizes[i] for i in range(3)]
         else:
             non_zero_axes = [axis_names[i] for i, s in enumerate(step_sizes) if s != 0]
@@ -1703,9 +1713,9 @@ def load_discus_nxs(path):
             assigned_axes = []
             for s in shape:
                 if s > 1:
-                    assigned_axes.append(next(nz_iter, 'H'))
+                    assigned_axes.append(next(nz_iter, 'Qh'))
                 else:
-                    assigned_axes.append(next(z_iter, 'L'))
+                    assigned_axes.append(next(z_iter, 'Ql'))
             step_vecs = [np.zeros(3) for _ in shape]
 
     # Build coordinate fields for all dimensions
@@ -1722,7 +1732,7 @@ def load_discus_nxs(path):
         else:
             step = 0.0
 
-        raw_field = getattr(root, name, None) or getattr(root, 'Q' + name.lower(), None)
+        raw_field = getattr(root, name, None) or getattr(root, name[1:], None)
         if raw_field is not None and hasattr(raw_field, 'nxdata'):
             coord = np.array(raw_field.nxdata)
             if n_pts > 1 and len(coord) > 1 and abs(len(coord) - n_pts) == 1:
@@ -1774,5 +1784,12 @@ def load_discus_nxs(path):
             NXfield(squeezed_counts, name="counts"),
             tuple(active_axes),
         )
+
+    # Add single-letter aliases (H, K, L) for convenience
+    for q_name, letter in [('Qh', 'H'), ('Qk', 'K'), ('Ql', 'L')]:
+        if q_name in data and letter not in data:
+            data[letter] = data[q_name]
+        elif letter in data and q_name not in data:
+            data[q_name] = data[letter]
 
     return data
