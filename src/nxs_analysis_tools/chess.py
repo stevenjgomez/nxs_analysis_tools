@@ -131,7 +131,7 @@ class TempDependence:
     load_datasets(temperatures=None, exclude_temperatures=None, file_ending='hkli.nxs',
                   print_tree=True, use_nxlink=True):
         Load datasets from the sample directory, automatically detecting NXRefine or legacy CHESS format.
-    to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=True, entry_name='entry', data_name='data'):
+    to_xtec(filepath=None, temperatures=None, temp_axis_name='Te', temp_units='K', overwrite=False, entry_name='entry', data_name='data'):
         Export datasets as a combined NXdata object (and optional .nxs file) suitable for XTEC.
     get_sample_directory():
         Get the folder path where the datasets are located.
@@ -519,7 +519,7 @@ class TempDependence:
         temperatures=None,
         temp_axis_name='Te',
         temp_units='K',
-        overwrite=True,
+        overwrite=False,
         entry_name='entry',
         data_name='data',
     ):
@@ -545,8 +545,8 @@ class TempDependence:
         temp_units : str or None, optional
             Units attribute for the temperature axis field. Default is `'K'`.
         overwrite : bool, optional
-            If `True` (default), overwrites existing file at `filepath`. If `False`
-            and file exists, raises `FileExistsError`.
+            If `True`, overwrites existing file at `filepath`. If `False`
+            (default) and file exists, raises `FileExistsError`.
         entry_name : str, optional
             Name of the NXentry group when saving to file. Default is `'entry'`.
         data_name : str, optional
