@@ -169,8 +169,18 @@ def test_to_xtec_overwrite_protection(multi_temp_dependence, tmp_path):
     filepath = tmp_path / "exists.nxs"
     filepath.write_text("existing content")
 
+    # Default is overwrite=False, should raise FileExistsError
+    with pytest.raises(FileExistsError, match="already exists"):
+        td.to_xtec(filepath=filepath)
+
+    # Explicit overwrite=False should also raise FileExistsError
     with pytest.raises(FileExistsError, match="already exists"):
         td.to_xtec(filepath=filepath, overwrite=False)
+
+    # Explicit overwrite=True should succeed
+    ret = td.to_xtec(filepath=filepath, overwrite=True)
+    assert filepath.exists()
+    assert ret is td.xtec_data
 
 
 def test_to_xtec_validation_errors(multi_temp_dependence):
