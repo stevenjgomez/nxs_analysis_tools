@@ -63,7 +63,20 @@ When `nexusformat.nexus.nxload(path)` is called, the file structure is traversed
 
 ### Legacy CHESS Datasets Are Already Lazy
 - Datasets loaded via `load_data()` return `g.entry.data`.
+- Accessing groups or fields (e.g. `data = nx_obj.entry.data`, `counts = data.counts`) merely traverses the NeXus/HDF5 hierarchy and maintains `_value = None`—it does **NOT** load array data into RAM.
 - Because `load_data()` never accesses `.nxdata`, legacy datasets are natively lazy and never load full 3D arrays into RAM upfront.
+
+### Mandatory Rule: Lazy Slicing vs. Eager Loading
+To protect memory integrity and prevent out-of-memory crashes on interactive and batch nodes:
+1. **Tree Traversal is Lazy**: Assigning `data = nx_obj.entry.data` or referencing field names (`data.counts`) does not trigger I/O reads.
+2. **Eager Triggers (Strictly Prohibited on Full 3D Volumes)**:
+   - Calling `.nxdata` directly on the unsliced 3D field (e.g., `data.counts.nxdata`, `data.nxsignal.nxdata`).
+   - Casting the unsliced 3D dataset to NumPy via `np.asarray(data.counts)`.
+   - Passing a full 3D `NXdata` to `plot_slice(data, sum_axis=...)`. Because `plot_slice()` executes `raw_data = data.nxsignal.nxdata` internally when `sum_axis` is specified, it eagerly reads the entire 3D volume into memory.
+3. **Mandatory Lazy Slicing Protocol**:
+   - Always slice the hyperslab **before** accessing numerical data or passing to visualization routines.
+   - Slicing `data[slice_obj]` or `counts_field[slice_obj]` triggers `NXfield.__getitem__`, reading **only the requested 2D hyperslab** from disk via HDF5 chunking without loading the rest of the 3D array into RAM.
+   - For 2D slice visualization, either pass the sliced 2D `NXdata` (e.g., `data[:, :, 0.0]`) to `plot_slice()`, or construct a 2D `NXdata` slice (`NXdata(NXfield(slice_2d), (axis_x, axis_y))`) and pass it without `sum_axis`.
 
 ---
 
