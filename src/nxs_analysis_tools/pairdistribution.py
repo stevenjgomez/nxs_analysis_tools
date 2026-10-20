@@ -22,7 +22,7 @@ from .lineartransformations import ShearTransformer, rotate_plane_affine, mirror
 _rotate_plane_affine = rotate_plane_affine
 _mirror_plane_affine = mirror_plane_affine
 
-__all__ = ['Symmetrizer', 'Puncher', 'Interpolator',
+__all__ = ['Symmetrizer', 'symmetrizer', 'Puncher', 'Interpolator',
            'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
            'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine'
            ]
@@ -70,6 +70,10 @@ class Symmetrizer:
         Defaults to True.
     aspect : float, optional
         Aspect ratio ``|b*| / |a*|`` of in-plane basis vectors. Defaults to 1.0.
+    auto_expand : bool, optional
+        Whether to automatically extend the coordinate bounds of the dataset
+        along transformed axes so that rotated or mirrored data is not cut off.
+        Defaults to False.
     """
 
     def __init__(
@@ -87,6 +91,7 @@ class Symmetrizer:
         theta_max=None,
         positive_values=True,
         aspect=1.0,
+        auto_expand=False,
         **kwargs
     ):
         self.data = data
@@ -100,6 +105,7 @@ class Symmetrizer:
         self.transform = None
         self.transformer = None
         self.rotations = None
+        self.auto_expand = auto_expand
 
         self.set_parameters(
             theta_min=theta_min,
@@ -114,6 +120,7 @@ class Symmetrizer:
             layer_axis=layer_axis,
             aspect=aspect,
             positive_values=positive_values,
+            auto_expand=auto_expand,
             **kwargs
         )
 
@@ -136,6 +143,7 @@ class Symmetrizer:
         layer_axis=None,
         aspect=None,
         positive_values=None,
+        auto_expand=None,
         **kwargs
     ):
         """Sets symmetrization parameters."""
@@ -228,6 +236,15 @@ class Symmetrizer:
         elif not hasattr(self, 'positive_values'):
             self.positive_values = True
 
+        if auto_expand is None:
+            auto_expand = kwargs.pop('extend_bounds', None)
+        if auto_expand is None:
+            auto_expand = kwargs.pop('auto_expand_bounds', None)
+        if auto_expand is not None:
+            self.auto_expand = bool(auto_expand)
+        elif not hasattr(self, 'auto_expand'):
+            self.auto_expand = False
+
         if self.lattice_angle is not None:
             self.transformer = ShearTransformer(self.lattice_angle)
             self.transform = self.transformer.t
@@ -308,6 +325,219 @@ class Symmetrizer:
         idx = [slice(None)] * arr.ndim
         idx[axis_idx] = i
         arr[tuple(idx)] = val
+
+    def _resolve_auto_expand(self, auto_expand, kwargs):
+        """Resolves auto_expand flag from argument, kwargs aliases, or instance setting."""
+        if auto_expand is None:
+            auto_expand = kwargs.pop('extend_bounds', None)
+        if auto_expand is None:
+            auto_expand = kwargs.pop('auto_expand_bounds', None)
+        if auto_expand is None:
+            auto_expand = getattr(self, 'auto_expand', False)
+        return bool(auto_expand)
+
+    def _compute_transformed_bounds_2d(
+        self,
+        q1,
+        q2,
+        dq1,
+        dq2,
+        lattice_angle=None,
+        n_fold=None,
+        mirror=None,
+        mirror_angle=None,
+        mirror_axis=None,
+        aspect=None,
+    ):
+        """
+        Compute pad widths along both in-plane axes to contain all transformed symmetry equivalents.
+        """
+        gamma = np.radians(lattice_angle if lattice_angle is not None else 90.0)
+        asp = aspect if aspect is not None else 1.0
+
+        B_phys = np.array([
+            [1.0, asp * np.cos(gamma)],
+            [0.0, asp * np.sin(gamma)]
+        ], dtype=float)
+        B_phys_inv = np.linalg.inv(B_phys)
+
+        corners = [
+            np.array([q1[0], q2[0]]),
+            np.array([q1[0], q2[-1]]),
+            np.array([q1[-1], q2[0]]),
+            np.array([q1[-1], q2[-1]]),
+        ]
+
+        fold = n_fold if n_fold is not None else (self.rotations if self.rotations is not None else 1)
+        angle_step = 360.0 / fold if fold > 1 else 360.0
+
+        rot_matrices = []
+        for k in range(fold):
+            theta = np.radians(angle_step * k)
+            R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], dtype=float)
+            rot_matrices.append(R)
+
+        all_ops_phys = []
+        for R in rot_matrices:
+            all_ops_phys.append(B_phys_inv @ R @ B_phys)
+
+        if mirror:
+            if mirror_angle is not None:
+                psi = np.radians(mirror_angle)
+                Ref = np.array([[np.cos(2 * psi), np.sin(2 * psi)], [np.sin(2 * psi), -np.cos(2 * psi)]], dtype=float)
+                for R in rot_matrices:
+                    all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
+            elif mirror_axis == 0:
+                M0 = np.array([[-1.0, 0.0], [0.0, 1.0]], dtype=float)
+                for R in rot_matrices:
+                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ M0)
+            elif mirror_axis == 1:
+                M1 = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
+                for R in rot_matrices:
+                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ M1)
+            elif mirror_axis in ('diagonal', 'transpose'):
+                Mdiag = np.array([[0.0, dq2 / dq1 if dq1 != 0 else 1.0], [dq1 / dq2 if dq2 != 0 else 1.0, 0.0]], dtype=float)
+                for R in rot_matrices:
+                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ Mdiag)
+            else:
+                Ref = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
+                for R in rot_matrices:
+                    all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
+
+        transformed_corners = []
+        for c in corners:
+            for op in all_ops_phys:
+                transformed_corners.append(op @ c)
+
+        transformed_corners = np.array(transformed_corners)
+        min_q1 = float(min(q1.min(), transformed_corners[:, 0].min()))
+        max_q1 = float(max(q1.max(), transformed_corners[:, 0].max()))
+        min_q2 = float(min(q2.min(), transformed_corners[:, 1].min()))
+        max_q2 = float(max(q2.max(), transformed_corners[:, 1].max()))
+
+        if dq1 >= 0:
+            pad1_left = int(np.ceil(np.round((q1[0] - min_q1) / dq1, 6))) if min_q1 < q1[0] else 0
+            pad1_right = int(np.ceil(np.round((max_q1 - q1[-1]) / dq1, 6))) if max_q1 > q1[-1] else 0
+        else:
+            pad1_left = int(np.ceil(np.round((max_q1 - q1[0]) / abs(dq1), 6))) if max_q1 > q1[0] else 0
+            pad1_right = int(np.ceil(np.round((q1[-1] - min_q1) / abs(dq1), 6))) if min_q1 < q1[-1] else 0
+
+        if dq2 >= 0:
+            pad2_left = int(np.ceil(np.round((q2[0] - min_q2) / dq2, 6))) if min_q2 < q2[0] else 0
+            pad2_right = int(np.ceil(np.round((max_q2 - q2[-1]) / dq2, 6))) if max_q2 > q2[-1] else 0
+        else:
+            pad2_left = int(np.ceil(np.round((max_q2 - q2[0]) / abs(dq2), 6))) if max_q2 > q2[0] else 0
+            pad2_right = int(np.ceil(np.round((q2[-1] - min_q2) / abs(dq2), 6))) if min_q2 < q2[-1] else 0
+
+        return (pad1_left, pad1_right), (pad2_left, pad2_right)
+
+    def _auto_expand(self, dataset):
+        """
+        Pad dataset so that its coordinate bounds encompass all symmetry-transformed equivalents.
+        """
+        if dataset is None:
+            return None
+
+        # Case 1: Raw NumPy ndarray (2D)
+        if not hasattr(dataset, 'nxaxes') or not hasattr(dataset, 'nxsignal'):
+            if not isinstance(dataset, np.ndarray) or dataset.ndim != 2:
+                return dataset
+            arr = np.asarray(dataset, dtype=float)
+            c = np.array([(arr.shape[0] - 1) / 2.0, (arr.shape[1] - 1) / 2.0], dtype=float)
+            q1 = np.arange(arr.shape[0], dtype=float) - c[0]
+            q2 = np.arange(arr.shape[1], dtype=float) - c[1]
+            dq1, dq2 = 1.0, 1.0
+            pad1, pad2 = self._compute_transformed_bounds_2d(
+                q1, q2, dq1, dq2,
+                lattice_angle=self.lattice_angle,
+                n_fold=self.n_fold or self.rotations,
+                mirror=self.mirror,
+                mirror_angle=self.mirror_angle,
+                mirror_axis=self.mirror_axis,
+                aspect=self.aspect
+            )
+            if pad1 == (0, 0) and pad2 == (0, 0):
+                return arr
+            return np.pad(arr, (pad1, pad2), mode='constant', constant_values=0.0)
+
+        # Case 2: NXdata (2D or 3D)
+        if dataset.ndim == 2:
+            ax1_idx, ax2_idx = 0, 1
+            layer_idx = None
+        elif dataset.ndim == 3:
+            layer_idx = self._resolve_layer_axis(dataset, self.layer_axis)
+            plane_axes = [i for i in range(3) if i != layer_idx]
+            ax1_idx, ax2_idx = plane_axes[0], plane_axes[1]
+        else:
+            return dataset
+
+        q1 = np.asarray(dataset.nxaxes[ax1_idx].nxdata, dtype=float)
+        q2 = np.asarray(dataset.nxaxes[ax2_idx].nxdata, dtype=float)
+        dq1 = float((q1[-1] - q1[0]) / (len(q1) - 1)) if len(q1) > 1 else 1.0
+        dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
+
+        pad1, pad2 = self._compute_transformed_bounds_2d(
+            q1, q2, dq1, dq2,
+            lattice_angle=self.lattice_angle,
+            n_fold=self.n_fold or self.rotations,
+            mirror=self.mirror,
+            mirror_angle=self.mirror_angle,
+            mirror_axis=self.mirror_axis,
+            aspect=self.aspect
+        )
+
+        pad_widths = [None] * dataset.ndim
+        pad_widths[ax1_idx] = pad1
+        pad_widths[ax2_idx] = pad2
+
+        if layer_idx is not None:
+            q_layer = np.asarray(dataset.nxaxes[layer_idx].nxdata, dtype=float)
+            dq_layer = float((q_layer[-1] - q_layer[0]) / (len(q_layer) - 1)) if len(q_layer) > 1 else 1.0
+            min_L = min(q_layer.min(), -q_layer.max())
+            max_L = max(q_layer.max(), -q_layer.min())
+            if dq_layer >= 0:
+                pad_L_left = int(np.ceil(np.round((q_layer[0] - min_L) / dq_layer, 6))) if min_L < q_layer[0] else 0
+                pad_L_right = int(np.ceil(np.round((max_L - q_layer[-1]) / dq_layer, 6))) if max_L > q_layer[-1] else 0
+            else:
+                pad_L_left = int(np.ceil(np.round((max_L - q_layer[0]) / abs(dq_layer), 6))) if max_L > q_layer[0] else 0
+                pad_L_right = int(np.ceil(np.round((q_layer[-1] - min_L) / abs(dq_layer), 6))) if min_L < q_layer[-1] else 0
+            pad_widths[layer_idx] = (pad_L_left, pad_L_right)
+
+        if all(pw == (0, 0) for pw in pad_widths):
+            return dataset
+
+        arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
+        arr_padded = np.pad(arr, pad_widths, mode='constant', constant_values=0.0)
+
+        new_axes = []
+        for idx in range(dataset.ndim):
+            ax = dataset.nxaxes[idx]
+            q_old = np.asarray(ax.nxdata, dtype=float)
+            pw_left, pw_right = pad_widths[idx]
+            dq = float((q_old[-1] - q_old[0]) / (len(q_old) - 1)) if len(q_old) > 1 else 1.0
+            if dq >= 0:
+                q_left = q_old[0] - np.arange(pw_left, 0, -1) * dq if pw_left > 0 else np.array([], dtype=float)
+                q_right = q_old[-1] + np.arange(1, pw_right + 1) * dq if pw_right > 0 else np.array([], dtype=float)
+            else:
+                q_left = q_old[0] + np.arange(pw_left, 0, -1) * abs(dq) if pw_left > 0 else np.array([], dtype=float)
+                q_right = q_old[-1] - np.arange(1, pw_right + 1) * abs(dq) if pw_right > 0 else np.array([], dtype=float)
+            q_new = np.concatenate([q_left, q_old, q_right])
+
+            new_ax = NXfield(q_new, name=ax.nxname)
+            for k, v in ax.attrs.items():
+                new_ax.attrs[k] = v
+            new_axes.append(new_ax)
+
+        new_sig = NXfield(arr_padded, name=dataset.nxsignal.nxname)
+        for k, v in dataset.nxsignal.attrs.items():
+            new_sig.attrs[k] = v
+
+        new_data = NXdata(new_sig, tuple(new_axes))
+        for k, v in dataset.attrs.items():
+            if k not in ('axes', 'signal'):
+                new_data.attrs[k] = v
+
+        return new_data
 
     def _symmetrize_2d_slice_average(
         self,
@@ -671,7 +901,7 @@ class Symmetrizer:
             )
 
         starttime = time.time()
-        q1, q2, q3 = self.q1, self.q2, self.q3
+        q1, q2, q3 = data.nxaxes[0], data.nxaxes[1], data.nxaxes[2]
         out_array = np.zeros(data.nxsignal.shape)
 
         if self.plane1symmetrizer is not None and self.plane1symmetrizer.theta_max is not None:
@@ -720,7 +950,7 @@ class Symmetrizer:
         return NXdata(NXfield(out_array, name=data.nxsignal.nxname),
                       tuple(axis for axis in data.nxaxes))
 
-    def symmetrize(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, **kwargs):
+    def symmetrize(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, auto_expand=None, **kwargs):
         """
         Symmetrize the dataset.
 
@@ -738,6 +968,9 @@ class Symmetrizer:
             leaving 1 core free for system and interactive responsiveness.
         positive_values : bool, optional
             If True, clips negative values to zero. Defaults to self.positive_values.
+        auto_expand : bool, optional
+            Whether to automatically extend coordinate bounds along transformed axes to prevent
+            data from being cut off. Defaults to self.auto_expand.
         **kwargs : dict
             Additional arguments passed to method-specific symmetrizers.
 
@@ -761,14 +994,16 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
+        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+
         if self.data.ndim == 2:
-            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, **kwargs)
+            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
         elif self.data.ndim == 3:
-            return self.symmetrize_3d(self.data, method=method, parallel=parallel, num_workers=num_workers, positive_values=positive_values, **kwargs)
+            return self.symmetrize_3d(self.data, method=method, parallel=parallel, num_workers=num_workers, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
         else:
             raise ValueError(f"Symmetrizer supports 2D or 3D datasets, got {self.data.ndim}D.")
 
-    def symmetrize_2d(self, data=None, method='average', positive_values=None, **kwargs):
+    def symmetrize_2d(self, data=None, method='average', positive_values=None, auto_expand=None, **kwargs):
         """Symmetrize a 2D dataset."""
         if data is None:
             data = self.data
@@ -778,6 +1013,10 @@ class Symmetrizer:
             method = 'average'
         if positive_values is None:
             positive_values = self.positive_values
+
+        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        if auto_expand:
+            data = self._auto_expand(data)
 
         if method == 'average':
             res = self._symmetrize_2d_average(
@@ -799,7 +1038,7 @@ class Symmetrizer:
         else:
             raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
 
-    def symmetrize_3d(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, **kwargs):
+    def symmetrize_3d(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, auto_expand=None, **kwargs):
         """Symmetrize a 3D dataset."""
         if data is None:
             data = self.data
@@ -809,6 +1048,10 @@ class Symmetrizer:
             method = 'average'
         if positive_values is None:
             positive_values = self.positive_values
+
+        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        if auto_expand:
+            data = self._auto_expand(data)
 
         if method == 'average':
             res = self._symmetrize_3d_average(
@@ -834,7 +1077,7 @@ class Symmetrizer:
         else:
             raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
 
-    def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None):
+    def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None, auto_expand=None, **kwargs):
         """
         Symmetrize a single slice at coordinate `coord` along `axis`.
         """
@@ -845,8 +1088,10 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
+        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+
         if self.data.ndim == 2:
-            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values)
+            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
 
         axis_idx = self._resolve_layer_axis(self.data, axis if axis is not None else self.layer_axis)
         layer_coords = np.asarray(self.data.nxaxes[axis_idx].nxdata, dtype=float)
@@ -861,6 +1106,8 @@ class Symmetrizer:
 
         if method == 'average':
             slice_i = self._get_slice(self.data, axis_idx, idx_i)
+            if auto_expand:
+                slice_i = self._auto_expand(slice_i)
             avg_i, counts_i = self._symmetrize_2d_slice_average(
                 slice_i,
                 lattice_angle=self.lattice_angle,
@@ -876,6 +1123,8 @@ class Symmetrizer:
                 idx_j = int(np.argmin(diffs))
                 if diffs[idx_j] <= self.tol and idx_j != idx_i:
                     slice_j = self._get_slice(self.data, axis_idx, idx_j)
+                    if auto_expand:
+                        slice_j = self._auto_expand(slice_j)
                     avg_j, counts_j = self._symmetrize_2d_slice_average(
                         slice_j,
                         lattice_angle=self.lattice_angle,
@@ -913,11 +1162,11 @@ class Symmetrizer:
             return array_to_nxdata(avg_i, slice_i)
         elif method == 'wedge':
             slice_i = self._get_slice(self.data, axis_idx, idx_i)
-            return self.symmetrize_2d(slice_i, method='wedge', positive_values=positive_values)
+            return self.symmetrize_2d(slice_i, method='wedge', positive_values=positive_values, auto_expand=auto_expand, **kwargs)
         else:
             raise ValueError(f"Unknown symmetrization method '{method}'.")
 
-    def test(self, data=None, method=None, slice_coord=None, **kwargs):
+    def test(self, data=None, method=None, slice_coord=None, auto_expand=None, **kwargs):
         """
         Visualizes the symmetrization process for testing and parameter tuning.
         """
@@ -925,6 +1174,8 @@ class Symmetrizer:
             data = self.data
         if data is None:
             raise ValueError("No data provided to test().")
+
+        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
 
         if method is None:
             if self.theta_min is not None or self.theta_max is not None:
@@ -934,7 +1185,7 @@ class Symmetrizer:
 
         if data.ndim == 2:
             if method == 'wedge':
-                symm_test = self.symmetrize_2d(data, method='wedge')
+                symm_test = self.symmetrize_2d(data, method='wedge', auto_expand=auto_expand)
                 fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
                 axes = axesarr.reshape(-1)
                 skew = self.skew_angle if self.skew_angle is not None else self.lattice_angle
@@ -947,7 +1198,7 @@ class Symmetrizer:
                 plt.show()
                 return fig, axesarr
             else:
-                symm_test = self.symmetrize_2d(data, method='average')
+                symm_test = self.symmetrize_2d(data, method='average', auto_expand=auto_expand)
                 fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
                 plot_slice(data, skew_angle=self.lattice_angle, ax=axesarr[0], title='Original Data', **kwargs)
                 plot_slice(symm_test, skew_angle=self.lattice_angle, ax=axesarr[1], title='Symmetrized (Average)', **kwargs)
@@ -960,7 +1211,7 @@ class Symmetrizer:
             if slice_coord is None:
                 slice_coord = float(coords[len(coords) // 2])
             orig_slice = self._get_slice(data, axis_idx, int(np.argmin(np.abs(coords - slice_coord))))
-            symm_slice = self.symmetrize_slice(slice_coord, axis=axis_idx, method=method)
+            symm_slice = self.symmetrize_slice(slice_coord, axis=axis_idx, method=method, auto_expand=auto_expand)
             fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
             plot_slice(orig_slice, skew_angle=self.lattice_angle, ax=axesarr[0], title=f'Original Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)
             plot_slice(symm_slice, skew_angle=self.lattice_angle, ax=axesarr[1], title=f'Symmetrized Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)
@@ -986,6 +1237,55 @@ class Symmetrizer:
         f['entry']['data'] = self.symmetrized
         nxsave(fout_name, f)
         print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
+
+
+def symmetrizer(
+    data,
+    symmetry=None,
+    method='average',
+    auto_expand=False,
+    parallel=False,
+    num_workers=None,
+    positive_values=None,
+    **kwargs
+):
+    """
+    Symmetrize a 2D or 3D dataset.
+
+    Parameters
+    ----------
+    data : :class:`nexusformat.nexus.tree.NXdata` or numpy.ndarray
+        Dataset to symmetrize.
+    symmetry : str, optional
+        Crystallographic symmetry preset ('hexagonal', 'tetragonal', 'trigonal', 'orthorhombic').
+    method : {'average', 'wedge'}, optional
+        Symmetrization algorithm. Defaults to 'average'.
+    auto_expand : bool, optional
+        Whether to automatically extend the dataset coordinate bounds along transformed axes
+        so that rotated or mirrored data is not cut off. Defaults to False.
+    parallel : bool, optional
+        Whether to use multi-threaded parallelism for 3D layer processing. Defaults to False.
+    num_workers : int, optional
+        Number of worker threads if parallel=True.
+    positive_values : bool, optional
+        If True, clips negative values to zero. Defaults to True.
+    **kwargs : dict
+        Additional parameters passed to :class:`Symmetrizer` and :meth:`Symmetrizer.symmetrize`.
+
+    Returns
+    -------
+    :class:`nexusformat.nexus.tree.NXdata` or numpy.ndarray
+        The symmetrized dataset.
+    """
+    sym = Symmetrizer(data, symmetry=symmetry, auto_expand=auto_expand, **kwargs)
+    return sym.symmetrize(
+        method=method,
+        parallel=parallel,
+        num_workers=num_workers,
+        positive_values=positive_values,
+        auto_expand=auto_expand,
+        **kwargs
+    )
 
 
 def _identify_axis_name(ax, default_name):

@@ -9,6 +9,7 @@ builtins.display = lambda *args, **kwargs: None
 
 from nxs_analysis_tools.pairdistribution import (
     Symmetrizer,
+    symmetrizer,
     _rotate_plane_affine,
 )
 
@@ -292,3 +293,101 @@ class TestSymmetrizerFeatures:
         assert axesarr.shape == (2, 2)
         import matplotlib.pyplot as plt
         plt.close(fig)
+
+
+class TestSymmetrizerAutoExpand:
+    """Test auto_expand option to automatically extend coordinate bounds."""
+
+    def test_auto_expand_2d_hexagonal(self):
+        # Hexagonal symmetry: peak at (1.5, 1.5) on grid [-2.0, 2.0] x [-2.0, 2.0]
+        # Under 6-fold rotation, (1.5, 1.5) rotates to (-3.0, 1.5)
+        # Without auto_expand, corners or outer rotated points get cut off.
+        data_2d = make_synthetic_nxdata((41, 41), ((-2.0, 2.0), (-2.0, 2.0)), names=('h', 'k'))
+        add_gaussian_peak(data_2d, (1.5, 1.5), sigma=0.15, intensity=100.0)
+
+        sym = Symmetrizer(data_2d, symmetry='hexagonal')
+        res_no_expand = sym.symmetrize_2d(auto_expand=False)
+        assert res_no_expand.shape == (41, 41)
+        assert np.isclose(float(res_no_expand.nxaxes[0][0]), -2.0)
+        assert np.isclose(float(res_no_expand.nxaxes[0][-1]), 2.0)
+
+        res_expand = sym.symmetrize_2d(auto_expand=True)
+        # Bounds should extend to [-4.0, 4.0]
+        assert res_expand.shape == (81, 81)
+        assert np.isclose(float(res_expand.nxaxes[0][0]), -4.0)
+        assert np.isclose(float(res_expand.nxaxes[0][-1]), 4.0)
+        assert np.isclose(float(res_expand.nxaxes[1][0]), -4.0)
+        assert np.isclose(float(res_expand.nxaxes[1][-1]), 4.0)
+        # Signal sum in expanded result should be strictly greater than unexpanded
+        assert res_expand.nxsignal.nxdata.sum() > res_no_expand.nxsignal.nxdata.sum()
+
+    def test_auto_expand_2d_rectangular_tetragonal(self):
+        # Rectangular grid: h in [-1.0, 1.0], k in [-3.0, 3.0]
+        # Under 4-fold, h must extend to [-3.0, 3.0]
+        data_2d = make_synthetic_nxdata((21, 61), ((-1.0, 1.0), (-3.0, 3.0)), names=('h', 'k'))
+        add_gaussian_peak(data_2d, (0.0, 2.5), sigma=0.15, intensity=80.0)
+
+        sym = Symmetrizer(data_2d, symmetry='tetragonal', auto_expand=True)
+        res = sym.symmetrize_2d()
+        assert np.isclose(float(res.nxaxes[0][0]), -3.0)
+        assert np.isclose(float(res.nxaxes[0][-1]), 3.0)
+        assert np.isclose(float(res.nxaxes[1][0]), -3.0)
+        assert np.isclose(float(res.nxaxes[1][-1]), 3.0)
+        # Check 4-fold peak rotated from (0, 2.5) to (2.5, 0) and (-2.5, 0)
+        h_vals = res.nxaxes[0].nxdata
+        k_vals = res.nxaxes[1].nxdata
+        val_pos = res.nxsignal.nxdata[np.argmin(np.abs(h_vals - 2.5)), np.argmin(np.abs(k_vals - 0.0))]
+        val_neg = res.nxsignal.nxdata[np.argmin(np.abs(h_vals - (-2.5))), np.argmin(np.abs(k_vals - 0.0))]
+        assert val_pos > 5.0
+        assert val_neg > 5.0
+
+    def test_auto_expand_raw_numpy_array(self):
+        arr = np.zeros((21, 21), dtype=float)
+        arr[15, 15] = 100.0
+        sym = Symmetrizer(symmetry='hexagonal', auto_expand=True)
+        res = sym.symmetrize_2d(arr)
+        assert isinstance(res, np.ndarray)
+        assert res.shape == (41, 41)
+
+    def test_auto_expand_alias_kwargs(self):
+        data_2d = make_synthetic_nxdata((21, 21), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
+        sym = Symmetrizer(data_2d, symmetry='hexagonal')
+        res_alias = sym.symmetrize(extend_bounds=True)
+        assert res_alias.shape == (41, 41)
+
+    def test_functional_symmetrizer(self):
+        data_2d = make_synthetic_nxdata((21, 21), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
+        add_gaussian_peak(data_2d, (0.5, 0.0), sigma=0.1, intensity=50.0)
+        res = symmetrizer(data_2d, symmetry='tetragonal', auto_expand=True)
+        assert res.shape == (21, 21)
+
+    def test_auto_expand_3d_average(self):
+        data_3d = make_synthetic_nxdata((11, 21, 21), ((-0.5, 0.5), (-1.0, 1.0), (-1.0, 1.0)), names=('l', 'h', 'k'))
+        add_gaussian_peak(data_3d, (0.2, 0.8, 0.8), sigma=0.1, intensity=50.0)
+        sym = Symmetrizer(data_3d, symmetry='hexagonal', layer_axis='l', auto_expand=True)
+        res = sym.symmetrize(method='average')
+        assert res.shape == (11, 41, 41)
+        assert np.isclose(float(res.nxaxes[1][0]), -2.0)
+        assert np.isclose(float(res.nxaxes[1][-1]), 2.0)
+        assert np.isclose(float(res.nxaxes[2][0]), -2.0)
+        assert np.isclose(float(res.nxaxes[2][-1]), 2.0)
+
+    def test_auto_expand_on_test_slice_nxs(self):
+        path = "scratch/auto_expand_symmetrizer/test_slice.nxs"
+        if not os.path.exists(path):
+            pytest.skip("scratch/auto_expand_symmetrizer/test_slice.nxs not present")
+        import nexusformat.nexus as nx
+        nxdata = nx.nxload(path)
+        data = nxdata.entry.data
+
+        sym = Symmetrizer(data, symmetry='hexagonal', layer_axis='Ql')
+        sl_unexpanded = sym.symmetrize_slice(coord=0.0, auto_expand=False)
+        sl_expanded = sym.symmetrize_slice(coord=0.0, auto_expand=True)
+
+        assert sl_unexpanded.shape == (1101, 1101)
+        assert sl_expanded.shape == (2201, 2201)
+        assert np.isclose(float(sl_expanded.nxaxes[0][0]), -22.0)
+        assert np.isclose(float(sl_expanded.nxaxes[0][-1]), 22.0)
+        assert np.isclose(float(sl_expanded.nxaxes[1][0]), -22.0)
+        assert np.isclose(float(sl_expanded.nxaxes[1][-1]), 22.0)
+        assert sl_expanded.nxsignal.nxdata.sum() > sl_unexpanded.nxsignal.nxdata.sum()
