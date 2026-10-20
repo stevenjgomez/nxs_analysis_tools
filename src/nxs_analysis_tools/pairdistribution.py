@@ -23,582 +23,425 @@ from .lineartransformations import ShearTransformer, rotate_plane_affine, mirror
 _rotate_plane_affine = rotate_plane_affine
 _mirror_plane_affine = mirror_plane_affine
 
-__all__ = ['Symmetrizer', 'symmetrizer', 'Puncher', 'Interpolator',
+__all__ = ['symmetrize', 'Puncher', 'Interpolator',
            'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF',
            'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine'
            ]
 
-class Symmetrizer:
-    """
-    A unified class for crystallographic symmetrization of 2D and 3D datasets.
 
-    Supports two symmetrization methods:
-    - 'average': Averages over all n-fold rotational and mirror symmetry equivalents,
-      pairing +L and -L layers weighted by valid pixel counts. Avoids destructive
-      rebinning using single-pass affine transformations.
-    - 'wedge': Slice-and-rotate method extracting an angular wedge (theta_min, theta_max)
-      and reconstructing the full dataset via rotation and mirroring.
+def _resolve_symmetry_params(
+    symmetry=None,
+    lattice_angle=None,
+    n_fold=None,
+    mirror=None,
+    mirror_axis=None,
+    mirror_angle=None,
+    theta_min=None,
+    theta_max=None,
+):
+    """Resolve crystallographic symmetry presets and explicit overrides."""
+    preset_lattice_angle = 90.0
+    preset_n_fold = None
+    preset_mirror = True
+    preset_mirror_angle = None
+    preset_mirror_axis = None
 
-    Parameters
-    ----------
-    data : :class:`nexusformat.nexus.tree.NXdata`, optional
-        The dataset to symmetrize (2D or 3D).
-    symmetry : str, optional
-        Crystallographic symmetry preset: 'hexagonal', 'tetragonal', 'trigonal', or 'orthorhombic'.
-        Default is None.
-    lattice_angle : float, optional
-        Angle between the two in-plane principal lattice axes in degrees (gamma).
-        Defaults to 90.0, or preset default if symmetry is specified.
-    n_fold : int, optional
-        Rotational symmetry fold (e.g., 6, 4, 3, 2).
-    layer_axis : int or str, optional
-        The stacking/layer axis for 3D datasets (e.g. 2, 'L', 'Ql', 0, 'H', etc.).
-        Defaults to 2 for 3D data.
-    mirror : bool, optional
-        Whether to include mirror reflection symmetry. Defaults to True.
-    mirror_axis : int or str, optional
-        Discrete mirror axis (0, 1, or 'diagonal').
-    mirror_angle : float, optional
-        Cartesian reflection angle in degrees.
-    tol : float, optional
-        Coordinate tolerance for pairing +L and -L layers in 3D data. Defaults to 0.01.
-    theta_min : float, optional
-        Minimum angle for wedge symmetrization.
-    theta_max : float, optional
-        Maximum angle for wedge symmetrization.
-    positive_values : bool, optional
-        If True, clips negative values to zero and notifies the user. Set to False to override.
-        Defaults to True.
-    aspect : float, optional
-        Aspect ratio ``|b*| / |a*|`` of in-plane basis vectors. Defaults to 1.0.
-    auto_expand : bool, optional
-        Whether to automatically extend the coordinate bounds of the dataset
-        along transformed axes so that rotated or mirrored data is not cut off.
-        Defaults to False.
-    """
-
-    def __init__(
-        self,
-        data=None,
-        symmetry=None,
-        lattice_angle=None,
-        n_fold=None,
-        layer_axis=None,
-        mirror=None,
-        mirror_axis=None,
-        mirror_angle=None,
-        tol=0.01,
-        theta_min=None,
-        theta_max=None,
-        positive_values=True,
-        aspect=1.0,
-        auto_expand=False,
-        **kwargs
-    ):
-        self.data = data
-        self.symmetry = None
-        self.symmetrized = None
-        self.symmetrization_mask = None
-        self.wedge = None
-        self.plane1symmetrizer = None
-        self.plane2symmetrizer = None
-        self.plane3symmetrizer = None
-        self.transform = None
-        self.transformer = None
-        self.rotations = None
-        self.auto_expand = auto_expand
-
-        self.set_parameters(
-            theta_min=theta_min,
-            theta_max=theta_max,
-            lattice_angle=lattice_angle,
-            mirror=mirror,
-            mirror_axis=mirror_axis,
-            mirror_angle=mirror_angle,
-            n_fold=n_fold,
-            symmetry=symmetry,
-            tol=tol,
-            layer_axis=layer_axis,
-            aspect=aspect,
-            positive_values=positive_values,
-            auto_expand=auto_expand,
-            **kwargs
-        )
-
-        if self.data is not None and self.data.ndim == 3:
-            if self.layer_axis is None:
-                self.layer_axis = 2
-            self._init_planes(self.data)
-
-    def set_parameters(
-        self,
-        theta_min=None,
-        theta_max=None,
-        lattice_angle=None,
-        mirror=None,
-        mirror_axis=None,
-        mirror_angle=None,
-        n_fold=None,
-        symmetry=None,
-        tol=None,
-        layer_axis=None,
-        aspect=None,
-        positive_values=None,
-        auto_expand=None,
-        **kwargs
-    ):
-        """Sets symmetrization parameters."""
-        if symmetry is not None:
-            self.symmetry = symmetry.lower() if isinstance(symmetry, str) else symmetry
-            if self.symmetry == 'hexagonal':
-                self.lattice_angle = 60.0
-                self.n_fold = 6
-                self.mirror = True
-                self.mirror_angle = 30.0
-                self.mirror_axis = None
-            elif self.symmetry == 'tetragonal':
-                self.lattice_angle = 90.0
-                self.n_fold = 4
-                self.mirror = True
-                self.mirror_angle = 45.0
-                self.mirror_axis = None
-            elif self.symmetry == 'trigonal':
-                self.lattice_angle = 120.0
-                self.n_fold = 3
-                self.mirror = True
-                self.mirror_angle = 30.0
-                self.mirror_axis = None
-            elif self.symmetry == 'orthorhombic':
-                self.lattice_angle = 90.0
-                self.n_fold = 2
-                self.mirror = True
-                self.mirror_axis = 0
-                self.mirror_angle = None
-            else:
-                raise ValueError(
-                    f"Unknown symmetry '{symmetry}'. Supported presets are: "
-                    "'hexagonal', 'tetragonal', 'trigonal', 'orthorhombic'."
-                )
-
-        if lattice_angle is not None:
-            self.lattice_angle = lattice_angle
-            self.skew_angle = lattice_angle
-        elif not hasattr(self, 'lattice_angle') or self.lattice_angle is None:
-            self.lattice_angle = 90.0
-            self.skew_angle = 90.0
-
-        if n_fold is not None:
-            self.n_fold = n_fold
-        elif not hasattr(self, 'n_fold'):
-            self.n_fold = None
-
-        if mirror is not None:
-            self.mirror = mirror
-        elif not hasattr(self, 'mirror') or self.mirror is None:
-            self.mirror = True
-
-        if mirror_axis is not None:
-            self.mirror_axis = mirror_axis
-        elif not hasattr(self, 'mirror_axis'):
-            self.mirror_axis = None
-
-        if mirror_angle is not None:
-            self.mirror_angle = mirror_angle
-        elif not hasattr(self, 'mirror_angle'):
-            self.mirror_angle = None
-
-        if theta_min is not None:
-            self.theta_min = theta_min
-        elif not hasattr(self, 'theta_min'):
-            self.theta_min = None
-
-        if theta_max is not None:
-            self.theta_max = theta_max
-        elif not hasattr(self, 'theta_max'):
-            self.theta_max = None
-
-        if tol is not None:
-            self.tol = tol
-        elif not hasattr(self, 'tol'):
-            self.tol = 0.01
-
-        if layer_axis is not None:
-            self.layer_axis = layer_axis
-        elif not hasattr(self, 'layer_axis'):
-            self.layer_axis = None
-
-        if aspect is not None:
-            self.aspect = aspect
-        elif not hasattr(self, 'aspect'):
-            self.aspect = 1.0
-
-        if positive_values is not None:
-            self.positive_values = positive_values
-        elif not hasattr(self, 'positive_values'):
-            self.positive_values = True
-
-        if auto_expand is not None:
-            self.auto_expand = bool(auto_expand)
-        elif not hasattr(self, 'auto_expand'):
-            self.auto_expand = False
-
-        if self.lattice_angle is not None:
-            self.transformer = ShearTransformer(self.lattice_angle)
-            self.transform = self.transformer.t
-
-        if self.theta_min is not None and self.theta_max is not None:
-            diff = abs(self.theta_max - self.theta_min)
-            if diff > 0:
-                if self.mirror:
-                    self.rotations = abs(int(360.0 / diff / 2.0))
-                else:
-                    self.rotations = abs(int(360.0 / diff))
-            else:
-                self.rotations = 1
-        elif self.n_fold is not None:
-            self.rotations = self.n_fold
-
-    def _init_planes(self, data):
-        """Initializes 3-plane symmetrizers for 3D datasets."""
-        self.q1 = data.nxaxes[0]
-        self.q2 = data.nxaxes[1]
-        self.q3 = data.nxaxes[2]
-        self.plane1 = self.q1.nxname + self.q2.nxname
-        self.plane2 = self.q1.nxname + self.q3.nxname
-        self.plane3 = self.q2.nxname + self.q3.nxname
-        self.plane1symmetrizer = Symmetrizer()
-        self.plane2symmetrizer = Symmetrizer()
-        self.plane3symmetrizer = Symmetrizer()
-
-    def set_data(self, data):
-        """Sets the dataset to be symmetrized."""
-        self.data = data
-        if self.data is not None and self.data.ndim == 3:
-            if self.layer_axis is None:
-                self.layer_axis = 2
-            self._init_planes(self.data)
-
-    def set_lattice_params(self, lattice_params):
-        """
-        Sets the lattice parameters and calculates the reciprocal lattice parameters.
-
-        Parameters
-        ----------
-        lattice_params : tuple of float
-            The lattice parameters (a, b, c, alpha, beta, gamma) in real space.
-        """
-        self.a, self.b, self.c, self.al, self.be, self.ga = lattice_params
-        self.lattice_params = lattice_params
-        self.reciprocal_lattice_params = reciprocal_lattice_params(lattice_params)
-        self.a_star, self.b_star, self.c_star, \
-            self.al_star, self.be_star, self.ga_star = self.reciprocal_lattice_params
-
-    def _resolve_layer_axis(self, data, layer_axis):
-        if layer_axis is None:
-            return 2 if data.ndim == 3 else None
-        if isinstance(layer_axis, int):
-            return layer_axis
-        if isinstance(layer_axis, str):
-            target = layer_axis.lower().strip()
-            for idx, ax in enumerate(data.nxaxes):
-                ax_name = ax.nxname.lower().strip()
-                if target == ax_name or target in ax_name:
-                    return idx
-            name_map = {'h': 0, 'qh': 0, 'k': 1, 'qk': 1, 'l': 2, 'ql': 2}
-            if target in name_map:
-                return name_map[target]
+    if symmetry is not None:
+        sym_str = symmetry.lower() if isinstance(symmetry, str) else symmetry
+        if sym_str == 'hexagonal':
+            preset_lattice_angle = 60.0
+            preset_n_fold = 6
+            preset_mirror = True
+            preset_mirror_angle = 30.0
+            preset_mirror_axis = None
+        elif sym_str == 'tetragonal':
+            preset_lattice_angle = 90.0
+            preset_n_fold = 4
+            preset_mirror = True
+            preset_mirror_angle = 45.0
+            preset_mirror_axis = None
+        elif sym_str == 'trigonal':
+            preset_lattice_angle = 120.0
+            preset_n_fold = 3
+            preset_mirror = True
+            preset_mirror_angle = 30.0
+            preset_mirror_axis = None
+        elif sym_str == 'orthorhombic':
+            preset_lattice_angle = 90.0
+            preset_n_fold = 2
+            preset_mirror = True
+            preset_mirror_axis = 0
+            preset_mirror_angle = None
+        else:
             raise ValueError(
-                f"Could not resolve layer_axis '{layer_axis}' in data axes: "
-                f"{[ax.nxname for ax in data.nxaxes]}"
+                f"Unknown symmetry '{symmetry}'. Supported presets are: "
+                "'hexagonal', 'tetragonal', 'trigonal', 'orthorhombic'."
             )
-        return int(layer_axis)
 
-    def _get_slice(self, data, axis_idx, i):
-        idx = [slice(None)] * data.ndim
-        idx[axis_idx] = i
-        return data[tuple(idx)]
+    resolved_lattice_angle = lattice_angle if lattice_angle is not None else preset_lattice_angle
+    resolved_n_fold = n_fold if n_fold is not None else preset_n_fold
+    resolved_mirror = mirror if mirror is not None else preset_mirror
+    resolved_mirror_axis = mirror_axis if mirror_axis is not None else preset_mirror_axis
+    resolved_mirror_angle = mirror_angle if mirror_angle is not None else preset_mirror_angle
 
-    def _set_slice(self, arr, axis_idx, i, val):
-        idx = [slice(None)] * arr.ndim
-        idx[axis_idx] = i
-        arr[tuple(idx)] = val
-
-    def _resolve_auto_expand(self, auto_expand):
-        """Resolves auto_expand flag from argument or instance setting."""
-        if auto_expand is None:
-            auto_expand = getattr(self, 'auto_expand', False)
-        return bool(auto_expand)
-
-    def _compute_transformed_bounds_2d(
-        self,
-        arr_2d,
-        q1,
-        q2,
-        dq1,
-        dq2,
-        lattice_angle=None,
-        n_fold=None,
-        mirror=None,
-        mirror_angle=None,
-        mirror_axis=None,
-        aspect=None,
-    ):
-        """
-        Compute pad widths along both in-plane axes to contain all transformed symmetry equivalents
-        of non-empty data points.
-        """
-        gamma = np.radians(lattice_angle if lattice_angle is not None else 90.0)
-        asp = aspect if aspect is not None else 1.0
-
-        B_phys = np.array([
-            [1.0, asp * np.cos(gamma)],
-            [0.0, asp * np.sin(gamma)]
-        ], dtype=float)
-        B_phys_inv = np.linalg.inv(B_phys)
-
-        fold = n_fold if n_fold is not None else (self.rotations if self.rotations is not None else 1)
-        angle_step = 360.0 / fold if fold > 1 else 360.0
-
-        rot_matrices = []
-        for k in range(fold):
-            theta = np.radians(angle_step * k)
-            R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], dtype=float)
-            rot_matrices.append(R)
-
-        all_ops_phys = []
-        for R in rot_matrices:
-            all_ops_phys.append(B_phys_inv @ R @ B_phys)
-
-        if mirror:
-            if mirror_angle is not None:
-                psi = np.radians(mirror_angle)
-                Ref = np.array([[np.cos(2 * psi), np.sin(2 * psi)], [np.sin(2 * psi), -np.cos(2 * psi)]], dtype=float)
-                for R in rot_matrices:
-                    all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
-            elif mirror_axis == 0:
-                M0 = np.array([[-1.0, 0.0], [0.0, 1.0]], dtype=float)
-                for R in rot_matrices:
-                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ M0)
-            elif mirror_axis == 1:
-                M1 = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
-                for R in rot_matrices:
-                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ M1)
-            elif mirror_axis in ('diagonal', 'transpose'):
-                Mdiag = np.array([[0.0, dq2 / dq1 if dq1 != 0 else 1.0], [dq1 / dq2 if dq2 != 0 else 1.0, 0.0]], dtype=float)
-                for R in rot_matrices:
-                    all_ops_phys.append(B_phys_inv @ R @ B_phys @ Mdiag)
+    rotations = None
+    if theta_min is not None and theta_max is not None:
+        diff = abs(theta_max - theta_min)
+        if diff > 0:
+            if resolved_mirror:
+                rotations = abs(int(360.0 / diff / 2.0))
             else:
-                Ref = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
-                for R in rot_matrices:
-                    all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
-
-        non_empty = (arr_2d != 0) & (~np.isnan(arr_2d))
-        if not np.any(non_empty):
-            return (0, 0), (0, 0)
-
-        if np.all(non_empty):
-            pts = np.array([
-                [q1[0], q2[0]],
-                [q1[0], q2[-1]],
-                [q1[-1], q2[0]],
-                [q1[-1], q2[-1]],
-            ], dtype=float)
+                rotations = abs(int(360.0 / diff))
         else:
-            idx1, idx2 = np.where(non_empty)
-            pts = np.column_stack([q1[idx1], q2[idx2]])
-            if len(pts) >= 3:
-                try:
-                    hull = ConvexHull(pts)
-                    pts = pts[hull.vertices]
-                except Exception:
-                    pass
+            rotations = 1
+    elif resolved_n_fold is not None:
+        rotations = resolved_n_fold
 
-        transformed_pts = []
-        for op in all_ops_phys:
-            transformed_pts.append(pts @ op.T)
-        transformed_pts = np.vstack(transformed_pts)
+    return (
+        resolved_lattice_angle,
+        resolved_n_fold,
+        resolved_mirror,
+        resolved_mirror_axis,
+        resolved_mirror_angle,
+        rotations,
+    )
 
-        min_q1 = float(min(q1.min(), transformed_pts[:, 0].min()))
-        max_q1 = float(max(q1.max(), transformed_pts[:, 0].max()))
-        min_q2 = float(min(q2.min(), transformed_pts[:, 1].min()))
-        max_q2 = float(max(q2.max(), transformed_pts[:, 1].max()))
 
-        if dq1 >= 0:
-            pad1_left = int(np.ceil(np.round((q1[0] - min_q1) / dq1, 6))) if min_q1 < q1[0] else 0
-            pad1_right = int(np.ceil(np.round((max_q1 - q1[-1]) / dq1, 6))) if max_q1 > q1[-1] else 0
+def _resolve_layer_axis(data, layer_axis):
+    """Resolve 3D stacking axis from index or axis name."""
+    if layer_axis is None:
+        return 2 if data.ndim == 3 else None
+    if isinstance(layer_axis, int):
+        return layer_axis
+    if isinstance(layer_axis, str):
+        target = layer_axis.lower().strip()
+        for idx, ax in enumerate(data.nxaxes):
+            ax_name = ax.nxname.lower().strip()
+            if target == ax_name or target in ax_name:
+                return idx
+        name_map = {'h': 0, 'qh': 0, 'k': 1, 'qk': 1, 'l': 2, 'ql': 2}
+        if target in name_map:
+            return name_map[target]
+        raise ValueError(
+            f"Could not resolve layer_axis '{layer_axis}' in data axes: "
+            f"{[ax.nxname for ax in data.nxaxes]}"
+        )
+    return int(layer_axis)
+
+
+def _get_slice(data, axis_idx, i):
+    idx = [slice(None)] * data.ndim
+    idx[axis_idx] = i
+    return data[tuple(idx)]
+
+
+def _set_slice(arr, axis_idx, i, val):
+    idx = [slice(None)] * arr.ndim
+    idx[axis_idx] = i
+    arr[tuple(idx)] = val
+
+
+def _compute_transformed_bounds_2d(
+    arr_2d,
+    q1,
+    q2,
+    dq1,
+    dq2,
+    lattice_angle=90.0,
+    n_fold=1,
+    mirror=True,
+    mirror_angle=None,
+    mirror_axis=None,
+    aspect=1.0,
+):
+    """
+    Compute pad widths along both in-plane axes to contain all transformed symmetry equivalents
+    of non-empty data points.
+    """
+    gamma = np.radians(lattice_angle if lattice_angle is not None else 90.0)
+    asp = aspect if aspect is not None else 1.0
+
+    B_phys = np.array([
+        [1.0, asp * np.cos(gamma)],
+        [0.0, asp * np.sin(gamma)]
+    ], dtype=float)
+    B_phys_inv = np.linalg.inv(B_phys)
+
+    fold = n_fold if n_fold is not None else 1
+    angle_step = 360.0 / fold if fold > 1 else 360.0
+
+    rot_matrices = []
+    for k in range(fold):
+        theta = np.radians(angle_step * k)
+        R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], dtype=float)
+        rot_matrices.append(R)
+
+    all_ops_phys = []
+    for R in rot_matrices:
+        all_ops_phys.append(B_phys_inv @ R @ B_phys)
+
+    if mirror:
+        if mirror_angle is not None:
+            psi = np.radians(mirror_angle)
+            Ref = np.array([[np.cos(2 * psi), np.sin(2 * psi)], [np.sin(2 * psi), -np.cos(2 * psi)]], dtype=float)
+            for R in rot_matrices:
+                all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
+        elif mirror_axis == 0:
+            M0 = np.array([[-1.0, 0.0], [0.0, 1.0]], dtype=float)
+            for R in rot_matrices:
+                all_ops_phys.append(B_phys_inv @ R @ B_phys @ M0)
+        elif mirror_axis == 1:
+            M1 = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
+            for R in rot_matrices:
+                all_ops_phys.append(B_phys_inv @ R @ B_phys @ M1)
+        elif mirror_axis in ('diagonal', 'transpose'):
+            Mdiag = np.array([[0.0, dq2 / dq1 if dq1 != 0 else 1.0], [dq1 / dq2 if dq2 != 0 else 1.0, 0.0]], dtype=float)
+            for R in rot_matrices:
+                all_ops_phys.append(B_phys_inv @ R @ B_phys @ Mdiag)
         else:
-            pad1_left = int(np.ceil(np.round((max_q1 - q1[0]) / abs(dq1), 6))) if max_q1 > q1[0] else 0
-            pad1_right = int(np.ceil(np.round((q1[-1] - min_q1) / abs(dq1), 6))) if min_q1 < q1[-1] else 0
+            Ref = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=float)
+            for R in rot_matrices:
+                all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
 
-        if dq2 >= 0:
-            pad2_left = int(np.ceil(np.round((q2[0] - min_q2) / dq2, 6))) if min_q2 < q2[0] else 0
-            pad2_right = int(np.ceil(np.round((max_q2 - q2[-1]) / dq2, 6))) if max_q2 > q2[-1] else 0
-        else:
-            pad2_left = int(np.ceil(np.round((max_q2 - q2[0]) / abs(dq2), 6))) if max_q2 > q2[0] else 0
-            pad2_right = int(np.ceil(np.round((q2[-1] - min_q2) / abs(dq2), 6))) if min_q2 < q2[-1] else 0
+    non_empty = (arr_2d != 0) & (~np.isnan(arr_2d))
+    if not np.any(non_empty):
+        return (0, 0), (0, 0)
 
-        return (pad1_left, pad1_right), (pad2_left, pad2_right)
+    if np.all(non_empty):
+        pts = np.array([
+            [q1[0], q2[0]],
+            [q1[0], q2[-1]],
+            [q1[-1], q2[0]],
+            [q1[-1], q2[-1]],
+        ], dtype=float)
+    else:
+        idx1, idx2 = np.where(non_empty)
+        pts = np.column_stack([q1[idx1], q2[idx2]])
+        if len(pts) >= 3:
+            try:
+                hull = ConvexHull(pts)
+                pts = pts[hull.vertices]
+            except Exception:
+                pass
 
-    def _auto_expand(self, dataset):
-        """
-        Pad dataset so that its coordinate bounds encompass all symmetry-transformed equivalents
-        of non-empty data points.
-        """
-        if dataset is None:
-            return None
+    transformed_pts = []
+    for op in all_ops_phys:
+        transformed_pts.append(pts @ op.T)
+    transformed_pts = np.vstack(transformed_pts)
 
-        # Case 1: Raw NumPy ndarray (2D)
-        if not hasattr(dataset, 'nxaxes') or not hasattr(dataset, 'nxsignal'):
-            if not isinstance(dataset, np.ndarray) or dataset.ndim != 2:
-                return dataset
-            arr = np.asarray(dataset, dtype=float)
-            c = np.array([(arr.shape[0] - 1) / 2.0, (arr.shape[1] - 1) / 2.0], dtype=float)
-            q1 = np.arange(arr.shape[0], dtype=float) - c[0]
-            q2 = np.arange(arr.shape[1], dtype=float) - c[1]
-            dq1, dq2 = 1.0, 1.0
-            pad1, pad2 = self._compute_transformed_bounds_2d(
-                arr,
-                q1, q2, dq1, dq2,
-                lattice_angle=self.lattice_angle,
-                n_fold=self.n_fold or self.rotations,
-                mirror=self.mirror,
-                mirror_angle=self.mirror_angle,
-                mirror_axis=self.mirror_axis,
-                aspect=self.aspect
-            )
-            if pad1 == (0, 0) and pad2 == (0, 0):
-                return arr
-            return np.pad(arr, (pad1, pad2), mode='constant', constant_values=0.0)
+    min_q1 = float(min(q1.min(), transformed_pts[:, 0].min()))
+    max_q1 = float(max(q1.max(), transformed_pts[:, 0].max()))
+    min_q2 = float(min(q2.min(), transformed_pts[:, 1].min()))
+    max_q2 = float(max(q2.max(), transformed_pts[:, 1].max()))
 
-        # Case 2: NXdata (2D or 3D)
-        if dataset.ndim == 2:
-            ax1_idx, ax2_idx = 0, 1
-            layer_idx = None
-            arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
-            in_plane_arr = arr
-        elif dataset.ndim == 3:
-            layer_idx = self._resolve_layer_axis(dataset, self.layer_axis)
-            plane_axes = [i for i in range(3) if i != layer_idx]
-            ax1_idx, ax2_idx = plane_axes[0], plane_axes[1]
-            arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
-            in_plane_arr = ((arr != 0) & (~np.isnan(arr))).any(axis=layer_idx)
-        else:
+    if dq1 >= 0:
+        pad1_left = int(np.ceil(np.round((q1[0] - min_q1) / dq1, 6))) if min_q1 < q1[0] else 0
+        pad1_right = int(np.ceil(np.round((max_q1 - q1[-1]) / dq1, 6))) if max_q1 > q1[-1] else 0
+    else:
+        pad1_left = int(np.ceil(np.round((max_q1 - q1[0]) / abs(dq1), 6))) if max_q1 > q1[0] else 0
+        pad1_right = int(np.ceil(np.round((q1[-1] - min_q1) / abs(dq1), 6))) if min_q1 < q1[-1] else 0
+
+    if dq2 >= 0:
+        pad2_left = int(np.ceil(np.round((q2[0] - min_q2) / dq2, 6))) if min_q2 < q2[0] else 0
+        pad2_right = int(np.ceil(np.round((max_q2 - q2[-1]) / dq2, 6))) if max_q2 > q2[-1] else 0
+    else:
+        pad2_left = int(np.ceil(np.round((max_q2 - q2[0]) / abs(dq2), 6))) if max_q2 > q2[0] else 0
+        pad2_right = int(np.ceil(np.round((q2[-1] - min_q2) / abs(dq2), 6))) if min_q2 < q2[-1] else 0
+
+    return (pad1_left, pad1_right), (pad2_left, pad2_right)
+
+
+def _auto_expand(
+    dataset,
+    lattice_angle=90.0,
+    n_fold=1,
+    mirror=True,
+    mirror_angle=None,
+    mirror_axis=None,
+    aspect=1.0,
+    layer_axis=None,
+):
+    """
+    Pad dataset so that its coordinate bounds encompass all symmetry-transformed equivalents
+    of non-empty data points without truncating existing bounds.
+    """
+    if dataset is None:
+        return None
+
+    # Case 1: Raw NumPy ndarray (2D)
+    if not hasattr(dataset, 'nxaxes') or not hasattr(dataset, 'nxsignal'):
+        if not isinstance(dataset, np.ndarray) or dataset.ndim != 2:
             return dataset
+        arr = np.asarray(dataset, dtype=float)
+        c = np.array([(arr.shape[0] - 1) / 2.0, (arr.shape[1] - 1) / 2.0], dtype=float)
+        q1 = np.arange(arr.shape[0], dtype=float) - c[0]
+        q2 = np.arange(arr.shape[1], dtype=float) - c[1]
+        dq1, dq2 = 1.0, 1.0
+        pad1, pad2 = _compute_transformed_bounds_2d(
+            arr,
+            q1, q2, dq1, dq2,
+            lattice_angle=lattice_angle,
+            n_fold=n_fold,
+            mirror=mirror,
+            mirror_angle=mirror_angle,
+            mirror_axis=mirror_axis,
+            aspect=aspect
+        )
+        if pad1 == (0, 0) and pad2 == (0, 0):
+            return arr
+        return np.pad(arr, (pad1, pad2), mode='constant', constant_values=0.0)
 
-        q1 = np.asarray(dataset.nxaxes[ax1_idx].nxdata, dtype=float)
-        q2 = np.asarray(dataset.nxaxes[ax2_idx].nxdata, dtype=float)
+    # Case 2: NXdata (2D or 3D)
+    if dataset.ndim == 2:
+        ax1_idx, ax2_idx = 0, 1
+        layer_idx = None
+        arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
+        in_plane_arr = arr
+    elif dataset.ndim == 3:
+        layer_idx = _resolve_layer_axis(dataset, layer_axis)
+        plane_axes = [i for i in range(3) if i != layer_idx]
+        ax1_idx, ax2_idx = plane_axes[0], plane_axes[1]
+        arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
+        in_plane_arr = ((arr != 0) & (~np.isnan(arr))).any(axis=layer_idx)
+    else:
+        return dataset
+
+    q1 = np.asarray(dataset.nxaxes[ax1_idx].nxdata, dtype=float)
+    q2 = np.asarray(dataset.nxaxes[ax2_idx].nxdata, dtype=float)
+    dq1 = float((q1[-1] - q1[0]) / (len(q1) - 1)) if len(q1) > 1 else 1.0
+    dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
+
+    pad1, pad2 = _compute_transformed_bounds_2d(
+        in_plane_arr,
+        q1, q2, dq1, dq2,
+        lattice_angle=lattice_angle,
+        n_fold=n_fold,
+        mirror=mirror,
+        mirror_angle=mirror_angle,
+        mirror_axis=mirror_axis,
+        aspect=aspect
+    )
+
+    pad_widths = [None] * dataset.ndim
+    pad_widths[ax1_idx] = pad1
+    pad_widths[ax2_idx] = pad2
+
+    if layer_idx is not None:
+        q_layer = np.asarray(dataset.nxaxes[layer_idx].nxdata, dtype=float)
+        dq_layer = float((q_layer[-1] - q_layer[0]) / (len(q_layer) - 1)) if len(q_layer) > 1 else 1.0
+        layer_has_data = np.where(((arr != 0) & (~np.isnan(arr))).any(axis=(ax1_idx, ax2_idx)))[0]
+        if len(layer_has_data) > 0:
+            active_L = q_layer[layer_has_data]
+            min_L = min(q_layer.min(), -active_L.max())
+            max_L = max(q_layer.max(), -active_L.min())
+        else:
+            min_L = q_layer.min()
+            max_L = q_layer.max()
+
+        if dq_layer >= 0:
+            pad_L_left = int(np.ceil(np.round((q_layer[0] - min_L) / dq_layer, 6))) if min_L < q_layer[0] else 0
+            pad_L_right = int(np.ceil(np.round((max_L - q_layer[-1]) / dq_layer, 6))) if max_L > q_layer[-1] else 0
+        else:
+            pad_L_left = int(np.ceil(np.round((max_L - q_layer[0]) / abs(dq_layer), 6))) if max_L > q_layer[0] else 0
+            pad_L_right = int(np.ceil(np.round((q_layer[-1] - min_L) / abs(dq_layer), 6))) if min_L < q_layer[-1] else 0
+        pad_widths[layer_idx] = (pad_L_left, pad_L_right)
+
+    if all(pw == (0, 0) for pw in pad_widths):
+        return dataset
+
+    arr_padded = np.pad(arr, pad_widths, mode='constant', constant_values=0.0)
+
+    new_axes = []
+    for idx in range(dataset.ndim):
+        ax = dataset.nxaxes[idx]
+        q_old = np.asarray(ax.nxdata, dtype=float)
+        pw_left, pw_right = pad_widths[idx]
+        dq = float((q_old[-1] - q_old[0]) / (len(q_old) - 1)) if len(q_old) > 1 else 1.0
+        if dq >= 0:
+            q_left = q_old[0] - np.arange(pw_left, 0, -1) * dq if pw_left > 0 else np.array([], dtype=float)
+            q_right = q_old[-1] + np.arange(1, pw_right + 1) * dq if pw_right > 0 else np.array([], dtype=float)
+        else:
+            q_left = q_old[0] + np.arange(pw_left, 0, -1) * abs(dq) if pw_left > 0 else np.array([], dtype=float)
+            q_right = q_old[-1] - np.arange(1, pw_right + 1) * abs(dq) if pw_right > 0 else np.array([], dtype=float)
+        q_new = np.concatenate([q_left, q_old, q_right])
+
+        new_ax = NXfield(q_new, name=ax.nxname)
+        for k, v in ax.attrs.items():
+            new_ax.attrs[k] = v
+        new_axes.append(new_ax)
+
+    new_sig = NXfield(arr_padded, name=dataset.nxsignal.nxname)
+    for k, v in dataset.nxsignal.attrs.items():
+        new_sig.attrs[k] = v
+
+    new_data = NXdata(new_sig, tuple(new_axes))
+    for k, v in dataset.attrs.items():
+        if k not in ('axes', 'signal'):
+            new_data.attrs[k] = v
+
+    return new_data
+
+
+def _symmetrize_2d_slice_average(
+    slice_data,
+    lattice_angle=90.0,
+    n_fold=1,
+    mirror=True,
+    mirror_angle=None,
+    mirror_axis=None,
+    aspect=1.0,
+    order=1,
+    positive_values=True
+):
+    if hasattr(slice_data, 'nxsignal'):
+        arr = np.asarray(slice_data.nxsignal.nxdata, dtype=float)
+        q1 = np.asarray(slice_data.nxaxes[0].nxdata, dtype=float)
+        q2 = np.asarray(slice_data.nxaxes[1].nxdata, dtype=float)
         dq1 = float((q1[-1] - q1[0]) / (len(q1) - 1)) if len(q1) > 1 else 1.0
         dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
+        c = np.array([-q1[0] / dq1, -q2[0] / dq2], dtype=float)
+    else:
+        arr = np.asarray(slice_data, dtype=float)
+        dq1, dq2 = 1.0, 1.0
+        c = np.array([(arr.shape[0] - 1) / 2.0, (arr.shape[1] - 1) / 2.0], dtype=float)
 
-        pad1, pad2 = self._compute_transformed_bounds_2d(
-            in_plane_arr,
-            q1, q2, dq1, dq2,
-            lattice_angle=self.lattice_angle,
-            n_fold=self.n_fold or self.rotations,
-            mirror=self.mirror,
-            mirror_angle=self.mirror_angle,
-            mirror_axis=self.mirror_axis,
-            aspect=self.aspect
+    rotations = [arr]
+
+    fold = n_fold if n_fold is not None else 1
+    angle_step = 360.0 / fold if fold > 1 else 360.0
+    if fold > 1:
+        for k in range(1, fold):
+            rot = rotate_plane_affine(
+                arr,
+                lattice_angle=lattice_angle,
+                rotation_angle=angle_step * k,
+                dq1=dq1,
+                dq2=dq2,
+                origin=c,
+                aspect=aspect,
+                order=order,
+                cval=0.0
+            )
+            rotations.append(rot)
+
+    if mirror:
+        mirr = mirror_plane_affine(
+            arr,
+            lattice_angle=lattice_angle,
+            mirror_angle=mirror_angle,
+            mirror_axis=mirror_axis,
+            dq1=dq1,
+            dq2=dq2,
+            origin=c,
+            aspect=aspect,
+            order=order,
+            cval=0.0
         )
-
-        pad_widths = [None] * dataset.ndim
-        pad_widths[ax1_idx] = pad1
-        pad_widths[ax2_idx] = pad2
-
-        if layer_idx is not None:
-            q_layer = np.asarray(dataset.nxaxes[layer_idx].nxdata, dtype=float)
-            dq_layer = float((q_layer[-1] - q_layer[0]) / (len(q_layer) - 1)) if len(q_layer) > 1 else 1.0
-            layer_has_data = np.where(((arr != 0) & (~np.isnan(arr))).any(axis=(ax1_idx, ax2_idx)))[0]
-            if len(layer_has_data) > 0:
-                active_L = q_layer[layer_has_data]
-                min_L = min(q_layer.min(), -active_L.max())
-                max_L = max(q_layer.max(), -active_L.min())
-            else:
-                min_L = q_layer.min()
-                max_L = q_layer.max()
-
-            if dq_layer >= 0:
-                pad_L_left = int(np.ceil(np.round((q_layer[0] - min_L) / dq_layer, 6))) if min_L < q_layer[0] else 0
-                pad_L_right = int(np.ceil(np.round((max_L - q_layer[-1]) / dq_layer, 6))) if max_L > q_layer[-1] else 0
-            else:
-                pad_L_left = int(np.ceil(np.round((max_L - q_layer[0]) / abs(dq_layer), 6))) if max_L > q_layer[0] else 0
-                pad_L_right = int(np.ceil(np.round((q_layer[-1] - min_L) / abs(dq_layer), 6))) if min_L < q_layer[-1] else 0
-            pad_widths[layer_idx] = (pad_L_left, pad_L_right)
-
-        if all(pw == (0, 0) for pw in pad_widths):
-            return dataset
-
-        arr_padded = np.pad(arr, pad_widths, mode='constant', constant_values=0.0)
-
-        new_axes = []
-        for idx in range(dataset.ndim):
-            ax = dataset.nxaxes[idx]
-            q_old = np.asarray(ax.nxdata, dtype=float)
-            pw_left, pw_right = pad_widths[idx]
-            dq = float((q_old[-1] - q_old[0]) / (len(q_old) - 1)) if len(q_old) > 1 else 1.0
-            if dq >= 0:
-                q_left = q_old[0] - np.arange(pw_left, 0, -1) * dq if pw_left > 0 else np.array([], dtype=float)
-                q_right = q_old[-1] + np.arange(1, pw_right + 1) * dq if pw_right > 0 else np.array([], dtype=float)
-            else:
-                q_left = q_old[0] + np.arange(pw_left, 0, -1) * abs(dq) if pw_left > 0 else np.array([], dtype=float)
-                q_right = q_old[-1] - np.arange(1, pw_right + 1) * abs(dq) if pw_right > 0 else np.array([], dtype=float)
-            q_new = np.concatenate([q_left, q_old, q_right])
-
-            new_ax = NXfield(q_new, name=ax.nxname)
-            for k, v in ax.attrs.items():
-                new_ax.attrs[k] = v
-            new_axes.append(new_ax)
-
-        new_sig = NXfield(arr_padded, name=dataset.nxsignal.nxname)
-        for k, v in dataset.nxsignal.attrs.items():
-            new_sig.attrs[k] = v
-
-        new_data = NXdata(new_sig, tuple(new_axes))
-        for k, v in dataset.attrs.items():
-            if k not in ('axes', 'signal'):
-                new_data.attrs[k] = v
-
-        return new_data
-
-    def _symmetrize_2d_slice_average(
-        self,
-        slice_data,
-        lattice_angle=None,
-        n_fold=None,
-        mirror=None,
-        mirror_angle=None,
-        mirror_axis=None,
-        aspect=None,
-        order=1,
-        positive_values=True
-    ):
-        lattice_angle = lattice_angle if lattice_angle is not None else self.lattice_angle
-        n_fold = n_fold if n_fold is not None else self.n_fold
-        mirror = mirror if mirror is not None else self.mirror
-        mirror_angle = mirror_angle if mirror_angle is not None else self.mirror_angle
-        mirror_axis = mirror_axis if mirror_axis is not None else self.mirror_axis
-        aspect = aspect if aspect is not None else self.aspect
-
-        if hasattr(slice_data, 'nxsignal'):
-            arr = np.asarray(slice_data.nxsignal.nxdata, dtype=float)
-            q1 = np.asarray(slice_data.nxaxes[0].nxdata, dtype=float)
-            q2 = np.asarray(slice_data.nxaxes[1].nxdata, dtype=float)
-            dq1 = float((q1[-1] - q1[0]) / (len(q1) - 1)) if len(q1) > 1 else 1.0
-            dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
-            c = np.array([-q1[0] / dq1, -q2[0] / dq2], dtype=float)
-        else:
-            arr = np.asarray(slice_data, dtype=float)
-            dq1, dq2 = 1.0, 1.0
-            c = np.array([(arr.shape[0] - 1) / 2.0, (arr.shape[1] - 1) / 2.0], dtype=float)
-
-        rotations = [arr]
-
-        fold = n_fold if n_fold is not None else 1
-        angle_step = 360.0 / fold if fold > 1 else 360.0
+        rotations.append(mirr)
         if fold > 1:
             for k in range(1, fold):
-                rot = rotate_plane_affine(
-                    arr,
+                rot_m = rotate_plane_affine(
+                    mirr,
                     lattice_angle=lattice_angle,
                     rotation_angle=angle_step * k,
                     dq1=dq1,
@@ -608,252 +451,236 @@ class Symmetrizer:
                     order=order,
                     cval=0.0
                 )
-                rotations.append(rot)
+                rotations.append(rot_m)
 
-        if mirror:
-            mirr = mirror_plane_affine(
-                arr,
-                lattice_angle=lattice_angle,
-                mirror_angle=mirror_angle,
-                mirror_axis=mirror_axis,
-                dq1=dq1,
-                dq2=dq2,
-                origin=c,
-                aspect=aspect,
-                order=order,
-                cval=0.0
-            )
-            rotations.append(mirr)
-            if fold > 1:
-                for k in range(1, fold):
-                    rot_m = rotate_plane_affine(
-                        mirr,
-                        lattice_angle=lattice_angle,
-                        rotation_angle=angle_step * k,
-                        dq1=dq1,
-                        dq2=dq2,
-                        origin=c,
-                        aspect=aspect,
-                        order=order,
-                        cval=0.0
-                    )
-                    rotations.append(rot_m)
+    stack = np.array(rotations)
+    valid = (stack != 0) & (~np.isnan(stack))
+    count_valid = valid.sum(axis=0)
+    sum_valid = np.where(valid, stack, 0.0).sum(axis=0)
 
-        stack = np.array(rotations)
-        valid = (stack != 0) & (~np.isnan(stack))
-        count_valid = valid.sum(axis=0)
-        sum_valid = np.where(valid, stack, 0.0).sum(axis=0)
+    averaged = np.zeros_like(sum_valid)
+    np.divide(sum_valid, count_valid, out=averaged, where=(count_valid > 0))
 
-        averaged = np.zeros_like(sum_valid)
-        np.divide(sum_valid, count_valid, out=averaged, where=(count_valid > 0))
+    if positive_values:
+        averaged[averaged < 0] = 0.0
 
-        if positive_values:
-            averaged[averaged < 0] = 0.0
+    return averaged, count_valid
 
-        return averaged, count_valid
 
-    def _symmetrize_2d_average(
-        self,
+def _symmetrize_2d_average(
+    data,
+    lattice_angle=90.0,
+    n_fold=1,
+    mirror=True,
+    mirror_angle=None,
+    mirror_axis=None,
+    aspect=1.0,
+    order=1,
+    positive_values=True
+):
+    avg, _ = _symmetrize_2d_slice_average(
         data,
-        lattice_angle=None,
-        n_fold=None,
-        mirror=None,
-        mirror_angle=None,
-        mirror_axis=None,
-        aspect=None,
-        order=1,
-        positive_values=True
-    ):
-        avg, _ = self._symmetrize_2d_slice_average(
-            data,
+        lattice_angle=lattice_angle,
+        n_fold=n_fold,
+        mirror=mirror,
+        mirror_angle=mirror_angle,
+        mirror_axis=mirror_axis,
+        aspect=aspect,
+        order=order,
+        positive_values=False
+    )
+    if positive_values:
+        if np.any(avg < 0):
+            warnings.warn(
+                "Negative values found in symmetrized dataset and clipped to zero. "
+                "Set positive_values=False to override.",
+                UserWarning,
+                stacklevel=3
+            )
+        avg[avg < 0] = 0.0
+    if hasattr(data, 'nxaxes'):
+        return array_to_nxdata(avg, data)
+    return avg
+
+
+def _symmetrize_2d_wedge(
+    data,
+    theta_min=None,
+    theta_max=None,
+    lattice_angle=90.0,
+    n_fold=None,
+    mirror=True,
+    mirror_axis=None,
+    rotations=None,
+    positive_values=True,
+    return_diagnostics=False,
+):
+    mirror = mirror if mirror is not None else True
+
+    if mirror and mirror_axis is None:
+        warnings.warn(
+            "mirror_axis not specified. Defaulting to 0. "
+            "Set mirror_axis explicitly when using mirror=True.",
+            UserWarning,
+            stacklevel=3
+        )
+        mirror_axis = 0
+
+    if theta_min is None or theta_max is None:
+        fold = n_fold if n_fold is not None else 6
+        if mirror:
+            theta_min = 0.0 if theta_min is None else theta_min
+            theta_max = 360.0 / (2 * fold) if theta_max is None else theta_max
+            rotations = fold
+        else:
+            theta_min = 0.0 if theta_min is None else theta_min
+            theta_max = 360.0 / fold if theta_max is None else theta_max
+            rotations = fold
+    elif rotations is None:
+        diff = abs(theta_max - theta_min)
+        if diff > 0:
+            if mirror:
+                rotations = abs(int(360.0 / diff / 2.0))
+            else:
+                rotations = abs(int(360.0 / diff))
+        else:
+            rotations = 1
+
+    p = Padder(data)
+    padding = tuple(len(axis) for axis in data.nxaxes)
+    data_padded = p.pad(padding)
+
+    q1 = data_padded.nxaxes[0]
+    q2 = data_padded.nxaxes[1]
+
+    theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
+    theta = np.mod(theta, 2 * np.pi)
+
+    theta_min_rad = np.deg2rad(theta_min % 360)
+    theta_max_rad = np.deg2rad(theta_max % 360)
+
+    if theta_min_rad <= theta_max_rad:
+        symmetrization_mask = (theta >= theta_min_rad) & (theta <= theta_max_rad)
+    else:
+        symmetrization_mask = (theta >= theta_min_rad) | (theta <= theta_max_rad)
+
+    transformer = ShearTransformer(lattice_angle)
+    mask = array_to_nxdata(transformer.invert(symmetrization_mask), data_padded)
+    unpadded_mask = p.unpad(mask)
+
+    wedge = mask * data_padded
+    unpadded_wedge = p.unpad(wedge)
+    wedge_arr = wedge[data.nxsignal.nxname].nxdata
+    wedge_arr = transformer.apply(wedge_arr)
+
+    scale = wedge_arr.shape[0] / wedge_arr.shape[1]
+    wedge_arr = affine_transform(
+        wedge_arr,
+        Affine2D().scale(scale, 1).get_matrix()[:2, :2],
+        offset=[(1 - scale) * wedge_arr.shape[0] / 2, 0],
+        order=0,
+    )
+
+    reconstructed = np.zeros(wedge_arr.shape)
+    rot_step = 360.0 / rotations if rotations > 0 else 360.0
+    for _ in range(rotations):
+        reconstructed += wedge_arr
+        wedge_arr = rotate(wedge_arr, rot_step, reshape=False, order=0)
+
+    if mirror:
+        reconstructed = np.where(
+            reconstructed == 0,
+            reconstructed + np.flip(reconstructed, axis=mirror_axis),
+            reconstructed
+        )
+
+    reconstructed = affine_transform(
+        reconstructed,
+        Affine2D().scale(scale, 1).inverted().get_matrix()[:2, :2],
+        offset=[-(1 - scale) * wedge_arr.shape[0] / 2 / scale, 0],
+        order=0,
+    )
+    reconstructed = transformer.invert(reconstructed)
+    reconstructed = p.unpad(reconstructed)
+
+    sig_max = float(data.nxsignal.nxdata.max())
+    reconstructed[reconstructed > sig_max] = sig_max
+    if positive_values:
+        if np.any(reconstructed < 0):
+            warnings.warn(
+                "Negative values found in symmetrized dataset and clipped to zero. "
+                "Set positive_values=False to override.",
+                UserWarning,
+                stacklevel=3
+            )
+        reconstructed[reconstructed < 0] = 0.0
+
+    symmetrized_nx = NXdata(NXfield(reconstructed, name=data.nxsignal.nxname), (data.nxaxes[0], data.nxaxes[1]))
+    if return_diagnostics:
+        return symmetrized_nx, unpadded_mask, unpadded_wedge
+    return symmetrized_nx
+
+
+def _symmetrize_3d_average(
+    data,
+    layer_axis=2,
+    lattice_angle=90.0,
+    n_fold=1,
+    mirror=True,
+    mirror_angle=None,
+    mirror_axis=None,
+    aspect=1.0,
+    tol=0.01,
+    positive_values=True,
+    parallel=False,
+    num_workers=None
+):
+    axis_idx = _resolve_layer_axis(data, layer_axis)
+
+    layer_coords = np.asarray(data.nxaxes[axis_idx].nxdata, dtype=float)
+    n_layers = len(layer_coords)
+
+    processed = set()
+    pairs = []
+    for i in range(n_layers):
+        if i in processed:
+            continue
+        L_i = layer_coords[i]
+        if np.isclose(L_i, 0.0, atol=tol):
+            pairs.append((i, None))
+            processed.add(i)
+        else:
+            diffs = np.abs(layer_coords - (-L_i))
+            j = int(np.argmin(diffs))
+            if diffs[j] <= tol and j != i:
+                pairs.append((i, j))
+                processed.add(i)
+                processed.add(j)
+            else:
+                pairs.append((i, None))
+                processed.add(i)
+
+    output_array = np.zeros(data.nxsignal.shape, dtype=float)
+
+    def process_pair(pair):
+        idx_i, idx_j = pair
+        slice_i = _get_slice(data, axis_idx, idx_i)
+        avg_i, counts_i = _symmetrize_2d_slice_average(
+            slice_i,
             lattice_angle=lattice_angle,
             n_fold=n_fold,
             mirror=mirror,
             mirror_angle=mirror_angle,
             mirror_axis=mirror_axis,
             aspect=aspect,
-            order=order,
-            positive_values=False
+            positive_values=positive_values
         )
-        if positive_values:
-            if np.any(avg < 0):
-                warnings.warn(
-                    "Negative values found in symmetrized dataset and clipped to zero. "
-                    "Set positive_values=False to override.",
-                    UserWarning,
-                    stacklevel=3
-                )
-            avg[avg < 0] = 0.0
-        if hasattr(data, 'nxaxes'):
-            return array_to_nxdata(avg, data)
-        return avg
-
-    def _symmetrize_2d_wedge(self, data, positive_values=True, **kwargs):
-        theta_min = self.theta_min
-        theta_max = self.theta_max
-        mirror = self.mirror if self.mirror is not None else True
-        mirror_axis = self.mirror_axis
-        rotations = self.rotations
-
-        if mirror and mirror_axis is None:
-            warnings.warn(
-                "mirror_axis not specified. Defaulting to 0. "
-                "Set mirror_axis explicitly when using mirror=True.",
-                UserWarning,
-                stacklevel=3
-            )
-            mirror_axis = 0
-
-        if theta_min is None or theta_max is None:
-            fold = self.n_fold if self.n_fold is not None else 6
-            if mirror:
-                theta_min = 0.0 if theta_min is None else theta_min
-                theta_max = 360.0 / (2 * fold) if theta_max is None else theta_max
-                rotations = fold
-            else:
-                theta_min = 0.0 if theta_min is None else theta_min
-                theta_max = 360.0 / fold if theta_max is None else theta_max
-                rotations = fold
-        elif rotations is None:
-            diff = abs(theta_max - theta_min)
-            if diff > 0:
-                if mirror:
-                    rotations = abs(int(360.0 / diff / 2.0))
-                else:
-                    rotations = abs(int(360.0 / diff))
-            else:
-                rotations = 1
-
-        self.theta_min = theta_min
-        self.theta_max = theta_max
-        self.rotations = rotations
-        self.mirror_axis = mirror_axis
-
-        p = Padder(data)
-        padding = tuple(len(axis) for axis in data.nxaxes)
-        data_padded = p.pad(padding)
-
-        q1 = data_padded.nxaxes[0]
-        q2 = data_padded.nxaxes[1]
-
-        theta = np.arctan2(q1.reshape((-1, 1)), q2.reshape((1, -1)))
-        theta = np.mod(theta, 2 * np.pi)
-
-        theta_min_rad = np.deg2rad(theta_min % 360)
-        theta_max_rad = np.deg2rad(theta_max % 360)
-
-        if theta_min_rad <= theta_max_rad:
-            symmetrization_mask = (theta >= theta_min_rad) & (theta <= theta_max_rad)
+        if idx_j is None:
+            return [(idx_i, avg_i)]
         else:
-            symmetrization_mask = (theta >= theta_min_rad) | (theta <= theta_max_rad)
-
-        transformer = ShearTransformer(self.lattice_angle)
-        mask = array_to_nxdata(transformer.invert(symmetrization_mask), data_padded)
-        self.symmetrization_mask = p.unpad(mask)
-
-        wedge = mask * data_padded
-        self.wedge = p.unpad(wedge)
-        wedge_arr = wedge[data.nxsignal.nxname].nxdata
-        wedge_arr = transformer.apply(wedge_arr)
-
-        scale = wedge_arr.shape[0] / wedge_arr.shape[1]
-        wedge_arr = affine_transform(
-            wedge_arr,
-            Affine2D().scale(scale, 1).get_matrix()[:2, :2],
-            offset=[(1 - scale) * wedge_arr.shape[0] / 2, 0],
-            order=0,
-        )
-
-        reconstructed = np.zeros(wedge_arr.shape)
-        rot_step = 360.0 / rotations if rotations > 0 else 360.0
-        for _ in range(rotations):
-            reconstructed += wedge_arr
-            wedge_arr = rotate(wedge_arr, rot_step, reshape=False, order=0)
-
-        if mirror:
-            reconstructed = np.where(
-                reconstructed == 0,
-                reconstructed + np.flip(reconstructed, axis=mirror_axis),
-                reconstructed
-            )
-
-        reconstructed = affine_transform(
-            reconstructed,
-            Affine2D().scale(scale, 1).inverted().get_matrix()[:2, :2],
-            offset=[-(1 - scale) * wedge_arr.shape[0] / 2 / scale, 0],
-            order=0,
-        )
-        reconstructed = transformer.invert(reconstructed)
-        reconstructed = p.unpad(reconstructed)
-
-        sig_max = float(data.nxsignal.nxdata.max())
-        reconstructed[reconstructed > sig_max] = sig_max
-        if positive_values:
-            if np.any(reconstructed < 0):
-                warnings.warn(
-                    "Negative values found in symmetrized dataset and clipped to zero. "
-                    "Set positive_values=False to override.",
-                    UserWarning,
-                    stacklevel=3
-                )
-            reconstructed[reconstructed < 0] = 0.0
-
-        return NXdata(NXfield(reconstructed, name=data.nxsignal.nxname), (data.nxaxes[0], data.nxaxes[1]))
-
-    def _symmetrize_3d_average(
-        self,
-        data,
-        layer_axis=None,
-        lattice_angle=None,
-        n_fold=None,
-        mirror=None,
-        mirror_angle=None,
-        mirror_axis=None,
-        aspect=None,
-        tol=None,
-        positive_values=True,
-        parallel=False,
-        num_workers=None
-    ):
-        axis_idx = self._resolve_layer_axis(data, layer_axis if layer_axis is not None else self.layer_axis)
-        tol = tol if tol is not None else self.tol
-        lattice_angle = lattice_angle if lattice_angle is not None else self.lattice_angle
-        n_fold = n_fold if n_fold is not None else self.n_fold
-        mirror = mirror if mirror is not None else self.mirror
-        mirror_angle = mirror_angle if mirror_angle is not None else self.mirror_angle
-        mirror_axis = mirror_axis if mirror_axis is not None else self.mirror_axis
-        aspect = aspect if aspect is not None else self.aspect
-
-        layer_coords = np.asarray(data.nxaxes[axis_idx].nxdata, dtype=float)
-        n_layers = len(layer_coords)
-
-        processed = set()
-        pairs = []
-        for i in range(n_layers):
-            if i in processed:
-                continue
-            L_i = layer_coords[i]
-            if np.isclose(L_i, 0.0, atol=tol):
-                pairs.append((i, None))
-                processed.add(i)
-            else:
-                diffs = np.abs(layer_coords - (-L_i))
-                j = int(np.argmin(diffs))
-                if diffs[j] <= tol and j != i:
-                    pairs.append((i, j))
-                    processed.add(i)
-                    processed.add(j)
-                else:
-                    pairs.append((i, None))
-                    processed.add(i)
-
-        output_array = np.zeros(data.nxsignal.shape, dtype=float)
-
-        def process_pair(pair):
-            idx_i, idx_j = pair
-            slice_i = self._get_slice(data, axis_idx, idx_i)
-            avg_i, counts_i = self._symmetrize_2d_slice_average(
-                slice_i,
+            slice_j = _get_slice(data, axis_idx, idx_j)
+            avg_j, counts_j = _symmetrize_2d_slice_average(
+                slice_j,
                 lattice_angle=lattice_angle,
                 n_fold=n_fold,
                 mirror=mirror,
@@ -862,451 +689,357 @@ class Symmetrizer:
                 aspect=aspect,
                 positive_values=positive_values
             )
-            if idx_j is None:
-                return [(idx_i, avg_i)]
-            else:
-                slice_j = self._get_slice(data, axis_idx, idx_j)
-                avg_j, counts_j = self._symmetrize_2d_slice_average(
-                    slice_j,
-                    lattice_angle=lattice_angle,
-                    n_fold=n_fold,
-                    mirror=mirror,
-                    mirror_angle=mirror_angle,
-                    mirror_axis=mirror_axis,
-                    aspect=aspect,
-                    positive_values=positive_values
-                )
-                total_counts = counts_i + counts_j
-                combined = np.zeros_like(avg_i)
-                weighted_sum = avg_i * counts_i + avg_j * counts_j
-                np.divide(weighted_sum, total_counts, out=combined, where=(total_counts > 0))
-                if positive_values:
-                    combined[combined < 0] = 0.0
-                return [(idx_i, combined), (idx_j, combined)]
-
-        if parallel:
-            if num_workers is None:
-                num_workers = max(1, (os.cpu_count() or 1) - 1)
-            with ThreadPoolExecutor(max_workers=num_workers) as executor:
-                for pair_results in executor.map(process_pair, pairs):
-                    for idx_layer, layer_arr in pair_results:
-                        self._set_slice(output_array, axis_idx, idx_layer, layer_arr)
-        else:
-            for pair in pairs:
-                for idx_layer, layer_arr in process_pair(pair):
-                    self._set_slice(output_array, axis_idx, idx_layer, layer_arr)
-
-        if positive_values:
-            if np.any(output_array < 0):
-                warnings.warn(
-                    "Negative values found in symmetrized dataset and clipped to zero. "
-                    "Set positive_values=False to override.",
-                    UserWarning,
-                    stacklevel=3
-                )
-            output_array[output_array < 0] = 0.0
-
-        return array_to_nxdata(output_array, data)
-
-    def _symmetrize_3d_wedge(self, data, positive_values=True, **kwargs):
-        if not hasattr(self, 'plane1symmetrizer') or self.plane1symmetrizer is None:
-            self._init_planes(data)
-
-        if self.theta_max is not None and self.plane1symmetrizer.theta_max is None:
-            self.plane1symmetrizer.set_parameters(
-                theta_min=self.theta_min,
-                theta_max=self.theta_max,
-                lattice_angle=self.lattice_angle,
-                mirror=self.mirror,
-                mirror_axis=self.mirror_axis if self.mirror_axis is not None else 0
-            )
-
-        starttime = time.time()
-        q1, q2, q3 = data.nxaxes[0], data.nxaxes[1], data.nxaxes[2]
-        out_array = np.zeros(data.nxsignal.shape)
-
-        if self.plane1symmetrizer is not None and self.plane1symmetrizer.theta_max is not None:
-            print('Symmetrizing ' + self.plane1 + ' planes...')
-            for k, value in enumerate(q3):
-                print(f'Symmetrizing {q3.nxname}={value:.02f}...', end='\r')
-                data_symmetrized = self.plane1symmetrizer.symmetrize_2d(data[:, :, k], method='wedge')
-                out_array[:, :, k] = data_symmetrized[data.nxsignal.nxname].nxdata
-            print('\nSymmetrized ' + self.plane1 + ' planes.')
-
-        if self.plane2symmetrizer is not None and self.plane2symmetrizer.theta_max is not None:
-            print('Symmetrizing ' + self.plane2 + ' planes...')
-            for j, value in enumerate(q2):
-                print(f'Symmetrizing {q2.nxname}={value:.02f}...', end='\r')
-                data_symmetrized = self.plane2symmetrizer.symmetrize_2d(
-                    NXdata(NXfield(out_array[:, j, :], name=data.nxsignal.nxname), (q1, q3)),
-                    method='wedge'
-                )
-                out_array[:, j, :] = data_symmetrized[data.nxsignal.nxname].nxdata
-            print('\nSymmetrized ' + self.plane2 + ' planes.')
-
-        if self.plane3symmetrizer is not None and self.plane3symmetrizer.theta_max is not None:
-            print('Symmetrizing ' + self.plane3 + ' planes...')
-            for i, value in enumerate(q1):
-                print(f'Symmetrizing {q1.nxname}={value:.02f}...', end='\r')
-                data_symmetrized = self.plane3symmetrizer.symmetrize_2d(
-                    NXdata(NXfield(out_array[i, :, :], name=data.nxsignal.nxname), (q2, q3)),
-                    method='wedge'
-                )
-                out_array[i, :, :] = data_symmetrized[data.nxsignal.nxname].nxdata
-            print('\nSymmetrized ' + self.plane3 + ' planes.')
-
-        if positive_values:
-            if np.any(out_array < 0):
-                warnings.warn(
-                    "Negative values found in symmetrized dataset and clipped to zero. "
-                    "Set positive_values=False to override.",
-                    UserWarning,
-                    stacklevel=3
-                )
-            out_array[out_array < 0] = 0
-
-        stoptime = time.time()
-        print(f"\nSymmetrization finished in {((stoptime - starttime) / 60):.02f} minutes.")
-
-        return NXdata(NXfield(out_array, name=data.nxsignal.nxname),
-                      tuple(axis for axis in data.nxaxes))
-
-    def symmetrize(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, auto_expand=None, **kwargs):
-        """
-        Symmetrize the dataset.
-
-        Parameters
-        ----------
-        data : :class:`nexusformat.nexus.tree.NXdata`, optional
-            Dataset to symmetrize. If not provided, uses self.data.
-        method : {'average', 'wedge'}, optional
-            Symmetrization algorithm. Defaults to 'average'.
-        parallel : bool, optional
-            Whether to use multi-threaded parallelism for 3D layer processing.
-            Defaults to False.
-        num_workers : int, optional
-            Number of worker threads if parallel=True. Defaults to max(1, os.cpu_count() - 1),
-            leaving 1 core free for system and interactive responsiveness.
-        positive_values : bool, optional
-            If True, clips negative values to zero. Defaults to self.positive_values.
-        auto_expand : bool, optional
-            Whether to automatically extend coordinate bounds along transformed axes to prevent
-            data from being cut off. Defaults to self.auto_expand.
-        **kwargs : dict
-            Additional arguments passed to method-specific symmetrizers.
-
-        Returns
-        -------
-        :class:`nexusformat.nexus.tree.NXdata`
-            The symmetrized dataset.
-        """
-        if isinstance(data, str) and (method == 'average' or method is None):
-            method = data
-            data = None
-        if data is not None:
-            self.set_data(data)
-
-        if method is None:
-            method = 'average'
-
-        if self.data is None:
-            raise ValueError("No data provided to Symmetrizer.")
-
-        if positive_values is None:
-            positive_values = self.positive_values
-
-        auto_expand = self._resolve_auto_expand(auto_expand)
-
-        if self.data.ndim == 2:
-            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
-        elif self.data.ndim == 3:
-            return self.symmetrize_3d(self.data, method=method, parallel=parallel, num_workers=num_workers, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
-        else:
-            raise ValueError(f"Symmetrizer supports 2D or 3D datasets, got {self.data.ndim}D.")
-
-    def symmetrize_2d(self, data=None, method='average', positive_values=None, auto_expand=None, **kwargs):
-        """Symmetrize a 2D dataset."""
-        if data is None:
-            data = self.data
-        if data is None:
-            raise ValueError("No data provided to symmetrize_2d.")
-        if method is None:
-            method = 'average'
-        if positive_values is None:
-            positive_values = self.positive_values
-
-        auto_expand = self._resolve_auto_expand(auto_expand)
-        if auto_expand:
-            data = self._auto_expand(data)
-
-        if method == 'average':
-            res = self._symmetrize_2d_average(
-                data,
-                lattice_angle=self.lattice_angle,
-                n_fold=self.n_fold,
-                mirror=self.mirror,
-                mirror_angle=self.mirror_angle,
-                mirror_axis=self.mirror_axis,
-                aspect=self.aspect,
-                positive_values=positive_values
-            )
-            self.symmetrized = res
-            return res
-        elif method == 'wedge':
-            res = self._symmetrize_2d_wedge(data, positive_values=positive_values, **kwargs)
-            self.symmetrized = res
-            return res
-        else:
-            raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
-
-    def symmetrize_3d(self, data=None, method='average', parallel=False, num_workers=None, positive_values=None, auto_expand=None, **kwargs):
-        """Symmetrize a 3D dataset."""
-        if data is None:
-            data = self.data
-        if data is None:
-            raise ValueError("No data provided to symmetrize_3d.")
-        if method is None:
-            method = 'average'
-        if positive_values is None:
-            positive_values = self.positive_values
-
-        auto_expand = self._resolve_auto_expand(auto_expand)
-        if auto_expand:
-            data = self._auto_expand(data)
-
-        if method == 'average':
-            res = self._symmetrize_3d_average(
-                data=data,
-                layer_axis=self.layer_axis,
-                lattice_angle=self.lattice_angle,
-                n_fold=self.n_fold,
-                mirror=self.mirror,
-                mirror_angle=self.mirror_angle,
-                mirror_axis=self.mirror_axis,
-                aspect=self.aspect,
-                tol=self.tol,
-                positive_values=positive_values,
-                parallel=parallel,
-                num_workers=num_workers
-            )
-            self.symmetrized = res
-            return res
-        elif method == 'wedge':
-            res = self._symmetrize_3d_wedge(data, positive_values=positive_values, **kwargs)
-            self.symmetrized = res
-            return res
-        else:
-            raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
-
-    def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None, auto_expand=None, **kwargs):
-        """
-        Symmetrize a single slice at coordinate `coord` along `axis`.
-        """
-        if self.data is None:
-            raise ValueError("No data provided to Symmetrizer.")
-        if method is None:
-            method = 'average'
-        if positive_values is None:
-            positive_values = self.positive_values
-
-        auto_expand = self._resolve_auto_expand(auto_expand)
-
-        if self.data.ndim == 2:
-            return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
-
-        axis_idx = self._resolve_layer_axis(self.data, axis if axis is not None else self.layer_axis)
-        layer_coords = np.asarray(self.data.nxaxes[axis_idx].nxdata, dtype=float)
-        idx_i = int(np.argmin(np.abs(layer_coords - coord)))
-        actual_coord = layer_coords[idx_i]
-        if np.abs(actual_coord - coord) > self.tol:
-            warnings.warn(
-                f"Requested coord {coord} is not within tolerance ({self.tol}) of nearest grid value {actual_coord:.4f}. Using nearest.",
-                UserWarning,
-                stacklevel=2
-            )
-
-        if method == 'average':
-            slice_i = self._get_slice(self.data, axis_idx, idx_i)
-            if auto_expand:
-                slice_i = self._auto_expand(slice_i)
-            avg_i, counts_i = self._symmetrize_2d_slice_average(
-                slice_i,
-                lattice_angle=self.lattice_angle,
-                n_fold=self.n_fold,
-                mirror=self.mirror,
-                mirror_angle=self.mirror_angle,
-                mirror_axis=self.mirror_axis,
-                aspect=self.aspect,
-                positive_values=False
-            )
-            if not np.isclose(actual_coord, 0.0, atol=self.tol):
-                diffs = np.abs(layer_coords - (-actual_coord))
-                idx_j = int(np.argmin(diffs))
-                if diffs[idx_j] <= self.tol and idx_j != idx_i:
-                    slice_j = self._get_slice(self.data, axis_idx, idx_j)
-                    if auto_expand:
-                        slice_j = self._auto_expand(slice_j)
-                    avg_j, counts_j = self._symmetrize_2d_slice_average(
-                        slice_j,
-                        lattice_angle=self.lattice_angle,
-                        n_fold=self.n_fold,
-                        mirror=self.mirror,
-                        mirror_angle=self.mirror_angle,
-                        mirror_axis=self.mirror_axis,
-                        aspect=self.aspect,
-                        positive_values=False
-                    )
-                    total_counts = counts_i + counts_j
-                    combined = np.zeros_like(avg_i)
-                    weighted_sum = avg_i * counts_i + avg_j * counts_j
-                    np.divide(weighted_sum, total_counts, out=combined, where=(total_counts > 0))
-                    if positive_values:
-                        if np.any(combined < 0):
-                            warnings.warn(
-                                "Negative values found in symmetrized dataset and clipped to zero. "
-                                "Set positive_values=False to override.",
-                                UserWarning,
-                                stacklevel=2
-                            )
-                        combined[combined < 0] = 0.0
-                    return array_to_nxdata(combined, slice_i)
-
+            total_counts = counts_i + counts_j
+            combined = np.zeros_like(avg_i)
+            weighted_sum = avg_i * counts_i + avg_j * counts_j
+            np.divide(weighted_sum, total_counts, out=combined, where=(total_counts > 0))
             if positive_values:
-                if np.any(avg_i < 0):
-                    warnings.warn(
-                        "Negative values found in symmetrized dataset and clipped to zero. "
-                        "Set positive_values=False to override.",
-                        UserWarning,
-                        stacklevel=2
-                    )
-                avg_i[avg_i < 0] = 0.0
-            return array_to_nxdata(avg_i, slice_i)
-        elif method == 'wedge':
-            slice_i = self._get_slice(self.data, axis_idx, idx_i)
-            return self.symmetrize_2d(slice_i, method='wedge', positive_values=positive_values, auto_expand=auto_expand, **kwargs)
-        else:
-            raise ValueError(f"Unknown symmetrization method '{method}'.")
+                combined[combined < 0] = 0.0
+            return [(idx_i, combined), (idx_j, combined)]
 
-    def test(self, data=None, method=None, slice_coord=None, auto_expand=None, **kwargs):
-        """
-        Visualizes the symmetrization process for testing and parameter tuning.
-        """
-        if data is None:
-            data = self.data
-        if data is None:
-            raise ValueError("No data provided to test().")
+    if parallel:
+        if num_workers is None:
+            num_workers = max(1, (os.cpu_count() or 1) - 1)
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            for pair_results in executor.map(process_pair, pairs):
+                for idx_layer, layer_arr in pair_results:
+                    _set_slice(output_array, axis_idx, idx_layer, layer_arr)
+    else:
+        for pair in pairs:
+            for idx_layer, layer_arr in process_pair(pair):
+                _set_slice(output_array, axis_idx, idx_layer, layer_arr)
 
-        auto_expand = self._resolve_auto_expand(auto_expand)
+    if positive_values:
+        if np.any(output_array < 0):
+            warnings.warn(
+                "Negative values found in symmetrized dataset and clipped to zero. "
+                "Set positive_values=False to override.",
+                UserWarning,
+                stacklevel=3
+            )
+        output_array[output_array < 0] = 0.0
 
-        if method is None:
-            if self.theta_min is not None or self.theta_max is not None:
-                method = 'wedge'
-            else:
-                method = 'average'
-
-        if data.ndim == 2:
-            if method == 'wedge':
-                symm_test = self.symmetrize_2d(data, method='wedge', auto_expand=auto_expand)
-                fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
-                axes = axesarr.reshape(-1)
-                skew = self.skew_angle if self.skew_angle is not None else self.lattice_angle
-                plot_slice(data, skew_angle=skew, ax=axes[0], title='data', **kwargs)
-                filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ('vmin', 'vmax')}
-                plot_slice(self.symmetrization_mask, skew_angle=skew, ax=axes[1], title='mask', **filtered_kwargs)
-                plot_slice(self.wedge, skew_angle=skew, ax=axes[2], title='wedge', **kwargs)
-                plot_slice(symm_test, skew_angle=skew, ax=axes[3], title='symmetrized', **kwargs)
-                plt.subplots_adjust(wspace=0.4)
-                plt.show()
-                return fig, axesarr
-            else:
-                symm_test = self.symmetrize_2d(data, method='average', auto_expand=auto_expand)
-                fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
-                plot_slice(data, skew_angle=self.lattice_angle, ax=axesarr[0], title='Original Data', **kwargs)
-                plot_slice(symm_test, skew_angle=self.lattice_angle, ax=axesarr[1], title='Symmetrized (Average)', **kwargs)
-                plt.subplots_adjust(wspace=0.3)
-                plt.show()
-                return fig, axesarr
-        elif data.ndim == 3:
-            axis_idx = self._resolve_layer_axis(data, self.layer_axis)
-            coords = np.asarray(data.nxaxes[axis_idx].nxdata, dtype=float)
-            if slice_coord is None:
-                slice_coord = float(coords[len(coords) // 2])
-            orig_slice = self._get_slice(data, axis_idx, int(np.argmin(np.abs(coords - slice_coord))))
-            symm_slice = self.symmetrize_slice(slice_coord, axis=axis_idx, method=method, auto_expand=auto_expand)
-            fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
-            plot_slice(orig_slice, skew_angle=self.lattice_angle, ax=axesarr[0], title=f'Original Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)
-            plot_slice(symm_slice, skew_angle=self.lattice_angle, ax=axesarr[1], title=f'Symmetrized Slice ({data.nxaxes[axis_idx].nxname}={slice_coord:.2f})', **kwargs)
-            plt.subplots_adjust(wspace=0.3)
-            plt.show()
-            return fig, axesarr
-
-    def save(self, fout_name=None):
-        """
-        Save the symmetrized dataset to a NeXus file.
-
-        Parameters
-        ----------
-        fout_name : str, optional
-            The output filename. Defaults to 'symmetrized.nxs'.
-        """
-        if self.symmetrized is None:
-            raise ValueError("No symmetrized data to save. Run symmetrize() first.")
-        if fout_name is None:
-            fout_name = 'symmetrized.nxs'
-        f = NXroot()
-        f['entry'] = NXentry()
-        f['entry']['data'] = self.symmetrized
-        nxsave(fout_name, f)
-        print("Output file saved to: " + os.path.join(os.getcwd(), fout_name))
+    return array_to_nxdata(output_array, data)
 
 
-def symmetrizer(
+def _symmetrize_3d_wedge(
+    data,
+    layer_axis=2,
+    theta_min=None,
+    theta_max=None,
+    lattice_angle=90.0,
+    n_fold=None,
+    mirror=True,
+    mirror_axis=None,
+    rotations=None,
+    positive_values=True,
+):
+    axis_idx = _resolve_layer_axis(data, layer_axis)
+    plane_axes = [i for i in range(3) if i != axis_idx]
+    plane_name = data.nxaxes[plane_axes[0]].nxname + data.nxaxes[plane_axes[1]].nxname
+    layer_ax = data.nxaxes[axis_idx]
+
+    starttime = time.time()
+    out_array = np.zeros(data.nxsignal.shape, dtype=float)
+
+    print(f'Symmetrizing {plane_name} planes...')
+    for idx, value in enumerate(layer_ax):
+        print(f'Symmetrizing {layer_ax.nxname}={float(value):.02f}...', end='\r')
+        slice_2d = _get_slice(data, axis_idx, idx)
+        data_symmetrized = _symmetrize_2d_wedge(
+            slice_2d,
+            theta_min=theta_min,
+            theta_max=theta_max,
+            lattice_angle=lattice_angle,
+            n_fold=n_fold,
+            mirror=mirror,
+            mirror_axis=mirror_axis,
+            rotations=rotations,
+            positive_values=False,
+        )
+        _set_slice(out_array, axis_idx, idx, data_symmetrized[data.nxsignal.nxname].nxdata)
+    print(f'\nSymmetrized {plane_name} planes.')
+
+    if positive_values:
+        if np.any(out_array < 0):
+            warnings.warn(
+                "Negative values found in symmetrized dataset and clipped to zero. "
+                "Set positive_values=False to override.",
+                UserWarning,
+                stacklevel=3
+            )
+        out_array[out_array < 0] = 0.0
+
+    stoptime = time.time()
+    print(f"\nSymmetrization finished in {((stoptime - starttime) / 60):.02f} minutes.")
+
+    return array_to_nxdata(out_array, data)
+
+
+def symmetrize(
     data,
     symmetry=None,
-    method='average',
-    auto_expand=False,
+    method=None,
+    lattice_angle=None,
+    n_fold=None,
+    layer_axis=None,
+    mirror=None,
+    mirror_axis=None,
+    mirror_angle=None,
+    theta_min=None,
+    theta_max=None,
+    tol=0.01,
+    aspect=1.0,
+    positive_values=True,
+    auto_expand=True,
     parallel=False,
     num_workers=None,
-    positive_values=None,
+    test=False,
+    slice_coord=None,
     **kwargs
 ):
     """
-    Symmetrize a 2D or 3D dataset.
+    Symmetrize a 2D or 3D reciprocal space dataset.
+
+    Supports two symmetrization methods:
+    - ``'average'``: Averages over all n-fold rotational and mirror symmetry equivalents,
+      pairing +L and -L layers in 3D weighted by valid pixel counts. Uses single-pass
+      affine transformations to avoid destructive rebinning.
+    - ``'wedge'``: Extracts an angular wedge ``(theta_min, theta_max)`` and reconstructs
+      the dataset via rotation and mirroring.
 
     Parameters
     ----------
-    data : :class:`nexusformat.nexus.tree.NXdata` or numpy.ndarray
-        Dataset to symmetrize.
-    symmetry : str, optional
-        Crystallographic symmetry preset ('hexagonal', 'tetragonal', 'trigonal', 'orthorhombic').
+    data : :class:`nexusformat.nexus.tree.NXdata` or :class:`numpy.ndarray`
+        The 2D or 3D dataset to symmetrize.
+    symmetry : {'hexagonal', 'tetragonal', 'trigonal', 'orthorhombic'}, optional
+        Crystallographic symmetry preset. Default is None.
     method : {'average', 'wedge'}, optional
-        Symmetrization algorithm. Defaults to 'average'.
+        Symmetrization algorithm. Defaults to ``'wedge'`` when ``theta_min`` or ``theta_max``
+        is specified, otherwise ``'average'``.
+    lattice_angle : float, optional
+        Angle between the two in-plane principal lattice axes in degrees (gamma).
+        Defaults to 90.0, or the preset default if ``symmetry`` is specified.
+    n_fold : int, optional
+        Rotational symmetry fold (e.g., 6, 4, 3, 2).
+    layer_axis : int or str, optional
+        The stacking/layer axis for 3D datasets (e.g., ``2``, ``'L'``, ``'Ql'``, ``0``, ``'H'``).
+        Defaults to ``2`` for 3D data.
+    mirror : bool, optional
+        Whether to include mirror reflection symmetry. Defaults to True.
+    mirror_axis : int or str, optional
+        Discrete mirror axis (``0``, ``1``, or ``'diagonal'``).
+    mirror_angle : float, optional
+        Cartesian reflection angle in degrees.
+    theta_min : float, optional
+        Minimum angle in degrees for wedge symmetrization.
+    theta_max : float, optional
+        Maximum angle in degrees for wedge symmetrization.
+    tol : float, optional
+        Coordinate tolerance for pairing +L and -L layers in 3D data. Defaults to 0.01.
+    aspect : float, optional
+        Aspect ratio ``|b*| / |a*|`` of in-plane basis vectors. Defaults to 1.0.
+    positive_values : bool, optional
+        If True, clips negative values to zero and issues a warning. Defaults to True.
     auto_expand : bool, optional
-        Whether to automatically extend the dataset coordinate bounds along transformed axes
-        so that rotated or mirrored data is not cut off. Defaults to False.
+        Whether to automatically extend coordinate bounds along transformed axes so that
+        rotated or mirrored non-empty data is not cut off. Never truncates existing bounds.
+        Defaults to True.
     parallel : bool, optional
         Whether to use multi-threaded parallelism for 3D layer processing. Defaults to False.
     num_workers : int, optional
-        Number of worker threads if parallel=True.
-    positive_values : bool, optional
-        If True, clips negative values to zero. Defaults to True.
+        Number of worker threads when ``parallel=True``. Defaults to ``max(1, os.cpu_count() - 1)``.
+    test : bool, optional
+        If True, displays a diagnostic visualization of the symmetrization process
+        (for 3D data, previews a single 2D cross-section at ``slice_coord``). Defaults to False.
+    slice_coord : float, optional
+        Coordinate along ``layer_axis`` to preview when ``test=True`` on a 3D dataset.
+        Defaults to ``0.0`` (or the nearest grid value).
     **kwargs : dict
-        Additional parameters passed to :class:`Symmetrizer` and :meth:`Symmetrizer.symmetrize`.
+        Additional keyword arguments forwarded to :func:`plot_slice` when ``test=True``.
 
     Returns
     -------
-    :class:`nexusformat.nexus.tree.NXdata` or numpy.ndarray
-        The symmetrized dataset.
+    :class:`nexusformat.nexus.tree.NXdata` or :class:`numpy.ndarray`
+        The symmetrized dataset (or the symmetrized 2D cross-section when ``test=True`` on 3D data).
     """
-    sym = Symmetrizer(data, symmetry=symmetry, auto_expand=auto_expand, **kwargs)
-    return sym.symmetrize(
-        method=method,
-        parallel=parallel,
-        num_workers=num_workers,
-        positive_values=positive_values,
-        auto_expand=auto_expand,
-        **kwargs
+    if data is None:
+        raise ValueError("No data provided to symmetrize().")
+
+    if method is None:
+        if theta_min is not None or theta_max is not None:
+            method = 'wedge'
+        else:
+            method = 'average'
+
+    (
+        resolved_lattice_angle,
+        resolved_n_fold,
+        resolved_mirror,
+        resolved_mirror_axis,
+        resolved_mirror_angle,
+        rotations,
+    ) = _resolve_symmetry_params(
+        symmetry=symmetry,
+        lattice_angle=lattice_angle,
+        n_fold=n_fold,
+        mirror=mirror,
+        mirror_axis=mirror_axis,
+        mirror_angle=mirror_angle,
+        theta_min=theta_min,
+        theta_max=theta_max,
     )
+
+    fold_for_bounds = resolved_n_fold if resolved_n_fold is not None else (rotations if rotations is not None else 1)
+
+    if data.ndim == 2:
+        working_data = (
+            _auto_expand(
+                data,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=fold_for_bounds,
+                mirror=resolved_mirror,
+                mirror_angle=resolved_mirror_angle,
+                mirror_axis=resolved_mirror_axis,
+                aspect=aspect,
+            )
+            if auto_expand
+            else data
+        )
+
+        if method == 'average':
+            res = _symmetrize_2d_average(
+                working_data,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=resolved_n_fold,
+                mirror=resolved_mirror,
+                mirror_angle=resolved_mirror_angle,
+                mirror_axis=resolved_mirror_axis,
+                aspect=aspect,
+                positive_values=positive_values,
+            )
+            if test:
+                fig, axesarr = plt.subplots(1, 2, figsize=(10, 4.5))
+                plot_slice(data, skew_angle=resolved_lattice_angle, ax=axesarr[0], title='Original Data', **kwargs)
+                plot_slice(res, skew_angle=resolved_lattice_angle, ax=axesarr[1], title='Symmetrized (Average)', **kwargs)
+                plt.subplots_adjust(wspace=0.3)
+                plt.show()
+            return res
+
+        elif method == 'wedge':
+            if test:
+                res, sym_mask, wedge_data = _symmetrize_2d_wedge(
+                    working_data,
+                    theta_min=theta_min,
+                    theta_max=theta_max,
+                    lattice_angle=resolved_lattice_angle,
+                    n_fold=resolved_n_fold,
+                    mirror=resolved_mirror,
+                    mirror_axis=resolved_mirror_axis,
+                    rotations=rotations,
+                    positive_values=positive_values,
+                    return_diagnostics=True,
+                )
+                fig, axesarr = plt.subplots(2, 2, figsize=(10, 8))
+                axes = axesarr.reshape(-1)
+                plot_slice(working_data, skew_angle=resolved_lattice_angle, ax=axes[0], title='data', **kwargs)
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ('vmin', 'vmax')}
+                plot_slice(sym_mask, skew_angle=resolved_lattice_angle, ax=axes[1], title='mask', **filtered_kwargs)
+                plot_slice(wedge_data, skew_angle=resolved_lattice_angle, ax=axes[2], title='wedge', **kwargs)
+                plot_slice(res, skew_angle=resolved_lattice_angle, ax=axes[3], title='symmetrized', **kwargs)
+                plt.subplots_adjust(wspace=0.4)
+                plt.show()
+                return res
+            else:
+                return _symmetrize_2d_wedge(
+                    working_data,
+                    theta_min=theta_min,
+                    theta_max=theta_max,
+                    lattice_angle=resolved_lattice_angle,
+                    n_fold=resolved_n_fold,
+                    mirror=resolved_mirror,
+                    mirror_axis=resolved_mirror_axis,
+                    rotations=rotations,
+                    positive_values=positive_values,
+                    return_diagnostics=False,
+                )
+        else:
+            raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
+
+    elif data.ndim == 3:
+        axis_idx = _resolve_layer_axis(data, layer_axis)
+
+        if test:
+            coords = np.asarray(data.nxaxes[axis_idx].nxdata, dtype=float)
+            if slice_coord is None:
+                slice_coord = 0.0 if (coords.min() <= 0.0 <= coords.max()) else float(coords[len(coords) // 2])
+            idx_i = int(np.argmin(np.abs(coords - slice_coord)))
+            orig_slice = _get_slice(data, axis_idx, idx_i)
+            return symmetrize(
+                orig_slice,
+                symmetry=symmetry,
+                method=method,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=resolved_n_fold,
+                mirror=resolved_mirror,
+                mirror_axis=resolved_mirror_axis,
+                mirror_angle=resolved_mirror_angle,
+                theta_min=theta_min,
+                theta_max=theta_max,
+                aspect=aspect,
+                positive_values=positive_values,
+                auto_expand=auto_expand,
+                test=True,
+                **kwargs,
+            )
+
+        working_data = (
+            _auto_expand(
+                data,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=fold_for_bounds,
+                mirror=resolved_mirror,
+                mirror_angle=resolved_mirror_angle,
+                mirror_axis=resolved_mirror_axis,
+                aspect=aspect,
+                layer_axis=axis_idx,
+            )
+            if auto_expand
+            else data
+        )
+
+        if method == 'average':
+            return _symmetrize_3d_average(
+                data=working_data,
+                layer_axis=axis_idx,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=resolved_n_fold,
+                mirror=resolved_mirror,
+                mirror_angle=resolved_mirror_angle,
+                mirror_axis=resolved_mirror_axis,
+                aspect=aspect,
+                tol=tol,
+                positive_values=positive_values,
+                parallel=parallel,
+                num_workers=num_workers,
+            )
+        elif method == 'wedge':
+            return _symmetrize_3d_wedge(
+                data=working_data,
+                layer_axis=axis_idx,
+                theta_min=theta_min,
+                theta_max=theta_max,
+                lattice_angle=resolved_lattice_angle,
+                n_fold=resolved_n_fold,
+                mirror=resolved_mirror,
+                mirror_axis=resolved_mirror_axis,
+                rotations=rotations,
+                positive_values=positive_values,
+            )
+        else:
+            raise ValueError(f"Unknown symmetrization method '{method}'. Choose 'average' or 'wedge'.")
+    else:
+        raise ValueError(f"symmetrize() supports 2D or 3D datasets, got {data.ndim}D.")
 
 
 def _identify_axis_name(ax, default_name):

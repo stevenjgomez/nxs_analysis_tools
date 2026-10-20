@@ -2,50 +2,12 @@ from .lineartransformations import mirror_plane_affine, rotate_plane_affine
 from _typeshed import Incomplete
 from astropy.convolution import Kernel
 
-__all__ = ['Symmetrizer', 'symmetrizer', 'Puncher', 'Interpolator', 'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF', 'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine']
+__all__ = ['symmetrize', 'Puncher', 'Interpolator', 'fourier_transform_nxdata', 'Gaussian3DKernel', 'DeltaPDF', 'generate_gaussian', '_rotate_plane_affine', '_mirror_plane_affine']
 
 _rotate_plane_affine = rotate_plane_affine
 _mirror_plane_affine = mirror_plane_affine
 
-class Symmetrizer:
-    data: Incomplete
-    symmetry: Incomplete
-    symmetrized: Incomplete
-    symmetrization_mask: Incomplete
-    wedge: Incomplete
-    plane1symmetrizer: Incomplete
-    plane2symmetrizer: Incomplete
-    plane3symmetrizer: Incomplete
-    transform: Incomplete
-    transformer: Incomplete
-    rotations: Incomplete
-    auto_expand: Incomplete
-    layer_axis: int
-    def __init__(self, data=None, symmetry=None, lattice_angle=None, n_fold=None, layer_axis=None, mirror=None, mirror_axis=None, mirror_angle=None, tol: float = 0.01, theta_min=None, theta_max=None, positive_values: bool = True, aspect: float = 1.0, auto_expand: bool = False, **kwargs) -> None: ...
-    lattice_angle: float
-    n_fold: int
-    mirror: bool
-    mirror_angle: float
-    mirror_axis: Incomplete
-    skew_angle: Incomplete
-    theta_min: Incomplete
-    theta_max: Incomplete
-    tol: Incomplete
-    aspect: Incomplete
-    positive_values: Incomplete
-    def set_parameters(self, theta_min=None, theta_max=None, lattice_angle=None, mirror=None, mirror_axis=None, mirror_angle=None, n_fold=None, symmetry=None, tol=None, layer_axis=None, aspect=None, positive_values=None, auto_expand=None, **kwargs) -> None: ...
-    def set_data(self, data) -> None: ...
-    lattice_params: Incomplete
-    reciprocal_lattice_params: Incomplete
-    def set_lattice_params(self, lattice_params) -> None: ...
-    def symmetrize(self, data=None, method: str = 'average', parallel: bool = False, num_workers=None, positive_values=None, auto_expand=None, **kwargs): ...
-    def symmetrize_2d(self, data=None, method: str = 'average', positive_values=None, auto_expand=None, **kwargs): ...
-    def symmetrize_3d(self, data=None, method: str = 'average', parallel: bool = False, num_workers=None, positive_values=None, auto_expand=None, **kwargs): ...
-    def symmetrize_slice(self, coord, axis=None, method=None, positive_values=None, auto_expand=None, **kwargs): ...
-    def test(self, data=None, method=None, slice_coord=None, auto_expand=None, **kwargs): ...
-    def save(self, fout_name=None) -> None: ...
-
-def symmetrizer(data, symmetry=None, method: str = 'average', auto_expand: bool = False, parallel: bool = False, num_workers=None, positive_values=None, **kwargs): ...
+def symmetrize(data, symmetry=None, method=None, lattice_angle=None, n_fold=None, layer_axis=None, mirror=None, mirror_axis=None, mirror_angle=None, theta_min=None, theta_max=None, tol: float = 0.01, aspect: float = 1.0, positive_values: bool = True, auto_expand: bool = True, parallel: bool = False, num_workers=None, test: bool = False, slice_coord=None, **kwargs): ...
 def generate_gaussian(H, K=None, L=None, amp: float = 1.0, stddev: float = 1.0, lattice_params=None, coeffs=None, center=None, return_nxdata: bool = False): ...
 
 class Puncher:
