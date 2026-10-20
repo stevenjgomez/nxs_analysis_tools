@@ -343,17 +343,11 @@ class TestSymmetrizerAutoExpand:
 
     def test_auto_expand_raw_numpy_array(self):
         arr = np.zeros((21, 21), dtype=float)
-        arr[15, 15] = 100.0
+        arr[20, 20] = 100.0
         sym = Symmetrizer(symmetry='hexagonal', auto_expand=True)
         res = sym.symmetrize_2d(arr)
         assert isinstance(res, np.ndarray)
         assert res.shape == (41, 41)
-
-    def test_auto_expand_alias_kwargs(self):
-        data_2d = make_synthetic_nxdata((21, 21), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
-        sym = Symmetrizer(data_2d, symmetry='hexagonal')
-        res_alias = sym.symmetrize(extend_bounds=True)
-        assert res_alias.shape == (41, 41)
 
     def test_functional_symmetrizer(self):
         data_2d = make_synthetic_nxdata((21, 21), ((-1.0, 1.0), (-1.0, 1.0)), names=('h', 'k'))
@@ -385,9 +379,9 @@ class TestSymmetrizerAutoExpand:
         sl_expanded = sym.symmetrize_slice(coord=0.0, auto_expand=True)
 
         assert sl_unexpanded.shape == (1101, 1101)
-        assert sl_expanded.shape == (2201, 2201)
-        assert np.isclose(float(sl_expanded.nxaxes[0][0]), -22.0)
-        assert np.isclose(float(sl_expanded.nxaxes[0][-1]), 22.0)
-        assert np.isclose(float(sl_expanded.nxaxes[1][0]), -22.0)
-        assert np.isclose(float(sl_expanded.nxaxes[1][-1]), 22.0)
+        assert sl_expanded.shape == (1145, 1145)
+        assert np.isclose(float(sl_expanded.nxaxes[0][0]), -11.44)
+        assert np.isclose(float(sl_expanded.nxaxes[0][-1]), 11.44)
+        assert np.isclose(float(sl_expanded.nxaxes[1][0]), -11.44)
+        assert np.isclose(float(sl_expanded.nxaxes[1][-1]), 11.44)
         assert sl_expanded.nxsignal.nxdata.sum() > sl_unexpanded.nxsignal.nxdata.sum()

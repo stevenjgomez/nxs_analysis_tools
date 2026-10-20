@@ -7,6 +7,7 @@ import gc
 import math
 import warnings
 from scipy.ndimage import rotate, affine_transform, binary_dilation
+from scipy.spatial import ConvexHull
 import scipy
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Affine2D
@@ -236,10 +237,6 @@ class Symmetrizer:
         elif not hasattr(self, 'positive_values'):
             self.positive_values = True
 
-        if auto_expand is None:
-            auto_expand = kwargs.pop('extend_bounds', None)
-        if auto_expand is None:
-            auto_expand = kwargs.pop('auto_expand_bounds', None)
         if auto_expand is not None:
             self.auto_expand = bool(auto_expand)
         elif not hasattr(self, 'auto_expand'):
@@ -326,18 +323,15 @@ class Symmetrizer:
         idx[axis_idx] = i
         arr[tuple(idx)] = val
 
-    def _resolve_auto_expand(self, auto_expand, kwargs):
-        """Resolves auto_expand flag from argument, kwargs aliases, or instance setting."""
-        if auto_expand is None:
-            auto_expand = kwargs.pop('extend_bounds', None)
-        if auto_expand is None:
-            auto_expand = kwargs.pop('auto_expand_bounds', None)
+    def _resolve_auto_expand(self, auto_expand):
+        """Resolves auto_expand flag from argument or instance setting."""
         if auto_expand is None:
             auto_expand = getattr(self, 'auto_expand', False)
         return bool(auto_expand)
 
     def _compute_transformed_bounds_2d(
         self,
+        arr_2d,
         q1,
         q2,
         dq1,
@@ -350,7 +344,8 @@ class Symmetrizer:
         aspect=None,
     ):
         """
-        Compute pad widths along both in-plane axes to contain all transformed symmetry equivalents.
+        Compute pad widths along both in-plane axes to contain all transformed symmetry equivalents
+        of non-empty data points.
         """
         gamma = np.radians(lattice_angle if lattice_angle is not None else 90.0)
         asp = aspect if aspect is not None else 1.0
@@ -360,13 +355,6 @@ class Symmetrizer:
             [0.0, asp * np.sin(gamma)]
         ], dtype=float)
         B_phys_inv = np.linalg.inv(B_phys)
-
-        corners = [
-            np.array([q1[0], q2[0]]),
-            np.array([q1[0], q2[-1]]),
-            np.array([q1[-1], q2[0]]),
-            np.array([q1[-1], q2[-1]]),
-        ]
 
         fold = n_fold if n_fold is not None else (self.rotations if self.rotations is not None else 1)
         angle_step = 360.0 / fold if fold > 1 else 360.0
@@ -404,16 +392,36 @@ class Symmetrizer:
                 for R in rot_matrices:
                     all_ops_phys.append(B_phys_inv @ (R @ Ref) @ B_phys)
 
-        transformed_corners = []
-        for c in corners:
-            for op in all_ops_phys:
-                transformed_corners.append(op @ c)
+        non_empty = (arr_2d != 0) & (~np.isnan(arr_2d))
+        if not np.any(non_empty):
+            return (0, 0), (0, 0)
 
-        transformed_corners = np.array(transformed_corners)
-        min_q1 = float(min(q1.min(), transformed_corners[:, 0].min()))
-        max_q1 = float(max(q1.max(), transformed_corners[:, 0].max()))
-        min_q2 = float(min(q2.min(), transformed_corners[:, 1].min()))
-        max_q2 = float(max(q2.max(), transformed_corners[:, 1].max()))
+        if np.all(non_empty):
+            pts = np.array([
+                [q1[0], q2[0]],
+                [q1[0], q2[-1]],
+                [q1[-1], q2[0]],
+                [q1[-1], q2[-1]],
+            ], dtype=float)
+        else:
+            idx1, idx2 = np.where(non_empty)
+            pts = np.column_stack([q1[idx1], q2[idx2]])
+            if len(pts) >= 3:
+                try:
+                    hull = ConvexHull(pts)
+                    pts = pts[hull.vertices]
+                except Exception:
+                    pass
+
+        transformed_pts = []
+        for op in all_ops_phys:
+            transformed_pts.append(pts @ op.T)
+        transformed_pts = np.vstack(transformed_pts)
+
+        min_q1 = float(min(q1.min(), transformed_pts[:, 0].min()))
+        max_q1 = float(max(q1.max(), transformed_pts[:, 0].max()))
+        min_q2 = float(min(q2.min(), transformed_pts[:, 1].min()))
+        max_q2 = float(max(q2.max(), transformed_pts[:, 1].max()))
 
         if dq1 >= 0:
             pad1_left = int(np.ceil(np.round((q1[0] - min_q1) / dq1, 6))) if min_q1 < q1[0] else 0
@@ -433,7 +441,8 @@ class Symmetrizer:
 
     def _auto_expand(self, dataset):
         """
-        Pad dataset so that its coordinate bounds encompass all symmetry-transformed equivalents.
+        Pad dataset so that its coordinate bounds encompass all symmetry-transformed equivalents
+        of non-empty data points.
         """
         if dataset is None:
             return None
@@ -448,6 +457,7 @@ class Symmetrizer:
             q2 = np.arange(arr.shape[1], dtype=float) - c[1]
             dq1, dq2 = 1.0, 1.0
             pad1, pad2 = self._compute_transformed_bounds_2d(
+                arr,
                 q1, q2, dq1, dq2,
                 lattice_angle=self.lattice_angle,
                 n_fold=self.n_fold or self.rotations,
@@ -464,10 +474,14 @@ class Symmetrizer:
         if dataset.ndim == 2:
             ax1_idx, ax2_idx = 0, 1
             layer_idx = None
+            arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
+            in_plane_arr = arr
         elif dataset.ndim == 3:
             layer_idx = self._resolve_layer_axis(dataset, self.layer_axis)
             plane_axes = [i for i in range(3) if i != layer_idx]
             ax1_idx, ax2_idx = plane_axes[0], plane_axes[1]
+            arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
+            in_plane_arr = ((arr != 0) & (~np.isnan(arr))).any(axis=layer_idx)
         else:
             return dataset
 
@@ -477,6 +491,7 @@ class Symmetrizer:
         dq2 = float((q2[-1] - q2[0]) / (len(q2) - 1)) if len(q2) > 1 else 1.0
 
         pad1, pad2 = self._compute_transformed_bounds_2d(
+            in_plane_arr,
             q1, q2, dq1, dq2,
             lattice_angle=self.lattice_angle,
             n_fold=self.n_fold or self.rotations,
@@ -493,8 +508,15 @@ class Symmetrizer:
         if layer_idx is not None:
             q_layer = np.asarray(dataset.nxaxes[layer_idx].nxdata, dtype=float)
             dq_layer = float((q_layer[-1] - q_layer[0]) / (len(q_layer) - 1)) if len(q_layer) > 1 else 1.0
-            min_L = min(q_layer.min(), -q_layer.max())
-            max_L = max(q_layer.max(), -q_layer.min())
+            layer_has_data = np.where(((arr != 0) & (~np.isnan(arr))).any(axis=(ax1_idx, ax2_idx)))[0]
+            if len(layer_has_data) > 0:
+                active_L = q_layer[layer_has_data]
+                min_L = min(q_layer.min(), -active_L.max())
+                max_L = max(q_layer.max(), -active_L.min())
+            else:
+                min_L = q_layer.min()
+                max_L = q_layer.max()
+
             if dq_layer >= 0:
                 pad_L_left = int(np.ceil(np.round((q_layer[0] - min_L) / dq_layer, 6))) if min_L < q_layer[0] else 0
                 pad_L_right = int(np.ceil(np.round((max_L - q_layer[-1]) / dq_layer, 6))) if max_L > q_layer[-1] else 0
@@ -506,7 +528,6 @@ class Symmetrizer:
         if all(pw == (0, 0) for pw in pad_widths):
             return dataset
 
-        arr = np.asarray(dataset.nxsignal.nxdata, dtype=float)
         arr_padded = np.pad(arr, pad_widths, mode='constant', constant_values=0.0)
 
         new_axes = []
@@ -994,7 +1015,7 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
-        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        auto_expand = self._resolve_auto_expand(auto_expand)
 
         if self.data.ndim == 2:
             return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
@@ -1014,7 +1035,7 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
-        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        auto_expand = self._resolve_auto_expand(auto_expand)
         if auto_expand:
             data = self._auto_expand(data)
 
@@ -1049,7 +1070,7 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
-        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        auto_expand = self._resolve_auto_expand(auto_expand)
         if auto_expand:
             data = self._auto_expand(data)
 
@@ -1088,7 +1109,7 @@ class Symmetrizer:
         if positive_values is None:
             positive_values = self.positive_values
 
-        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        auto_expand = self._resolve_auto_expand(auto_expand)
 
         if self.data.ndim == 2:
             return self.symmetrize_2d(self.data, method=method, positive_values=positive_values, auto_expand=auto_expand, **kwargs)
@@ -1175,7 +1196,7 @@ class Symmetrizer:
         if data is None:
             raise ValueError("No data provided to test().")
 
-        auto_expand = self._resolve_auto_expand(auto_expand, kwargs)
+        auto_expand = self._resolve_auto_expand(auto_expand)
 
         if method is None:
             if self.theta_min is not None or self.theta_max is not None:
