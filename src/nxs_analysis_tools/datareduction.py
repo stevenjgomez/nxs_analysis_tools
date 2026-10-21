@@ -623,6 +623,8 @@ def plot_slice(data, X=None, Y=None, sum_axis=None, transpose=False, vmin=None, 
         colorbar = fig.colorbar(p)
         if cbartitle is None:
             colorbar.set_label(data.nxsignal.nxname)
+        else:
+            colorbar.set_label(cbartitle)
 
     ax.set(
         xlabel=X.nxname,
