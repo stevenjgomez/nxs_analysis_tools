@@ -100,8 +100,18 @@ def test_xlim_ylim_and_ticks(sample_2d_array):
 def test_colorbar_label(sample_nxdata):
     fig, ax = plt.subplots()
     p = plot_slice(sample_nxdata, ax=ax, cbar=True, cbartitle="MyColorBar")
-    # No assertion possible unless you retrieve the colorbar itself, which is tricky
     assert isinstance(p, QuadMesh)
+    assert p.colorbar is not None
+    assert p.colorbar.ax.get_ylabel() == "MyColorBar"
+    plt.close(fig)
+
+def test_colorbar_label_default(sample_nxdata):
+    fig, ax = plt.subplots()
+    p = plot_slice(sample_nxdata, ax=ax, cbar=True)
+    assert isinstance(p, QuadMesh)
+    assert p.colorbar is not None
+    assert p.colorbar.ax.get_ylabel() == sample_nxdata.nxsignal.nxname
+    plt.close(fig)
 
 def test_mdheading_rendering(sample_2d_array):
     # Should not raise error with heading
